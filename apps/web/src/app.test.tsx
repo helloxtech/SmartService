@@ -12,7 +12,7 @@ import { App } from "./app";
 
 describe("App", () =>
 {
-    it("renders the Day 1 sign-in shell without configured provider values", async () =>
+    it("renders the sign-in shell without configured provider values", async () =>
     {
         render(<App />);
 

@@ -2,9 +2,9 @@
 
 **Last updated:** July 26, 2026
 **Current gate:** P0 implementation after G0 approval
-**Current phase:** Day 1 complete — Foundation and tenant isolation
-**Active step:** Create the Day 1 checkpoint, then begin Day 2 knowledge ingestion
-**Overall state:** Day 1 green; local and mocked P0 implementation may continue
+**Current phase:** Day 2 complete — Knowledge ingestion
+**Active step:** Publish the Day 2 checkpoint, then begin Day 3 grounded bilingual chat and citations
+**Overall state:** Days 1–2 green locally; hosted-provider evidence remains required before G1
 
 ## Original goal
 
@@ -21,7 +21,7 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Scope | State | Acceptance |
 |---|---|---|
 | Gate 0 | Approved July 26, 2026 | Baseline `b965aabd027c7c5b1d063f3ee0e5daaf711f0b45` published to `origin/main` |
-| P0 | Day 1 complete; Day 2 next | Day 1 checks passed |
+| P0 | Days 1–2 complete; Day 3 next | Foundation, tenant isolation, and local/mock ingestion checks passed |
 | P1 | Not started by design | Not run |
 | R11 | Deferred | Entry conditions not met |
 
@@ -48,6 +48,16 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Proved tenant and role isolation with 16 pgTAP assertions, including cross-tenant denial, Agent/Admin boundaries, blocked-candidate privacy, human-sender enforcement, and anonymous permission denial.
 - Added deterministic fixture-integrity checks for the fixed P0 and guardrail sets without making provider calls.
 - Visually inspected the built shell at 2560×1440 and 390-pixel mobile width and corrected shared Tailwind source discovery before acceptance.
+- Added tenant-authenticated Admin intake and source-management APIs plus Agent read-only source visibility.
+- Added five-minute single-object R2 PUT authorizations, a signed local R2 adapter, server-side tenant prefix/size/MIME/metadata/SHA-256/file-signature verification, and production fail-closed mock protection.
+- Added real browser PDF.js extraction with page locators and scanned/encrypted rejection, Mammoth DOCX extraction with headings/tables, mixed Chinese/English standard-page calculation, and on-demand parser bundles.
+- Added bounded same-origin URL intake, public-address and DNS-rebinding checks, the Cloudflare Browser Run `/crawl` adapter, an explicitly inactive Firecrawl stub, and a deterministic local crawler.
+- Added the Cloudflare Queue ingestion consumer, deterministic source-aware chunking, stable versioned document/chunk IDs, 1024-dimension OpenAI embedding adapter with bounded retry, deterministic mock embeddings, and atomic database promotion.
+- Added retry, disable, enable, soft-delete, object cleanup, progress, and bounded error UX. Reprocessing keeps the prior active version retrievable until the replacement version commits.
+- Generated and froze a deterministic real eight-page PDF, heading-aware DOCX, three-page same-origin mini-site, and SHA-256 manifest. Repeated fixture generation now produces byte-identical outputs.
+- Ran the full local browser path through Auth, signed upload, local R2, Queue, Supabase, and deterministic embeddings: PDF, DOCX, and URL all reached Ready with 3 sources and 20 enabled embedded chunks.
+- Expanded database security and lifecycle coverage from 16 to 30 pgTAP assertions and added API/browser/package tests for role denial, upload integrity, SSRF, idempotency, version activation, and production provider boundaries.
+- Split the authenticated knowledge workspace, React, Supabase, PDF.js, and DOCX parser into bounded production chunks and visually reviewed the completed desktop and mobile layouts.
 
 ## Architecture findings
 
@@ -68,6 +78,9 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 15. Candidate supervision cannot be fully parallel with answer generation. Only prechecks/retrieval preparation run in parallel; guardrail and citation validation complete before text delivery or audible TTS.
 16. The G2 latency protocol now fixes language split, sample count, percentile method, browser playback clock, failure handling, and raw-trace retention. R11's ambiguous time threshold is resolved to four uninterrupted hours after G2 acceptance.
 17. The largest schedule risks are account access, fixed-set RAG/guardrail calibration, URL crawl quota/SSRF behavior, Chinese voice quality, and the guarded P95 voice path—not repository scaffolding.
+18. Day 2 keeps routine development at zero provider cost through explicit deterministic adapters, but any production runtime configured for mock ingestion fails closed.
+19. Knowledge reprocessing uses a new target version while the prior active version remains retrievable; only atomic completion switches active documents/chunks. Duplicate intake, retry, and Queue delivery paths are idempotent.
+20. Browser extraction is convenience, not trust: the Worker rechecks object ownership, declared and actual size, MIME metadata, signed integrity metadata, SHA-256, PDF/DOCX magic bytes, extracted-schema consistency, and locked page limits.
 
 ## Validation evidence
 
@@ -95,27 +108,32 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Supabase CLI | `2.109.1` |
 | Docker daemon | `29.5.2` |
 | Wrangler | `4.114.0` via package runner |
-| `pnpm check` | Passed: format, lint, strict typecheck, 8 unit/Worker-runtime tests, web build, and Worker dry run |
+| `pnpm check` | Passed: format, lint, strict typecheck, 54 package/API/real-browser tests, code-split web build, and Worker Queue/R2/Static Assets dry run |
 | `pnpm test:e2e` | Passed: 1 Chromium foundation-shell test |
 | `pnpm eval:p0` | Passed: 2 fixed-fixture integrity tests; this is not yet a model-quality claim |
 | `pnpm eval:guardrails` | Passed: 1 fixed-fixture integrity test; this is not yet a live guardrail claim |
 | `supabase db reset` | Passed from the four ordered migrations and deterministic seed |
-| `supabase test db` | Passed: 16/16 tenant, role, privacy, and anonymous-denial assertions |
+| `supabase test db` | Passed: 30/30 tenant, role, privacy, ingestion-RPC, idempotency, activation, retrieval-continuity, and anonymous-denial assertions |
 | `supabase db lint --schema public` | Passed; no schema errors |
 | RLS posture query | Passed: 17/17 public tables have RLS enabled and forced; `anon` has 0 table privileges |
 | Foreign-key index audit | Passed: every public foreign key has an exact leading-column index, including tenant-qualified composite keys |
 | Local Auth verification | Passed: NovaFlow Admin, NovaFlow Agent, and isolation-tenant Admin; each sees exactly one tenant |
-| Worker Static Assets dry run | Passed: 617.35 KiB upload / 96.46 KiB gzip; no deployment performed |
+| Worker Static Assets dry run | Passed with Static Assets, Queue, and R2 bindings; no deployment performed |
 | Dependency audit | Passed: no known production vulnerability at `high` or above |
 | Day 1 secret-pattern scan | Passed; no key/JWT/private-key pattern in candidate commit files |
 | Local secret handling | Passed; `.env.local` is ignored with mode `0600` and no values were printed |
-| Desktop/mobile visual inspection | Passed after correcting shared Tailwind source scanning |
+| Deterministic Day 2 fixture regeneration | Passed; two consecutive PDF/DOCX/site generations produced identical manifest hashes |
+| Real-browser PDF/DOCX extraction | Passed: 5/5 Chromium extraction/hash and negative-boundary tests against committed binary fixtures |
+| API knowledge tests | Passed: auth/role, upload authorization and metadata, file signatures, URL rejection, source list, intake, and live-adapter retry boundaries |
+| Local Day 2 ingestion smoke | Passed: real browser plus local Auth/Worker/R2/Queue/Supabase; 3 Ready sources and 20 enabled embedded chunks |
+| OpenAPI contract validation | Passed: 16 paths, 18 unique local references, no missing local reference |
+| Desktop/mobile visual inspection | Passed; file control resets after intake and the 390-pixel knowledge layout has no horizontal overflow |
 | Live provider smoke tests | Not run; external P0 provider credentials remain absent |
 | Cost-bearing provider calls | None |
 
 ## Current blockers
 
-- No blocker prevents Day 2 local/mocked implementation.
+- No blocker prevents Day 3 local/mocked implementation.
 - P0 provider credentials and a dedicated development project remain unset; live P0 integration and G1 acceptance remain blocked until those groups are provisioned.
 - P1 provider credentials, commercial-use confirmation, voice ID, and the final microphone/device/network remain deferred until before Day 6.
 
@@ -126,14 +144,14 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 - Durable decisions are in `docs/DECISIONS.md`.
 - Gate 0 defaults were approved by Forrest Zhang on July 26, 2026 and are recorded in `DEC-031`.
 
-## Day 1 checkpoint scope
+## Day 2 checkpoint scope
 
-- Root pnpm, TypeScript, lint, format, evaluation, and dependency-lock configuration.
-- `apps/web`, `apps/api`, and the scope-gated `apps/voice-agent` scaffold.
-- Shared `packages/config`, `packages/contracts`, `packages/assistant-core`, and `packages/ui`.
-- Four ordered migrations, deterministic seed, local Supabase configuration, and 16 database tests under `supabase/`.
-- Ignored local identity bootstrap/access verification tooling under `tooling/local/`.
-- G0 approval and Day 1 evidence updates in the controlling documentation.
+- `packages/ingestion` limits, standard-page calculation, SSRF validation, deterministic chunking/IDs/embeddings, pipeline, and tests.
+- Browser extraction and the responsive tenant-scoped Knowledge workspace in `apps/web`.
+- Authenticated upload/intake/source APIs, R2/Browser Run/OpenAI adapters, Queue consumer, and tests in `apps/api`.
+- Day 2 ingestion runtime migration and 30-test tenant/security/lifecycle suite under `supabase/`.
+- Deterministic native PDF/DOCX/site fixture generation and full local ingestion verification tooling.
+- Updated API blueprint, environment contract, operator instructions, status, resources, and durable decisions.
 
 ## Cost to date
 
@@ -142,7 +160,7 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 
 ## Next step
 
-Create and publish the separate Day 1 checkpoint, then begin Day 2 file/URL ingestion with provider adapters and deterministic mocks. Live hosted-provider acceptance remains deferred until the corresponding credential groups are present.
+Publish the separate Day 2 checkpoint, then begin Day 3 public conversation tokens, persisted bilingual chat, hybrid retrieval, Structured Output answers, citation validation, and insufficient-knowledge handoff/gap creation. Live hosted-provider acceptance remains deferred until the corresponding credential groups are present.
 
 ## Resume instruction
 

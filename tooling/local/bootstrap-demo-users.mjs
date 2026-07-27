@@ -151,6 +151,29 @@ async function updateLocalEnvironment(filePath, currentText, updates)
 }
 
 /**
+ * writeWorkerDevelopmentVariables
+ * ----------------
+ * Writes only local Supabase server values and a generated mock-upload signer to Wrangler's ignored secret file.
+ *
+ * July 26, 2026: Created by Forrest Zhang for SmartService Day 2 Knowledge Ingestion
+ */
+async function writeWorkerDevelopmentVariables(filePath, localStatus)
+{
+    const values = [
+        `SUPABASE_URL=${localStatus.API_URL}`,
+        `SUPABASE_SERVICE_ROLE_KEY=${localStatus.SERVICE_ROLE_KEY}`,
+        `LOCAL_UPLOAD_SIGNING_SECRET=${randomBytes(32).toString("base64url")}`,
+    ];
+    const temporaryPath = `${filePath}.bootstrap`;
+    await writeFile(temporaryPath, `${values.join("\n")}\n`, {
+        encoding: "utf8",
+        mode: 0o600,
+    });
+    await rename(temporaryPath, filePath);
+    await chmod(filePath, 0o600);
+}
+
+/**
  * ensureAuthUser
  * ----------------
  * Creates or refreshes one fictional local Auth identity and returns its stable user identifier.
@@ -275,6 +298,10 @@ async function main()
 
     bootstrapStage = "storing ignored local configuration";
     await updateLocalEnvironment(environmentPath, currentText, demoValues);
+    await writeWorkerDevelopmentVariables(
+        resolve("apps/api/.dev.vars"),
+        localStatus,
+    );
 
     bootstrapStage = "connecting to local Auth";
     const client = createClient(localStatus.API_URL, localStatus.SERVICE_ROLE_KEY, {

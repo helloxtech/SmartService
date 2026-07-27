@@ -119,6 +119,8 @@ paths:
       operationId: createFileKnowledgeIntake
       security:
         - supabaseJwt: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -137,6 +139,8 @@ paths:
       operationId: createUrlKnowledgeIntake
       security:
         - supabaseJwt: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -150,6 +154,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IntakeResponse'
+  /v1/admin/knowledge/sources:
+    get:
+      operationId: listKnowledgeSources
+      security:
+        - supabaseJwt: []
+      responses:
+        '200':
+          description: Tenant-scoped active knowledge sources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeSourceListResponse'
   /v1/admin/knowledge/sources/{sourceId}:
     get:
       operationId: getKnowledgeSource
@@ -163,6 +179,41 @@ paths:
       responses:
         '200':
           description: Source status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeSource'
+    delete:
+      operationId: deleteKnowledgeSource
+      security:
+        - supabaseJwt: []
+      parameters:
+        - $ref: '#/components/parameters/SourceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Source tombstoned and stored objects removed
+        '202':
+          description: Source tombstoned; stored-object cleanup requires follow-up
+  /v1/admin/knowledge/sources/{sourceId}/actions/{action}:
+    post:
+      operationId: applyKnowledgeSourceAction
+      security:
+        - supabaseJwt: []
+      parameters:
+        - $ref: '#/components/parameters/SourceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [disable, enable, retry] }
+      responses:
+        '200':
+          description: Updated source and optional retry job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceActionResponse'
   /v1/admin/knowledge-gaps/{gapId}/resolve:
     post:
       operationId: resolveKnowledgeGap
@@ -259,6 +310,16 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    SourceId:
+      name: sourceId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 200 }
   schemas:
     CreateConversationRequest:
       type: object
@@ -360,7 +421,7 @@ components:
         mimeType: { type: string, enum: [application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document] }
         sizeBytes: { type: integer, minimum: 1, maximum: 20000000 }
         pageCount: { type: integer, minimum: 1, maximum: 80 }
-        standardPageCount: { type: number, minimum: 0.01, maximum: 50 }
+        standardPageCount: { type: number, minimum: 0.01, maximum: 100 }
         originalObjectKey: { type: string }
         extractedObjectKey: { type: string }
     UrlIntakeRequest:
@@ -377,3 +438,77 @@ components:
         sourceId: { type: string, format: uuid }
         jobId: { type: string, format: uuid }
         status: { type: string, enum: [uploaded, extracting, chunking, embedding, ready, failed] }
+    KnowledgeSource:
+      type: object
+      required:
+        - id
+        - type
+        - name
+        - status
+        - activeVersion
+        - documentCount
+        - chunkCount
+        - enabled
+        - createdAt
+        - updatedAt
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [pdf, docx, url, manual] }
+        name: { type: string }
+        sourceUrl:
+          oneOf:
+            - type: 'null'
+            - type: string
+              format: uri
+        status: { type: string, enum: [uploaded, extracting, chunking, embedding, ready, failed, disabled] }
+        activeVersion: { type: integer, minimum: 1 }
+        pageCount:
+          oneOf:
+            - type: 'null'
+            - type: integer
+              minimum: 0
+        standardPageCount:
+          oneOf:
+            - type: 'null'
+            - type: number
+              minimum: 0
+        crawlMaxPages:
+          oneOf:
+            - type: 'null'
+            - type: integer
+              minimum: 1
+              maximum: 30
+        crawlMaxDepth:
+          oneOf:
+            - type: 'null'
+            - type: integer
+              minimum: 0
+              maximum: 2
+        documentCount: { type: integer, minimum: 0 }
+        chunkCount: { type: integer, minimum: 0 }
+        errorCode:
+          oneOf:
+            - type: 'null'
+            - type: string
+        errorMessage:
+          oneOf:
+            - type: 'null'
+            - type: string
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    KnowledgeSourceListResponse:
+      type: object
+      required: [sources]
+      properties:
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/KnowledgeSource'
+    SourceActionResponse:
+      type: object
+      required: [source]
+      properties:
+        jobId: { type: string, format: uuid }
+        source:
+          $ref: '#/components/schemas/KnowledgeSource'

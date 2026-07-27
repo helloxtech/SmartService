@@ -2,7 +2,14 @@ import { organizationMembershipSchema, type OrganizationMembership } from "@smar
 import { Button } from "@smartservice/ui";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { CheckCircle2, Headphones, Languages, LockKeyhole } from "lucide-react";
-import { useEffect, useState, type FormEvent, type JSX } from "react";
+import {
+    lazy,
+    Suspense,
+    useEffect,
+    useState,
+    type FormEvent,
+    type JSX,
+} from "react";
 
 import { getSupabaseClient } from "./lib/supabase";
 
@@ -10,6 +17,15 @@ type AuthenticationState =
     | { kind: "loading" }
     | { kind: "signed-out" }
     | { kind: "signed-in"; membership: OrganizationMembership; session: Session };
+
+const KnowledgeWorkspace = lazy(async () =>
+{
+    const module = await import("./knowledge-workspace");
+
+    return {
+        default: module.KnowledgeWorkspace,
+    };
+});
 
 /**
  * describeError
@@ -55,9 +71,9 @@ async function loadMembership(client: SupabaseClient, session: Session): Promise
 /**
  * App
  * ----------------
- * Renders the Day 1 authentication shell and proves role-aware organization membership after sign-in.
+ * Renders the authenticated SmartService shell and Day 2 tenant-scoped knowledge workspace.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 1 Foundation
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 2 Knowledge Ingestion
  */
 export function App(): JSX.Element
 {
@@ -209,41 +225,47 @@ export function App(): JSX.Element
                         </div>
                     </div>
                     <span className="rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
-                        Day 1 foundation
+                        Day 2 knowledge intake
                     </span>
                 </div>
             </header>
 
-            <section className="mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-                <div>
-                    <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">
-                        Bilingual service, grounded answers
-                    </p>
-                    <h1 className="max-w-2xl text-4xl font-bold tracking-tight sm:text-5xl">
-                        A secure workspace for customer conversations and human handoff.
-                    </h1>
-                    <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-                        SmartService keeps company answers tied to approved knowledge, routes uncertain requests to people, and gives agents the context they need.
-                    </p>
+            <section className={authentication.kind === "signed-in"
+                ? "mx-auto max-w-6xl px-6 py-8"
+                : "mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:items-center"}>
+                {authentication.kind === "signed-in"
+                    ? null
+                    : (
+                        <div>
+                            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">
+                                Bilingual service, grounded answers
+                            </p>
+                            <h1 className="max-w-2xl text-4xl font-bold tracking-tight sm:text-5xl">
+                                A secure workspace for customer conversations and human handoff.
+                            </h1>
+                            <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
+                                SmartService keeps company answers tied to approved knowledge, routes uncertain requests to people, and gives agents the context they need.
+                            </p>
 
-                    <div className="mt-8 grid gap-4 sm:grid-cols-3">
-                        <div className="rounded-xl border border-slate-200 bg-white p-4">
-                            <Languages aria-hidden="true" className="mb-3 size-5 text-sky-700" />
-                            <p className="font-semibold">中文 + English</p>
-                            <p className="mt-1 text-sm text-slate-500">One shared service path.</p>
+                            <div className="mt-8 grid gap-4 sm:grid-cols-3">
+                                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                                    <Languages aria-hidden="true" className="mb-3 size-5 text-sky-700" />
+                                    <p className="font-semibold">中文 + English</p>
+                                    <p className="mt-1 text-sm text-slate-500">One shared service path.</p>
+                                </div>
+                                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                                    <LockKeyhole aria-hidden="true" className="mb-3 size-5 text-sky-700" />
+                                    <p className="font-semibold">Tenant isolated</p>
+                                    <p className="mt-1 text-sm text-slate-500">RLS is enforced from Day 1.</p>
+                                </div>
+                                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                                    <CheckCircle2 aria-hidden="true" className="mb-3 size-5 text-sky-700" />
+                                    <p className="font-semibold">Evidence first</p>
+                                    <p className="mt-1 text-sm text-slate-500">No unsupported answer.</p>
+                                </div>
+                            </div>
                         </div>
-                        <div className="rounded-xl border border-slate-200 bg-white p-4">
-                            <LockKeyhole aria-hidden="true" className="mb-3 size-5 text-sky-700" />
-                            <p className="font-semibold">Tenant isolated</p>
-                            <p className="mt-1 text-sm text-slate-500">RLS is enforced from Day 1.</p>
-                        </div>
-                        <div className="rounded-xl border border-slate-200 bg-white p-4">
-                            <CheckCircle2 aria-hidden="true" className="mb-3 size-5 text-sky-700" />
-                            <p className="font-semibold">Evidence first</p>
-                            <p className="mt-1 text-sm text-slate-500">No unsupported answer.</p>
-                        </div>
-                    </div>
-                </div>
+                    )}
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
                     {authentication.kind === "signed-in"
@@ -329,6 +351,23 @@ export function App(): JSX.Element
                         )}
                 </div>
             </section>
+
+            {authentication.kind === "signed-in"
+                ? (
+                    <Suspense
+                        fallback={(
+                            <div className="mx-auto max-w-6xl px-6 pb-16 text-sm text-slate-500" role="status">
+                                Loading knowledge workspace…
+                            </div>
+                        )}
+                    >
+                        <KnowledgeWorkspace
+                            membership={authentication.membership}
+                            session={authentication.session}
+                        />
+                    </Suspense>
+                )
+                : null}
         </main>
     );
 }

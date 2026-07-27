@@ -4,7 +4,7 @@ SmartService is a reusable, tenant-isolated AI customer-service demonstration. P
 
 ## Current state
 
-Gate 0 is approved. The Day 1 foundation is complete: the pnpm workspace, React authentication shell, Hono Worker, ordered Supabase migrations, local fictional identities, forced tenant RLS, and validation toolchain are operational. Day 2 knowledge ingestion is next. See [the live project status](docs/STATUS.md) for exact evidence and blockers.
+Gate 0 is approved. Days 1–2 are complete locally: the tenant-isolated foundation and the PDF/DOCX/URL knowledge path now run through browser extraction, signed upload, R2, Queue, versioned chunking, 1024-dimension embeddings, Supabase, and the responsive Knowledge workspace. Day 3 grounded bilingual chat and citations are next. See [the live project status](docs/STATUS.md) for exact evidence and blockers.
 
 ## Locked delivery
 
@@ -35,11 +35,17 @@ pnpm check
 pnpm test:e2e
 pnpm db:test
 pnpm db:lint
+pnpm fixtures:ingestion
+pnpm verify:ingestion
 ```
 
 `pnpm db:start` and `pnpm db:status` deliberately suppress generated local credentials. The fictional demo login values are generated into the ignored mode-`0600` `.env.local`; never paste or commit that file.
 
 Use `pnpm dev:web` for the Vite shell and `pnpm dev:api` for the local Worker after the web build exists.
+
+`pnpm verify:ingestion` requires a fresh local database (`pnpm db:reset` followed by `pnpm bootstrap:local`). It signs in through a real Chromium session, ingests the committed PDF, DOCX, and bounded URL fixtures, verifies Ready rows and enabled embeddings, exercises disable/enable, checks mobile overflow, and writes review screenshots under `/tmp`.
+
+Local ingestion uses explicit deterministic providers and makes no paid calls. Hosted R2, Queue, Browser Run, Supabase, and OpenAI evidence is still required before G1; production refuses mock provider mode.
 
 ## Gate records
 

@@ -1,0 +1,35 @@
+{
+  "corpusVersion": "smartservice-ingestion-v1",
+  "generatedAt": "2026-07-26T12:00:00.000Z",
+  "files": {
+    "novaflow-nf-series-manual.pdf": {
+      "bytes": 10029,
+      "sha256": "5f14bc027342dac213ef4e045a2884626948d95707c58a1749b4a6f86d2d8559"
+    },
+    "novaflow-no-text.pdf": {
+      "bytes": 1148,
+      "sha256": "33a75b644128884a5e715e8d693ada9c8beec8c5fe58244801c799182a5f27c0"
+    },
+    "novaflow-support-faq.docx": {
+      "bytes": 10074,
+      "sha256": "eb501f84d4087d74ee73c5cdf212c39e2e5458650ac09109ce2b2aea30e8a72f"
+    },
+    "site/index.html": {
+      "bytes": 386,
+      "sha256": "18daf7719d446293991cc70773eb0c707724aa00376cecb920bc3406d71bd4c9"
+    },
+    "site/products.html": {
+      "bytes": 288,
+      "sha256": "2dd83f79fc9cdf967fb45118bf20fde6225d46afbb93ba359bb37316ecf446ca"
+    },
+    "site/support.html": {
+      "bytes": 257,
+      "sha256": "575de22b1e641e093fe518e571f88b6a397ffd04c2885dcc02344f49c97d25ab"
+    }
+  },
+  "expectations": {
+    "docxTitle": "NovaFlow Industrial Systems — FAQ",
+    "pdfPages": 8,
+    "sitePages": 3
+  }
+}

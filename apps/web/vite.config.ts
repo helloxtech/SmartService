@@ -4,6 +4,26 @@ import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+    build: {
+        rolldownOptions: {
+            output: {
+                codeSplitting: {
+                    groups: [
+                        {
+                            name: "supabase",
+                            priority: 2,
+                            test: /node_modules[\\/]@supabase/u,
+                        },
+                        {
+                            name: "react",
+                            priority: 1,
+                            test: /node_modules[\\/](?:react|react-dom|scheduler)[\\/]/u,
+                        },
+                    ],
+                },
+            },
+        },
+    },
     envDir: "../../",
     plugins: [
         react(),

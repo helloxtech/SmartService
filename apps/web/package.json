@@ -7,16 +7,19 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "dev": "vite",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "vitest run && vitest run --config vitest.browser.config.ts",
     "test:e2e": "playwright test",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@smartservice/config": "workspace:*",
     "@smartservice/contracts": "workspace:*",
+    "@smartservice/ingestion": "workspace:*",
     "@smartservice/ui": "workspace:*",
     "@supabase/supabase-js": "2.110.8",
     "lucide-react": "1.27.0",
+    "mammoth": "1.12.0",
+    "pdfjs-dist": "6.1.200",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -29,6 +32,7 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.4",
+    "@vitest/browser-playwright": "4.1.10",
     "happy-dom": "20.11.1",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",

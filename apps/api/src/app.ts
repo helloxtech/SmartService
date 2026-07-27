@@ -1,24 +1,25 @@
 import { healthResponseSchema } from "@smartservice/contracts";
+import { UrlSafetyError } from "@smartservice/ingestion";
 import { Hono } from "hono";
 
-interface AppVariables
-{
-    requestId: string;
-}
-
-type AppEnvironment = {
-    Bindings: Env;
-    Variables: AppVariables;
-};
+import { ApiError } from "./errors";
+import { createKnowledgeRouter } from "./knowledge-routes";
+import { createRuntimeServices } from "./services";
+import type {
+    AppEnvironment,
+    RuntimeServiceFactory,
+} from "./types";
 
 /**
  * createApp
  * ----------------
- * Creates the Hono Worker application with request tracing, safe structured errors, and the public health contract.
+ * Creates the Hono Worker application with request tracing, safe structured errors, health, and knowledge ingestion routes.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 1 Foundation
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 2 Knowledge Ingestion
  */
-export function createApp(): Hono<AppEnvironment>
+export function createApp(
+    serviceFactory: RuntimeServiceFactory = createRuntimeServices,
+): Hono<AppEnvironment>
 {
     const app = new Hono<AppEnvironment>();
 
@@ -76,6 +77,10 @@ export function createApp(): Hono<AppEnvironment>
         return context.json(response);
     });
 
+    const knowledgeRouter = createKnowledgeRouter(serviceFactory);
+    app.route("/api", knowledgeRouter);
+    app.route("/", knowledgeRouter);
+
     app.notFound((context) =>
     {
         return context.json({
@@ -92,12 +97,35 @@ export function createApp(): Hono<AppEnvironment>
         const requestId = context.get("requestId");
 
         console.error(JSON.stringify({
+            errorCode: error instanceof ApiError ? error.code : "INTERNAL_ERROR",
             errorName: error.name,
             event: "http.request.failed",
-            message: error.message,
             path: context.req.path,
             requestId,
         }));
+
+        if (error instanceof ApiError)
+        {
+            return context.json({
+                error: {
+                    code: error.code,
+                    details: error.details,
+                    message: error.message,
+                    requestId,
+                },
+            }, error.status);
+        }
+
+        if (error instanceof UrlSafetyError)
+        {
+            return context.json({
+                error: {
+                    code: error.code,
+                    message: error.message,
+                    requestId,
+                },
+            }, 422);
+        }
 
         return context.json({
             error: {

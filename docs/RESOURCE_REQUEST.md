@@ -39,9 +39,9 @@ Priority values:
 |---|---|---:|---|
 | Repository identity | BLOCKING-NOW | READY | Product `SmartService`; slug `smartservice`; resource prefix `smartservice-*` |
 | Local Git repository | BLOCKING-NOW | READY | Initialized on `main` |
-| Git remote | BLOCKING-NOW | READY | `origin` is `https://github.com/helloxtech/SmartService.git`; the reviewed Gate 0 baseline is published on `origin/main` |
+| Git remote | BLOCKING-NOW | READY | `origin` is `https://github.com/helloxtech/SmartService.git`; the reviewed Day 1 checkpoint is published on `origin/main` |
 | Git author identity | BLOCKING-NOW | READY | Repository-local identity matches the existing `helloxtech` repository convention |
-| GitHub push authorization | BLOCKING-NOW | READY | Approved; baseline commit `b965aabd027c7c5b1d063f3ee0e5daaf711f0b45` was pushed to `origin/main` |
+| GitHub push authorization | BLOCKING-NOW | READY | Approved; Day 1 commit `1a2119a069abfe15dfa98d879553e4a1b4f6a0f0` is the current published checkpoint |
 | GitHub CLI | OPTIONAL | NOT-NEEDED | `gh` is absent; Git itself can fetch and push |
 | Node.js | BLOCKING-NOW | READY | `v24.16.0` |
 | pnpm | BLOCKING-NOW | READY | `11.9.0` |
@@ -52,8 +52,8 @@ Priority values:
 | macOS | BLOCKING-NOW | READY | macOS `26.5.1`, Apple silicon |
 | Supported browsers | BLOCKING-P1 | READY | Chrome, Edge, and Safari are installed |
 | Microphone/headset and browser permission | BLOCKING-P1 | VERIFY | Must be tested interactively on the final demo device |
-| Local secret file | BLOCKING-NOW | READY | Ignored mode-`0600` `.env.local` contains generated local Supabase/demo values; external provider values remain unset |
-| Product/provider code | BLOCKING-NOW | READY | Day 1 foundation exists; live provider adapters remain scheduled for their P0/P1 slices |
+| Local secret file | BLOCKING-NOW | READY | Ignored mode-`0600` `.env.local` and generated app-local Wrangler variables contain only local Supabase/demo/signing values; external provider values remain unset |
+| Product/provider code | BLOCKING-NOW | READY | Days 1–2 exist, including R2, Queue, Browser Run, OpenAI embedding, and deterministic local ingestion adapters; Day 3 Responses/Turnstile work is next |
 | Cost-bearing project provider calls | BLOCKING-NOW | READY | None made; recorded project cost is USD 0 |
 
 ## BLOCKING-NOW
@@ -91,7 +91,7 @@ Provision these before a live P0 integration can pass G1. If a missing item is e
 | Supabase server configuration | MISSING | Service-role key and database URL/password | Apply migrations to the dedicated dev project and run a minimal server query |
 | Supabase CLI authentication | MISSING | Interactive CLI login or a tooling-only access token stored in native/ignored local storage | Link the project and read migration status without printing credentials |
 | Supabase project permissions | MISSING | Permission to manage Auth settings, extensions, migrations, and RLS | Enable/check `vector` and `pg_trgm`; run cross-tenant negative tests |
-| Demo identities and tenant-isolation seed | READY | Fictional admin and agent in tenant A plus a fictional admin in tenant B; local test passwords only | All three local Auth logins passed; 16 database isolation/role assertions passed |
+| Demo identities and tenant-isolation seed | READY | Fictional admin and agent in tenant A plus a fictional admin in tenant B; local test passwords only | All three local Auth logins passed; 30 database isolation/role/ingestion assertions passed |
 | Cloudflare account | MISSING | Account ID with Workers, Queues, R2, Browser Run, and Turnstile access | `wrangler whoami` and non-destructive resource lists |
 | Cloudflare deployment token | MISSING | Least-privilege token for development Worker, Queue, and R2 management | Authenticated dry run/resource listing; do not print token |
 | Browser Run token | MISSING | Separate least-privilege token with `Browser Rendering - Edit` | One bounded Markdown crawl against an approved fixture site |
@@ -108,8 +108,8 @@ Provision these before a live P0 integration can pass G1. If a missing item is e
 | Voice-to-API internal token placeholder | MISSING | High-entropy value may be generated now and stored for P1 | Authenticated local service call when the P1 adapter exists |
 | G1 preview/runtime location | VERIFY | Default is one Cloudflare Worker with Static Assets plus Hono API to avoid cross-origin drift | HTTPS page load and API health check |
 | Public Turnstile keys | CAN-MOCK | Cloudflare test keys locally; real widget keys required only for an externally reachable preview | Test challenge flow, then hostname-bound live challenge before public use |
-| Demo ingestion corpus | CAN-MOCK | Generate native-text PDF/DOCX and fixed duplicate, reprocess, scanned/empty, malformed, oversized, and unsupported-file cases from fictional content | Real browser extraction/upload/queue acceptance tests with frozen manifest/hash |
-| Bounded demo website | CAN-MOCK | Host a same-origin mini-site with fixed cross-domain/redirect/SSRF cases in an approved non-production preview; optional real company URL later | Bounded live Browser Run crawl with frozen manifest/hash |
+| Demo ingestion corpus | READY | Deterministic real text-layer PDF, no-text PDF, heading-aware DOCX, and SHA-256 manifest are committed; negative browser/unit cases cover empty, no-text, malformed, unsupported, and oversized boundaries | Real Chromium extraction plus full local signed-upload/R2/Queue/Supabase ingestion passed |
+| Bounded demo website | READY | Deterministic three-page same-origin mini-site with a cross-origin exclusion link is committed; advanced redirect/DNS fixtures remain part of pre-G1 hardening | Local bounded crawl passed; one live Browser Run crawl remains required before G1 |
 | Logo and brand palette | OPTIONAL | Supply assets only if desired | Asset and contrast review |
 
 ## BLOCKING-P1
@@ -142,13 +142,13 @@ Mocks are allowed for routine tests, not as substitutes for the live acceptance 
 | Resource | Mock boundary | Live deadline |
 |---|---|---|
 | OpenAI Responses and Embeddings | Deterministic schema/citation/guardrail fixtures | Before G1 |
-| Cloudflare Browser Run | Provider adapter with bounded fixture responses | K-03/K-04 and before G1 |
-| R2 and Queues | In-memory/local adapters for unit tests | Before G1 |
+| Cloudflare Browser Run | Live adapter plus deterministic bounded fixture provider are implemented | K-03/K-04 and before G1 |
+| R2 and Queues | Signed local R2 binding and real local Queue consumer are implemented | Hosted R2/Queue round trip before G1 |
 | Turnstile | Official test keys | Before any externally reachable public preview |
 | LiveKit room/Agent | Voice UI state-machine mock | Before G2 |
 | Deepgram | Prerecorded transcript fixtures | Before G2 |
 | ElevenLabs | Silent/test audio adapter | Before G2 |
-| Demo PDF/DOCX/site | Generate a versioned ingestion corpus from repository fixtures, including negative/duplicate cases | Valid for G1 if frozen before calibration and exercised through the real ingestion path |
+| Demo PDF/DOCX/site | Versioned deterministic corpus and hash manifest are committed and exercised through the full local ingestion path | Valid for G1 after the corresponding hosted-provider smoke evidence is added |
 | Extended in-scope evaluation set | Derive and freeze additional questions from the supplied knowledge before any prompt/model calibration | Before G1 |
 | Prompt-injection knowledge fixture | Add fixed untrusted-document instructions and prove they cannot override system/tenant controls | Before G1 |
 | Advanced SSRF fixture set | Add redirect-to-private, DNS rebinding, alternate IP notation, IPv4-mapped IPv6, userinfo, and scheme cases | Before G1 |

@@ -8,13 +8,41 @@
   "preview_urls": true,
   "vars": {
     "ENVIRONMENT": "development",
-    "VERSION": "0.1.0",
+    "INGESTION_PROVIDER_MODE": "mock",
+    "OPENAI_EMBEDDING_DIMENSIONS": "1024",
+    "OPENAI_EMBEDDING_MODEL": "text-embedding-3-large",
+    "R2_BUCKET_NAME": "smartservice-knowledge-dev",
+    "VERSION": "0.2.0",
+  },
+  "r2_buckets": [
+    {
+      "binding": "KNOWLEDGE_FILES",
+      "bucket_name": "smartservice-knowledge-dev",
+      "preview_bucket_name": "smartservice-knowledge-preview",
+    },
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "INGEST_QUEUE",
+        "queue": "smartservice-ingest-dev",
+      },
+    ],
+    "consumers": [
+      {
+        "queue": "smartservice-ingest-dev",
+        "dead_letter_queue": "smartservice-ingest-dlq-dev",
+        "max_batch_size": 5,
+        "max_batch_timeout": 5,
+        "max_retries": 2,
+      },
+    ],
   },
   "assets": {
     "binding": "ASSETS",
     "directory": "../web/dist",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/health"],
+    "run_worker_first": ["/api/*", "/v1/*", "/health"],
   },
   "observability": {
     "enabled": true,

@@ -12,6 +12,9 @@
   },
   "dependencies": {
     "@smartservice/contracts": "workspace:*",
+    "@smartservice/ingestion": "workspace:*",
+    "@supabase/supabase-js": "2.110.8",
+    "aws4fetch": "1.0.20",
     "hono": "4.12.32",
     "zod": "4.4.3"
   },

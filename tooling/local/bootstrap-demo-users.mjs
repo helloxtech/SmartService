@@ -232,6 +232,36 @@ async function ensureAuthUser(client, email, password, displayName)
 }
 
 /**
+ * waitForLocalAuth
+ * ----------------
+ * Waits up to 30 seconds for local Supabase Auth to accept administrative requests after a database reset.
+ *
+ * July 27, 2026: Created by Forrest Zhang for SmartService Day 10 UAT Release
+ */
+async function waitForLocalAuth(client)
+{
+    for (let attempt = 0; attempt < 60; attempt += 1)
+    {
+        const { error } = await client.auth.admin.listUsers({
+            page: 1,
+            perPage: 1,
+        });
+
+        if (error === null)
+        {
+            return;
+        }
+
+        await new Promise((resolveDelay) =>
+        {
+            setTimeout(resolveDelay, 500);
+        });
+    }
+
+    throw new Error("Local Auth did not become ready after the database reset.");
+}
+
+/**
  * upsertMembership
  * ----------------
  * Assigns one fictional local Auth identity to its approved tenant and role using the local service role.
@@ -321,6 +351,9 @@ async function main()
             persistSession: false,
         },
     });
+
+    bootstrapStage = "waiting for local Auth readiness";
+    await waitForLocalAuth(client);
 
     bootstrapStage = "creating the NovaFlow Admin";
     const adminUserId = await ensureAuthUser(

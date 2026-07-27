@@ -1,6 +1,6 @@
 {
   "name": "smartservice",
-  "version": "0.1.0",
+  "version": "0.10.0",
   "private": true,
   "description": "SmartService AI customer-service demonstration workspace",
   "type": "module",
@@ -18,6 +18,9 @@
     "checkpoint:day7": "pnpm db:reset && pnpm bootstrap:local && pnpm check && pnpm test:e2e && pnpm db:test && pnpm db:lint && pnpm verify:ingestion && pnpm verify:day7",
     "checkpoint:day8": "pnpm db:reset && pnpm bootstrap:local && pnpm check && pnpm test:e2e && pnpm db:test && pnpm db:lint && pnpm verify:ingestion && pnpm verify:day7 && pnpm verify:day8",
     "checkpoint:day9": "pnpm db:reset && pnpm bootstrap:local && pnpm check && pnpm test:e2e && pnpm db:test && pnpm db:lint && pnpm verify:ingestion && pnpm verify:day7 && pnpm verify:day8 && pnpm verify:day9",
+    "checkpoint:day10": "pnpm db:reset && pnpm bootstrap:local && pnpm check && pnpm test:e2e && pnpm db:test && pnpm db:lint && pnpm eval:p0 && pnpm eval:guardrails && pnpm verify:local-access && pnpm verify:ingestion && pnpm verify:conversation && pnpm verify:day4 && pnpm verify:day5 && pnpm verify:day7 && pnpm verify:day8 && pnpm verify:day9 && pnpm verify:day10",
+    "demo:full:run": "pnpm db:reset && pnpm bootstrap:local && pnpm verify:ingestion && pnpm verify:conversation && pnpm verify:day4 && pnpm verify:day5 && pnpm verify:day7 && pnpm verify:day8 && pnpm verify:day9",
+    "demo:full:three": "node tooling/local/run-day10-demos.mjs",
     "demo:p0:run": "pnpm db:reset && pnpm bootstrap:local && pnpm verify:ingestion && pnpm verify:conversation && pnpm verify:day4 && pnpm verify:day5",
     "db:lint": "supabase db lint --schema public --level warning --fail-on error",
     "db:reset": "supabase db reset",
@@ -36,6 +39,7 @@
     "test": "pnpm -r --if-present test",
     "test:e2e": "pnpm --filter @smartservice/web test:e2e",
     "typecheck": "pnpm -r --if-present typecheck",
+    "uat:prepare": "pnpm db:reset && pnpm bootstrap:local && pnpm check && pnpm verify:ingestion",
     "verify:ingestion": "node tooling/local/verify-ingestion.mjs",
     "verify:conversation": "node tooling/local/verify-conversation.mjs",
     "verify:day4": "node tooling/local/verify-day4.mjs",
@@ -44,6 +48,7 @@
     "verify:day7": "node tooling/local/verify-day7.mjs",
     "verify:day8": "node tooling/local/verify-day8.mjs",
     "verify:day9": "node tooling/local/verify-day9.mjs",
+    "verify:day10": "node tooling/local/verify-day10.mjs",
     "verify:local-access": "node tooling/local/verify-demo-access.mjs"
   },
   "devDependencies": {

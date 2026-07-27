@@ -2,9 +2,9 @@
 
 **Last updated:** July 27, 2026
 **Current gate:** Local P0 evidence complete; automatic P1 continuation authorized
-**Current phase:** Day 9 voice safety, handoff, and failure recovery complete locally; full checkpoint and publication next
-**Active step:** Run and publish the separate Day 9 checkpoint, then execute Day 10 integrated acceptance and UAT preparation
-**Overall state:** Days 1–8 are published and green locally; the focused Day 9 safety/recovery smoke is green; hosted P0 and live voice-provider/device evidence remain unavailable without external credentials
+**Current phase:** Day 10 integrated local acceptance and UAT bundle complete; final composite checkpoint and publication next
+**Active step:** Run the Day 10 release audit and full checkpoint, publish release `0.10.0`, create the verified Git tag, and hand off for UAT
+**Overall state:** Days 1–9 are published and green locally; three independent clean-reset full P0/P1 demos passed; hosted P0 and live voice-provider/device evidence remain unavailable without external credentials
 
 ## Original goal
 
@@ -22,7 +22,7 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 |---|---|---|
 | Gate 0 | Approved July 26, 2026 | Baseline `b965aabd027c7c5b1d063f3ee0e5daaf711f0b45` published to `origin/main` |
 | P0 | Days 1–5 complete locally | Full composite checkpoint and three independent clean-reset demos passed; hosted deployment/provider evidence remains |
-| P1 | Days 6–9 complete locally | Voice session, grounded/TTS, semantic turn, interruption, local latency, handoff, reconnect, and failure paths are green; Day 10 and live provider/device evidence remain |
+| P1 | Days 6–10 complete locally | Voice session, grounded/TTS, semantic turn, interruption, local latency, handoff, reconnect, failure, and integrated demos are green; live provider/device evidence remains |
 | R11 | Deferred | Entry conditions not met |
 
 ## Completed steps
@@ -100,6 +100,12 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Made voice handoff terminal in the customer UI, denied token refresh once the conversation leaves AI control, and preserved the text fallback.
 - Corrected the human inbox contract from text-only to text-or-voice, then added voice provider/status/warmup/failure and nearest-rank server-assistant timing detail with an explicit warning that it is not browser turn-to-audio timing.
 - Passed a focused Day 9 smoke for delivery-commitment guardrail, missing knowledge, persisted handoff/session state, stopped AI, Agent-visible voice detail, denied post-handoff token refresh, redacted internal failure, reconnect coverage, and zero provider cost.
+- Normalized every workspace and Worker health version to `0.10.0` and added one destructive-local-only Day 10 composite checkpoint.
+- Added deployment, UAT execution, and UAT-readiness guides with exact local commands, hosted-provider gates, rollback boundaries, severity rules, and the local/mock versus live evidence distinction.
+- Ran three consecutive full P0/P1 local demos—diagnostic, calibration, and replacement—from independent fresh resets; every ingestion, text, guardrail, handoff, dashboard/gap, voice parity, 40-turn, and failure/recovery chain passed.
+- Archived the three-run timestamps/durations and zero-cost result in `docs/evidence/day10-local-demo-runs.json`; the stable 40-turn voice snapshot remains in `docs/evidence/day8-local-voice-report.json`.
+- Audited tracked implementation/operator files for unresolved work markers and executable debugger statements.
+- Declined R11 entry because live G2 acceptance is absent. R11 remains disabled and no ticket migration or UI exists.
 
 ## Architecture findings
 
@@ -212,6 +218,8 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Day 9 focused tests | Passed: 7/7 Agent tests including obsolete-turn cancellation and fixed failure speech; 10/10 web unit tests including bounded token-refresh reconnect and terminal handoff; 39/39 API tests |
 | Local Day 9 smoke | Passed: delivery guardrail, missing knowledge, persisted voice handoff, AI stopped, Agent voice detail, post-handoff token refresh denied, redacted service failure, and zero provider cost |
 | Full Day 9 composite checkpoint | Passed from a clean reset: format, lint, all workspace typechecks/tests/builds, 4/4 Playwright flows, 121/121 database assertions, database lint, fresh ingestion, Day 7 parity, Day 8 40-turn evaluation, and Day 9 safety/recovery smoke |
+| Three consecutive Day 10 full demos | Passed: diagnostic `77.650 s`, calibration `77.311 s`, replacement `78.486 s`; fresh reset each; complete P0/P1 local chain; zero provider cost |
+| Full Day 10 composite checkpoint | Passed from a clean reset after adding a bounded local Auth-readiness wait: format, lint, all workspace typechecks/tests/builds, 4/4 Playwright flows, 121/121 database assertions, database lint with no errors, P0/guardrail evaluations, local access, Days 2–10 smokes, and release audit |
 | Live provider smoke tests | Not run; external P0 provider credentials remain absent |
 | Cost-bearing provider calls | None |
 
@@ -228,13 +236,12 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 - Gate 0 defaults were approved by Forrest Zhang on July 26, 2026 and are recorded in `DEC-031`.
 - Automatic testing ownership and continuation through Day 10 were approved by Forrest Zhang on July 27, 2026 and are recorded in `DEC-053`.
 
-## Day 9 checkpoint scope
+## Day 10 checkpoint scope
 
-- Shared server guardrails and missing-knowledge handoff remain authoritative; safe audio plays once, AI stops, and the customer enters human-waiting state.
-- Obsolete-turn abort, twelve-second service timeout, fixed safe provider-failure speech, failed-session reporting, and post-playout shutdown.
-- LiveKit native reconnect plus at most two room-token refresh reconnects; terminal states never loop.
-- Human inbox support for voice handoffs with runtime, warmup, failure code, and clearly labeled server-assistant latency detail.
-- Checkpoint command: `pnpm checkpoint:day9`.
+- Complete P0/P1 static, package, browser, database, evaluation, ingestion, text, guardrail, dashboard/gap, voice parity, 40-turn, and failure/recovery regression.
+- Three retained full demo chains from fresh databases.
+- Version `0.10.0`, release audit, UAT/deployment documents, immutable evidence, debug-debt scan, and R11 closed-gate check.
+- Checkpoint command: `pnpm checkpoint:day10`.
 
 ## Cost to date
 
@@ -243,7 +250,7 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 
 ## Next step
 
-Run and publish the separate Day 9 slice, then execute Day 10 full P0/P1 regression, three clean demos, evidence archival, deployment/UAT guide, release tag, TODO/debug cleanup, and final local UAT handoff. Preserve the local/mock versus hosted evidence boundary and keep R11 gated.
+Publish release `0.10.0`, create and verify tag `v0.10.0`, then hand the local/mock UAT bundle to Forrest Zhang. Hosted G1/G2 work waits for the resources in `docs/RESOURCE_REQUEST.md`.
 
 ## Resume instruction
 

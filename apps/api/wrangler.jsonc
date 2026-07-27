@@ -17,7 +17,7 @@
     "TURNSTILE_PROVIDER_MODE": "mock",
     "VOICE_PROVIDER_MODE": "mock",
     "LIVEKIT_AGENT_NAME": "smartservice-voice-agent",
-    "VERSION": "0.5.0",
+    "VERSION": "0.10.0",
   },
   "r2_buckets": [
     {

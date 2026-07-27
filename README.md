@@ -4,7 +4,7 @@ SmartService is a reusable, tenant-isolated AI customer-service demonstration. P
 
 ## Current state
 
-Gate 0 is approved, Days 1–5 are fully validated locally, and Days 6–8 add the browser/Worker/LiveKit Agent voice path. The public `/chat` path includes grounded bilingual answers, guardrails, handoff, polling, and finalization; `/voice` implements explicit-click warming, Ready-gated microphone access, Chinese/English sessions, transcript and citation display, shared grounded answers, streaming ElevenLabs TTS, multilingual semantic turns, adaptive interruption, attached browser audio, and text fallback. The complete Day 5–7 checkpoints, focused 40-turn Day 8 evaluation, and three consecutive P0 demos passed; hosted-provider evidence remains pending. See [the live project status](docs/STATUS.md) for exact evidence and blockers.
+Release `0.10.0` completes Days 1–10 for local/mock UAT. The public `/chat` path includes grounded bilingual answers, guardrails, handoff, polling, and finalization; `/voice` implements explicit-click warming, Ready-gated microphone access, shared grounded answers, streaming TTS integration, multilingual semantic turns, adaptive interruption, browser audio timing, terminal handoff, and bounded reconnect/failure recovery. All local checkpoints and three independent full P0/P1 demos passed; hosted-provider and live voice evidence remain pending. See [project status](docs/STATUS.md), [UAT guide](docs/UAT_GUIDE.md), and [readiness report](docs/UAT_READINESS_REPORT.md).
 
 ## Locked delivery
 
@@ -44,6 +44,7 @@ pnpm checkpoint:day6
 pnpm checkpoint:day7
 pnpm checkpoint:day8
 pnpm checkpoint:day9
+pnpm checkpoint:day10
 ```
 
 `pnpm db:start` and `pnpm db:status` deliberately suppress generated local credentials. The fictional demo login values are generated into the ignored mode-`0600` `.env.local`; never paste or commit that file.
@@ -66,10 +67,12 @@ After ingestion succeeds, `pnpm verify:conversation` exercises all 12 fixed in-s
 
 `pnpm checkpoint:day9` adds terminal voice guardrail/handoff behavior, obsolete-turn cancellation, bounded provider failure, fixed safe fallback speech, native and token-refresh reconnect, post-handoff token denial, and Agent-visible voice session/server-latency detail. Local failure tests do not substitute for live provider and network evidence.
 
+`pnpm checkpoint:day10` is the destructive-local-only release regression. It runs every static/package/browser/database/evaluation boundary and all P0/P1 smokes before the release audit. `pnpm demo:full:three` reproduces the three independent full demo chains.
+
 Local ingestion, chat, and Turnstile use explicit deterministic providers and make no paid calls. Hosted R2, Queue, Browser Run, Turnstile, Supabase, and OpenAI evidence is still required before G1; production refuses any mock provider mode.
 
 ## Gate records
 
 Gate 0 approval and remaining hosted-provider requirements are in [the resource request](docs/RESOURCE_REQUEST.md). Provision secrets only in ignored local/provider secret stores. Never paste credentials into chat or commit `.env.local`.
 
-The durable project state is in [docs/STATUS.md](docs/STATUS.md), and durable decisions are in [docs/DECISIONS.md](docs/DECISIONS.md).
+The durable project state is in [docs/STATUS.md](docs/STATUS.md), durable decisions are in [docs/DECISIONS.md](docs/DECISIONS.md), and hosted deployment steps are in [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md).

@@ -14,7 +14,7 @@ interface __BaseEnv_Env {
 	OPENAI_EMBEDDING_MODEL: "text-embedding-3-large";
 	R2_BUCKET_NAME: "smartservice-knowledge-dev";
 	TURNSTILE_PROVIDER_MODE: "mock";
-	VERSION: "0.4.0";
+	VERSION: "0.10.0";
 	SUPABASE_URL: string;
 	SUPABASE_SERVICE_ROLE_KEY: string;
 	LOCAL_UPLOAD_SIGNING_SECRET: string;

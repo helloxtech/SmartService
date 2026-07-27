@@ -1,0 +1,35 @@
+{
+  "environment": "local_deterministic",
+  "generatedAt": "2026-07-27T08:43:49.301Z",
+  "providerCalls": 0,
+  "releaseVersion": "0.10.0",
+  "runs": [
+    {
+      "case": "diagnostic",
+      "completedAt": "2026-07-27T08:41:13.501Z",
+      "durationMs": 77650,
+      "freshDatabase": true,
+      "result": "passed",
+      "run": 1,
+      "startedAt": "2026-07-27T08:39:55.847Z"
+    },
+    {
+      "case": "calibration",
+      "completedAt": "2026-07-27T08:42:30.814Z",
+      "durationMs": 77311,
+      "freshDatabase": true,
+      "result": "passed",
+      "run": 2,
+      "startedAt": "2026-07-27T08:41:13.502Z"
+    },
+    {
+      "case": "replacement",
+      "completedAt": "2026-07-27T08:43:49.301Z",
+      "durationMs": 78486,
+      "freshDatabase": true,
+      "result": "passed",
+      "run": 3,
+      "startedAt": "2026-07-27T08:42:30.815Z"
+    }
+  ]
+}

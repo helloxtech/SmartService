@@ -221,31 +221,22 @@ select extensions.is_empty(
     'Agent cannot read a cross-tenant conversation'
 );
 
-select extensions.is_empty(
-    $$select id from public.guardrail_events$$,
-    'Agent cannot read unredacted guardrail events'
+select extensions.ok(
+    not pg_catalog.has_table_privilege(
+        'authenticated',
+        'public.guardrail_events',
+        'SELECT'
+    ),
+    'Authenticated clients cannot query unredacted guardrail events directly'
 );
 
-select extensions.lives_ok(
-    $$
-        insert into public.messages (
-            organization_id,
-            conversation_id,
-            sender_type,
-            sender_user_id,
-            text,
-            language
-        )
-        values (
-            '00000000-0000-4000-a000-000000000001',
-            '20000000-0000-4000-a000-000000000001',
-            'human',
-            '10000000-0000-4000-a000-000000000002',
-            'Same-tenant human response',
-            'zh-CN'
-        )
-    $$,
-    'Agent can add a same-tenant human response'
+select extensions.ok(
+    not pg_catalog.has_table_privilege(
+        'authenticated',
+        'public.messages',
+        'INSERT'
+    ),
+    'Authenticated clients must use the Worker state transition to send human messages'
 );
 
 select extensions.throws_ok(
@@ -268,8 +259,8 @@ select extensions.throws_ok(
         )
     $$,
     '42501',
-    'new row violates row-level security policy for table "messages"',
-    'Agent cannot add a cross-tenant response'
+    'permission denied for table messages',
+    'Agent cannot bypass the Worker to add a cross-tenant response'
 );
 
 select extensions.throws_ok(
@@ -292,8 +283,8 @@ select extensions.throws_ok(
         )
     $$,
     '42501',
-    'new row violates row-level security policy for table "messages"',
-    'Agent cannot impersonate the AI sender'
+    'permission denied for table messages',
+    'Agent cannot bypass the Worker to impersonate the AI sender'
 );
 
 reset role;
@@ -305,10 +296,13 @@ select set_config(
 );
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
-select extensions.results_eq(
-    $$select id from public.guardrail_events$$,
-    array['30000000-0000-4000-a000-000000000001'::uuid],
-    'Admin can read same-tenant unredacted guardrail events'
+select extensions.ok(
+    not pg_catalog.has_table_privilege(
+        'authenticated',
+        'public.guardrail_events',
+        'SELECT'
+    ),
+    'Admin must use the explicit Worker endpoint to read a blocked candidate'
 );
 
 reset role;

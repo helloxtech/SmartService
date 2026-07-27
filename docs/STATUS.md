@@ -2,9 +2,9 @@
 
 **Last updated:** July 26, 2026
 **Current gate:** P0 implementation after G0 approval
-**Current phase:** Day 3 complete — Grounded bilingual text chat and citations
-**Active step:** Publish the Day 3 checkpoint, then begin Day 4 guardrails, handoff, and agent workspace
-**Overall state:** Days 1–3 green locally; hosted-provider evidence remains required before G1
+**Current phase:** Day 4 complete — Guardrails, handoff, agent workspace, and finalization
+**Active step:** Publish the validated Day 4 slice, then begin Day 5 dashboard and knowledge-gap resolution
+**Overall state:** Days 1–4 green locally; hosted-provider evidence remains required before G1
 
 ## Original goal
 
@@ -21,7 +21,7 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Scope | State | Acceptance |
 |---|---|---|
 | Gate 0 | Approved July 26, 2026 | Baseline `b965aabd027c7c5b1d063f3ee0e5daaf711f0b45` published to `origin/main` |
-| P0 | Days 1–3 complete; Day 4 next | Foundation, ingestion, and grounded bilingual text-chat checks passed locally |
+| P0 | Days 1–4 complete; Day 5 next | Guardrails, handoff, Agent/Admin workspace, closure, and finalization passed the local composite checkpoint |
 | P1 | Not started by design | Not run |
 | R11 | Deferred | Entry conditions not met |
 
@@ -66,6 +66,13 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Added the responsive public `/chat` page with bilingual copy, citation chips/excerpts, explicit human handoff, session-only scoped-token storage, and one-second cursor/ETag polling.
 - Exercised the fixed Day 3 set through the real local Worker and Supabase: 12/12 in-scope questions returned persisted citations and 8/8 unsupported questions produced safe handoff plus open knowledge gaps.
 - Visually reviewed the public chat at desktop and 390-pixel mobile widths and confirmed no horizontal overflow.
+- Added deterministic input and candidate-output guardrails for all six fixed business rules, plus a strict auxiliary-model supervisor adapter and redacted Agent-facing event DTOs.
+- Made the Worker the only state-transition boundary for guardrail completion, handoff claiming, human replies, conversation closure, and finalization; direct authenticated table mutation and guardrail-event reads are revoked.
+- Added atomic guardrail persistence that withholds blocked candidate text, writes the safe response, event, AI run, audit evidence, handoff package, and incremental summary together.
+- Added authenticated Agent/Admin inbox, detail, takeover, human-message, close, guardrail-rule, and Admin-only candidate/event APIs with organization and role enforcement.
+- Added the responsive team workspace with one-second inbox/detail polling, required customer-card fields, citations, handoff context, assignment, human messaging, closure, and Admin guardrail configuration.
+- Added ID-only finalization Queue processing with duplicate-before-model protection, strict Structured Output validation, complete audit persistence, and `ticket: null` while R11 remains gated.
+- Added the ordered Day 4 migration, a 29-assertion pgTAP suite, six-case deterministic guardrail evaluation, API/core tests, and a zero-cost local Day 4 end-to-end verifier.
 
 ## Architecture findings
 
@@ -94,6 +101,10 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 23. The live combined-score retrieval threshold remains `0.72`. Local deterministic chat uses a zero threshold only to validate orchestration against feature-hashed fixtures; it is not live embedding calibration or hosted-model evidence.
 24. Production fails closed unless ingestion, chat, and Turnstile are all configured for live providers. Turnstile bypass exists only in explicit non-production mode.
 25. Public response DTOs expose purpose-built citation IDs, labels, excerpts, and optional source URLs; internal chunk/database evidence IDs remain server-side.
+26. Guardrail and handoff transitions are Worker-owned service operations. Authenticated browser clients cannot mutate conversation/message/rule state or directly read guardrail events.
+27. Every customer input is checked deterministically before retrieval; every candidate answer is checked deterministically and by the auxiliary supervisor before it may be delivered. A blocked candidate is retained only in Admin-authorized evidence.
+28. The public conversation token becomes read-only after handoff or closure so customers may poll human/final messages while AI writes remain disabled.
+29. Finalization is an ID-only, single-concurrency Queue path that reconciles authoritative conversation state and checks for an existing final record before any model call.
 
 ## Validation evidence
 
@@ -121,12 +132,12 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Supabase CLI | `2.109.1` |
 | Docker daemon | `29.5.2` |
 | Wrangler | `4.114.0` via package runner |
-| `pnpm check` | Passed: format, lint, strict typecheck, 70 package/API/real-browser tests, code-split web build, and Worker Queue/R2/Static Assets dry run |
+| `pnpm check` | Passed in the Day 4 checkpoint: format, lint, strict typecheck, package/API/real-browser tests, code-split web build, and Worker Queue/R2/Static Assets dry run |
 | `pnpm test:e2e` | Passed: 2 Chromium tests covering the foundation shell and responsive public chat/evidence panel |
 | `pnpm eval:p0` | Passed: 4 tests, including deterministic 12/12 cited in-scope and 8/8 missing-knowledge handoff behavior; live model quality remains unclaimed |
-| `pnpm eval:guardrails` | Passed: 1 fixed-fixture integrity test; this is not yet a live guardrail claim |
-| `supabase db reset` | Passed from all six ordered P0 migrations and deterministic seed |
-| `supabase test db` | Passed clean and after populated smoke state: 49/49 tenant, role, privacy, ingestion, conversation, citation, rate-limit, idempotency, handoff/gap, and anonymous-denial assertions |
+| `pnpm eval:guardrails` | Passed: all six fixed cases were blocked by their expected enabled rule with safe handoff |
+| `supabase db reset` | Passed from all seven ordered P0 migrations and deterministic seed |
+| `supabase test db` | Passed: 78/78 tenant, role, privacy, ingestion, conversation, citation, rate-limit, idempotency, guardrail, handoff, finalization, audit, and anonymous-denial assertions |
 | `supabase db lint --schema public` | Passed; no schema errors |
 | RLS posture query | Passed: 18/18 public tables have RLS enabled and forced; `anon` has 0 table privileges |
 | Foreign-key index audit | Passed: every public foreign key has an exact leading-column index, including tenant-qualified composite keys |
@@ -142,14 +153,17 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Day 3 conversation-token tests | Passed: signature, expiry, scope, organization, URL subject, and safe rejection boundaries |
 | Day 3 Responses/Turnstile adapter tests | Passed: strict Structured Output request, validated response/usage, timeout/retry, action, hostname, and production mock denial |
 | Local Day 3 conversation smoke | Passed: 12/12 cited answers, 8/8 missing-knowledge handoffs, 12 persisted citations, 8 open gaps, polling/304, idempotency, manual handoff, and AI-run links |
-| OpenAPI contract validation | Passed: 16 paths, 18 operations, 19 unique local references, no missing local reference |
+| OpenAPI contract validation | Passed: 22 paths, 25 operations, 34 unique local references, no missing local reference |
 | Desktop/mobile visual inspection | Passed; Knowledge and public chat layouts have no horizontal overflow at 390 pixels |
+| Day 4 strict TypeScript check | Passed for all eight workspace projects |
+| Day 4 ESLint check | Passed for all workspace packages |
+| Day 4 verifier JavaScript syntax | Passed with `node --check tooling/local/verify-day4.mjs` |
+| Full Day 4 composite checkpoint | Passed: user-run checkpoint passed through database lint; the evaluation import defect was corrected and re-run green; final smoke passed 6/6 guardrails, handoff under 3 seconds, AI stopped, human polling under 3 seconds, closure/finalization, and zero provider cost |
 | Live provider smoke tests | Not run; external P0 provider credentials remain absent |
 | Cost-bearing provider calls | None |
 
 ## Current blockers
 
-- No blocker prevents Day 4 local/mocked implementation.
 - P0 provider credentials and a dedicated development project remain unset; live P0 integration and G1 acceptance remain blocked until those groups are provisioned.
 - P1 provider credentials, commercial-use confirmation, voice ID, and the final microphone/device/network remain deferred until before Day 6.
 
@@ -160,14 +174,14 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 - Durable decisions are in `docs/DECISIONS.md`.
 - Gate 0 defaults were approved by Forrest Zhang on July 26, 2026 and are recorded in `DEC-031`.
 
-## Day 3 checkpoint scope
+## Day 4 checkpoint scope
 
-- Public conversation/token/citation/handoff contracts plus shared bilingual RAG schema, prompt, deterministic provider, and citation validator.
-- Public conversation routes/services, OpenAI Responses adapter, Turnstile verifier, hybrid retrieval repository, cursor/ETag polling, and production fail-closed provider graph.
-- Responsive `/chat` UX with localized safe states, citation evidence panel, explicit handoff, and scoped session storage.
-- Day 3 conversation migration and 49-test tenant/security/ingestion/conversation database suite.
-- Full local fixed-set verification for 12 cited answers and 8 missing-knowledge handoffs, plus updated P0 evaluation.
-- Updated OpenAPI/environment/operator/status/resource contracts and durable decisions.
+- Deterministic input/candidate checks, strict auxiliary supervisor/finalizer schemas, six fixed rules, safe blocked responses, and Admin-only candidate evidence.
+- Worker-owned guardrail, handoff, Agent, human-message, closure, and finalization APIs with tenant/role enforcement and audit links.
+- Responsive Agent/Admin workspace for inbox, customer card, transcript, citations, handoff package, takeover, human replies, closure, rules, and events.
+- Ordered Day 4 migration, 29-assertion database suite, unit/API coverage, expanded guardrail evaluation, and local Worker/Supabase end-to-end verifier.
+- OpenAPI, environment, operator, status, resource, and durable-decision updates.
+- Checkpoint command: `pnpm checkpoint:day4`.
 
 ## Cost to date
 
@@ -176,7 +190,7 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 
 ## Next step
 
-Publish the separate Day 3 checkpoint, then begin Day 4 deterministic input checks, auxiliary-model output supervision, block logs, human handoff queue/workspace, assignment/claiming, and required agent customer-card fields. Live hosted-provider acceptance remains deferred until the corresponding credential groups are present.
+Publish the separate Day 4 checkpoint, then begin Day 5 dashboard metrics, containment and handoff reporting, knowledge-gap ranking, and one-click gap resolution. Live hosted-provider acceptance remains deferred until the corresponding credential groups are present.
 
 ## Resume instruction
 

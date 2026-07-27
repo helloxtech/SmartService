@@ -1,8 +1,11 @@
 import {
     createSafeHandoff,
     detectConversationLanguage,
+    evaluateDeterministicGuardrails,
+    guardrailPromptVersion,
     ragPromptVersion,
     validateGroundedAnswer,
+    type GuardrailSupervisor,
     type RagAnswerProvider,
     type RetrievedEvidence,
 } from "@smartservice/assistant-core";
@@ -15,6 +18,8 @@ import {
     type ConversationTokenClaims,
     type CreatePublicConversationRequest,
     type CreatePublicConversationResponse,
+    type GuardrailEvaluation,
+    type GuardrailRule,
     type PublicMessageListResponse,
     type RagAnswer,
     type RequestPublicHandoffResponse,
@@ -45,6 +50,38 @@ const cursorPayloadSchema = z.object({
     createdAt: z.iso.datetime({ offset: true }),
     messageId: z.uuid(),
 });
+
+interface CandidateAudit
+{
+    answer: string | null;
+    inputTokens: number | null;
+    latencyMs: number | null;
+    model: string | null;
+    outputTokens: number | null;
+    promptVersion: string | null;
+    provider: string | null;
+}
+
+interface GuardrailAudit
+{
+    inputTokens: number | null;
+    latencyMs: number;
+    model: string;
+    outputTokens: number | null;
+    provider: string;
+}
+
+interface GuardrailBlockInput
+{
+    candidate: CandidateAudit;
+    conversationId: string;
+    customerMessageId: string;
+    evaluation: GuardrailEvaluation;
+    guardrail: GuardrailAudit;
+    language: ConversationLanguage;
+    organizationId: string;
+    requestId: string;
+}
 
 /**
  * sha256Hex
@@ -293,15 +330,16 @@ export class DefaultPublicConversationService implements PublicConversationServi
     /**
      * DefaultPublicConversationService
      * ----------------
-     * Creates the public text-conversation orchestrator from explicit server-side adapters.
+     * Creates the public text-conversation orchestrator from explicit server-side RAG, guardrail, and security adapters.
      *
-     * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Public Conversations
+     * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Guardrails and Handoff
      */
     public constructor(
         private readonly bindings: SmartServiceBindings,
         private readonly repository: SupabaseConversationRepository,
         private readonly embeddings: EmbeddingProvider,
         private readonly answers: RagAnswerProvider,
+        private readonly guardrails: GuardrailSupervisor,
         private readonly turnstile: TurnstileVerifier,
     )
     {
@@ -384,9 +422,9 @@ export class DefaultPublicConversationService implements PublicConversationServi
     /**
      * authorize
      * ----------------
-     * Verifies the bearer token and authoritative database state, including immediate invalidation after closure.
+     * Verifies the bearer token and authoritative database state while allowing read-only polling after handoff or closure.
      *
-     * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Public Conversation Security
+     * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Conversation State Machine
      */
     private async authorize(
         request: Request,
@@ -407,9 +445,21 @@ export class DefaultPublicConversationService implements PublicConversationServi
             conversationId,
         );
 
-        if (conversation === null || conversation.status === "closed")
+        if (conversation === null)
         {
             throw new ApiError(401, "CONVERSATION_TOKEN_INVALID", "The conversation session is not valid.");
+        }
+
+        if (
+            scope === "conversation:write"
+            && conversation.status !== "active_ai"
+        )
+        {
+            throw new ApiError(
+                409,
+                "CONVERSATION_NOT_AI_ACTIVE",
+                "AI messaging is no longer active for this conversation.",
+            );
         }
 
         return {
@@ -455,11 +505,103 @@ export class DefaultPublicConversationService implements PublicConversationServi
     }
 
     /**
+     * refreshOperationalContext
+     * ----------------
+     * Refreshes the bounded incremental summary and, for escalated turns, the authoritative handoff snapshot.
+     *
+     * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Handoff Summary
+     */
+    private async refreshOperationalContext(
+        organizationId: string,
+        conversationId: string,
+        requestId: string,
+        handoff: boolean,
+    ): Promise<void>
+    {
+        await this.repository.refreshIncrementalSummary(
+            organizationId,
+            conversationId,
+            requestId,
+        );
+
+        if (handoff)
+        {
+            await this.repository.refreshHandoffSnapshot(
+                organizationId,
+                conversationId,
+                requestId,
+            );
+        }
+    }
+
+    /**
+     * persistGuardrailBlock
+     * ----------------
+     * Atomically withholds a blocked candidate, exposes only safe wording, transitions to handoff, and refreshes agent context.
+     *
+     * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Guardrails
+     */
+    private async persistGuardrailBlock(
+        input: GuardrailBlockInput,
+    ): Promise<SendPublicMessageResponse>
+    {
+        if (
+            input.evaluation.allowed
+            || !input.evaluation.requestHandoff
+            || input.evaluation.safeResponse === null
+            || input.evaluation.violations.length === 0
+        )
+        {
+            throw new ApiError(
+                502,
+                "GUARDRAIL_EVALUATION_INVALID",
+                "The guardrail result could not be applied safely.",
+            );
+        }
+
+        const messageId = await this.repository.completeGuardrailTurn({
+            blockedCandidate: input.candidate.answer,
+            candidateInputTokens: input.candidate.inputTokens,
+            candidateLatencyMs: input.candidate.latencyMs,
+            candidateModel: input.candidate.model,
+            candidateOutputTokens: input.candidate.outputTokens,
+            candidatePromptVersion: input.candidate.promptVersion,
+            candidateProvider: input.candidate.provider,
+            conversationId: input.conversationId,
+            customerMessageId: input.customerMessageId,
+            language: input.language,
+            organizationId: input.organizationId,
+            requestId: input.requestId,
+            safeResponse: input.evaluation.safeResponse,
+            supervisorInputTokens: input.guardrail.inputTokens,
+            supervisorLatencyMs: input.guardrail.latencyMs,
+            supervisorModel: input.guardrail.model,
+            supervisorOutputTokens: input.guardrail.outputTokens,
+            supervisorPromptVersion: guardrailPromptVersion,
+            supervisorProvider: input.guardrail.provider,
+            violations: input.evaluation.violations,
+        });
+        await this.refreshOperationalContext(
+            input.organizationId,
+            input.conversationId,
+            input.requestId,
+            true,
+        );
+        const response = await this.repository.loadResponse(
+            input.organizationId,
+            input.conversationId,
+            messageId,
+        );
+
+        return sendPublicMessageResponseSchema.parse(response);
+    }
+
+    /**
      * send
      * ----------------
-     * Persists one customer turn, performs bounded tenant retrieval and grounded generation, then atomically stores its result.
+     * Persists one customer turn, applies input/output guardrails around grounded generation, and exposes only validated safe output.
      *
-     * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Grounded Text Q&A
+     * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Guardrails and Handoff
      */
     public async send(
         request: Request,
@@ -503,6 +645,12 @@ export class DefaultPublicConversationService implements PublicConversationServi
 
             if (existing !== null)
             {
+                await this.refreshOperationalContext(
+                    authorization.claims.org,
+                    conversationId,
+                    requestId,
+                    existing.handoff !== null,
+                );
                 return sendPublicMessageResponseSchema.parse(existing);
             }
 
@@ -532,6 +680,45 @@ export class DefaultPublicConversationService implements PublicConversationServi
             }
             else
             {
+                const rules: GuardrailRule[] = await this.repository.listGuardrailRules(
+                    authorization.claims.org,
+                );
+                const inputGuardrailStartedAt = Date.now();
+                const inputEvaluation = evaluateDeterministicGuardrails({
+                    candidateAnswer: null,
+                    language,
+                    rules,
+                    userMessage: input.text,
+                });
+
+                if (!inputEvaluation.allowed)
+                {
+                    return this.persistGuardrailBlock({
+                        candidate: {
+                            answer: null,
+                            inputTokens: null,
+                            latencyMs: null,
+                            model: null,
+                            outputTokens: null,
+                            promptVersion: null,
+                            provider: null,
+                        },
+                        conversationId,
+                        customerMessageId: customerMessage.id,
+                        evaluation: inputEvaluation,
+                        guardrail: {
+                            inputTokens: null,
+                            latencyMs: Date.now() - inputGuardrailStartedAt,
+                            model: "deterministic-guardrail-v1",
+                            outputTokens: null,
+                            provider: "deterministic",
+                        },
+                        language,
+                        organizationId: authorization.claims.org,
+                        requestId,
+                    });
+                }
+
                 const vectors = await this.embeddings.embed([input.text]);
                 const queryEmbedding = vectors[0];
 
@@ -569,6 +756,77 @@ export class DefaultPublicConversationService implements PublicConversationServi
                     inputTokens = generated.inputTokens;
                     outputTokens = generated.outputTokens;
                     answer = validateGroundedAnswer(generated.answer, evidence);
+
+                    if (
+                        answer.decision === "answer"
+                        || answer.decision === "clarify"
+                    )
+                    {
+                        const candidate: CandidateAudit = {
+                            answer: answer.answer,
+                            inputTokens,
+                            latencyMs: Date.now() - startedAt,
+                            model,
+                            outputTokens,
+                            promptVersion: ragPromptVersion,
+                            provider,
+                        };
+                        const outputGuardrailStartedAt = Date.now();
+                        const outputEvaluation = evaluateDeterministicGuardrails({
+                            candidateAnswer: answer.answer,
+                            language,
+                            rules,
+                            userMessage: input.text,
+                        });
+
+                        if (!outputEvaluation.allowed)
+                        {
+                            return this.persistGuardrailBlock({
+                                candidate,
+                                conversationId,
+                                customerMessageId: customerMessage.id,
+                                evaluation: outputEvaluation,
+                                guardrail: {
+                                    inputTokens: null,
+                                    latencyMs: Date.now() - outputGuardrailStartedAt,
+                                    model: "deterministic-guardrail-v1",
+                                    outputTokens: null,
+                                    provider: "deterministic",
+                                },
+                                language,
+                                organizationId: authorization.claims.org,
+                                requestId,
+                            });
+                        }
+
+                        const supervisionStartedAt = Date.now();
+                        const supervision = await this.guardrails.supervise({
+                            candidateAnswer: answer.answer,
+                            language,
+                            rules,
+                            userMessage: input.text,
+                        });
+
+                        if (!supervision.evaluation.allowed)
+                        {
+                            return this.persistGuardrailBlock({
+                                candidate,
+                                conversationId,
+                                customerMessageId: customerMessage.id,
+                                evaluation: supervision.evaluation,
+                                guardrail: {
+                                    inputTokens: supervision.inputTokens,
+                                    latencyMs: Date.now() - supervisionStartedAt,
+                                    model: this.guardrails.model,
+                                    outputTokens: supervision.outputTokens,
+                                    provider: this.guardrails.provider,
+                                },
+                                language,
+                                organizationId: authorization.claims.org,
+                                requestId,
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -622,6 +880,12 @@ export class DefaultPublicConversationService implements PublicConversationServi
             },
             retrievedChunkIds: evidence.map((item) => item.chunkId),
         });
+        await this.refreshOperationalContext(
+            authorization.claims.org,
+            conversationId,
+            requestId,
+            answer.decision === "handoff",
+        );
         const response = await this.repository.loadResponse(
             authorization.claims.org,
             conversationId,
@@ -634,9 +898,9 @@ export class DefaultPublicConversationService implements PublicConversationServi
     /**
      * requestHandoff
      * ----------------
-     * Verifies the conversation, applies a bounded write rate, and persists an idempotent customer-requested handoff.
+     * Verifies the conversation, persists an idempotent customer-requested handoff, and refreshes the agent package.
      *
-     * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Public Handoff
+     * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Handoff Summary
      */
     public async requestHandoff(
         request: Request,
@@ -667,6 +931,12 @@ export class DefaultPublicConversationService implements PublicConversationServi
             idempotencyKey,
             authorization.conversation.language as ConversationLanguage,
             requestId,
+        );
+        await this.refreshOperationalContext(
+            authorization.claims.org,
+            conversationId,
+            requestId,
+            true,
         );
 
         return requestPublicHandoffResponseSchema.parse({

@@ -7,6 +7,10 @@ import {
 
 import { authenticateAdmin, authenticateMember } from "./auth";
 import { createRagAnswerProvider } from "./answers";
+import {
+    createConversationFinalizer,
+    createGuardrailSupervisor,
+} from "./auxiliary-ai";
 import { SupabaseConversationRepository } from "./conversation-repository";
 import { DefaultPublicConversationService } from "./conversation-service";
 import {
@@ -16,6 +20,7 @@ import {
 import { createEmbeddingProvider } from "./embeddings";
 import { ApiError } from "./errors";
 import { SupabaseKnowledgeRepository } from "./repository";
+import { SupabaseTeamRepository } from "./team-repository";
 import {
     createUploadIntentProvider,
     R2KnowledgeObjectStore,
@@ -72,9 +77,9 @@ class CompositeExtractedPayloadProvider implements ExtractedPayloadProvider
 /**
  * assertSafeProviderMode
  * ----------------
- * Fails closed when a production Worker is configured to use any deterministic ingestion, chat, or Turnstile provider.
+ * Fails closed when a production Worker is configured to use any deterministic ingestion, chat, auxiliary-AI, or Turnstile provider.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 3 Grounded Text Chat
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Guardrails and Handoff
  */
 function assertSafeProviderMode(bindings: SmartServiceBindings): void
 {
@@ -83,6 +88,7 @@ function assertSafeProviderMode(bindings: SmartServiceBindings): void
         && (
             bindings.INGESTION_PROVIDER_MODE !== "live"
             || bindings.CHAT_PROVIDER_MODE !== "live"
+            || bindings.AUXILIARY_PROVIDER_MODE !== "live"
             || bindings.TURNSTILE_PROVIDER_MODE !== "live"
         )
     )
@@ -98,15 +104,18 @@ function assertSafeProviderMode(bindings: SmartServiceBindings): void
 /**
  * createRuntimeServices
  * ----------------
- * Builds one request/queue-scoped modular-monolith service graph, including the public grounded-chat path, from explicit Worker bindings.
+ * Builds one request/queue-scoped modular-monolith service graph, including guarded chat, team handoff, and finalization adapters.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 3 Grounded Text Chat
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Guardrails and Handoff
  */
 export function createRuntimeServices(bindings: SmartServiceBindings): RuntimeServices
 {
     assertSafeProviderMode(bindings);
     const repository = new SupabaseKnowledgeRepository(bindings);
     const conversationRepository = new SupabaseConversationRepository(bindings);
+    const guardrails = createGuardrailSupervisor(bindings);
+    const finalizer = createConversationFinalizer(bindings);
+    const team = new SupabaseTeamRepository(bindings, conversationRepository);
     const objects = new R2KnowledgeObjectStore(bindings.KNOWLEDGE_FILES);
     const crawl = bindings.INGESTION_PROVIDER_MODE === "live"
         ? new CloudflareBrowserRunCrawlProvider(bindings, cloudflareDnsResolver)
@@ -141,16 +150,21 @@ export function createRuntimeServices(bindings: SmartServiceBindings): RuntimeSe
         crawl: new CompositeExtractedPayloadProvider(objects, crawl),
         dnsResolver: cloudflareDnsResolver,
         embeddings,
+        finalizer,
+        finalizeQueue: bindings.FINALIZE_QUEUE,
+        guardrails,
         objects,
         publicConversations: new DefaultPublicConversationService(
             bindings,
             conversationRepository,
             embeddings,
             createRagAnswerProvider(bindings),
+            guardrails,
             createTurnstileVerifier(bindings),
         ),
         queue: bindings.INGEST_QUEUE,
         repository,
+        team,
         uploads: createUploadIntentProvider(bindings),
     };
 }

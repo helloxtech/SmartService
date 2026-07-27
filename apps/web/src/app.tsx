@@ -24,12 +24,12 @@ type AuthenticationState =
     | { kind: "signed-out" }
     | { kind: "signed-in"; membership: OrganizationMembership; session: Session };
 
-const KnowledgeWorkspace = lazy(async () =>
+const TeamWorkspace = lazy(async () =>
 {
-    const module = await import("./knowledge-workspace");
+    const module = await import("./team-workspace");
 
     return {
-        default: module.KnowledgeWorkspace,
+        default: module.TeamWorkspace,
     };
 });
 
@@ -86,9 +86,9 @@ async function loadMembership(client: SupabaseClient, session: Session): Promise
 /**
  * WorkspaceApp
  * ----------------
- * Renders the authenticated SmartService shell and tenant-scoped knowledge workspace.
+ * Renders the authenticated SmartService shell and role-aware operations workspace.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 3 Grounded Text Q&A
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Agent Workspace
  */
 function WorkspaceApp(): JSX.Element
 {
@@ -240,7 +240,7 @@ function WorkspaceApp(): JSX.Element
                         </div>
                     </div>
                     <span className="rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
-                        Day 3 grounded chat
+                        Day 4 human handoff
                     </span>
                 </div>
             </header>
@@ -380,11 +380,11 @@ function WorkspaceApp(): JSX.Element
                     <Suspense
                         fallback={(
                             <div className="mx-auto max-w-6xl px-6 pb-16 text-sm text-slate-500" role="status">
-                                Loading knowledge workspace…
+                                Loading team workspace…
                             </div>
                         )}
                     >
-                        <KnowledgeWorkspace
+                        <TeamWorkspace
                             membership={authentication.membership}
                             session={authentication.session}
                         />
@@ -398,9 +398,9 @@ function WorkspaceApp(): JSX.Element
 /**
  * App
  * ----------------
- * Routes the public customer chat separately from the authenticated team workspace without exposing Supabase to customers.
+ * Routes public customer chat separately from the authenticated Day 4 operations workspace without exposing Supabase to customers.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 3 Customer Chat
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Agent Workspace
  */
 export function App(): JSX.Element
 {

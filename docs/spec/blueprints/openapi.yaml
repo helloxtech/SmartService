@@ -245,6 +245,36 @@ paths:
       responses:
         '202':
           description: Manual knowledge queued for embedding
+  /v1/admin/conversations:
+    get:
+      operationId: listTeamConversations
+      security:
+        - supabaseJwt: []
+      parameters:
+        - name: includeClosed
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Tenant-scoped handoff inbox
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamInboxResponse'
+  /v1/admin/conversations/{conversationId}:
+    get:
+      operationId: getTeamConversation
+      security:
+        - supabaseJwt: []
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: Transcript, citations, customer card, handoff package, redacted guardrails, and final record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamConversationDetail'
   /v1/admin/conversations/{conversationId}/takeover:
     post:
       operationId: takeoverConversation
@@ -252,9 +282,14 @@ paths:
         - supabaseJwt: []
       parameters:
         - $ref: '#/components/parameters/ConversationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '200':
           description: Conversation is active_human
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimConversationResponse'
   /v1/admin/conversations/{conversationId}/messages:
     post:
       operationId: sendHumanMessage
@@ -262,6 +297,7 @@ paths:
         - supabaseJwt: []
       parameters:
         - $ref: '#/components/parameters/ConversationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -273,7 +309,12 @@ paths:
                 text: { type: string, minLength: 1, maxLength: 5000 }
                 clientMessageId: { type: string, format: uuid }
       responses:
-        '200': { description: Message persisted }
+        '200':
+          description: Human message persisted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendHumanMessageResponse'
   /v1/admin/conversations/{conversationId}/close:
     post:
       operationId: closeConversation
@@ -281,8 +322,114 @@ paths:
         - supabaseJwt: []
       parameters:
         - $ref: '#/components/parameters/ConversationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
       responses:
-        '202': { description: Closed and finalization queued }
+        '202':
+          description: Closed and finalization queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloseConversationResponse'
+  /v1/admin/guardrails/rules:
+    get:
+      operationId: listGuardrailRules
+      security:
+        - supabaseJwt: []
+      responses:
+        '200':
+          description: Admin tenant guardrail configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rules]
+                properties:
+                  rules:
+                    type: array
+                    items: { $ref: '#/components/schemas/GuardrailRule' }
+    post:
+      operationId: createGuardrailRule
+      security:
+        - supabaseJwt: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGuardrailRuleRequest'
+      responses:
+        '201':
+          description: Guardrail rule created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardrailRule'
+  /v1/admin/guardrails/rules/{ruleId}:
+    patch:
+      operationId: updateGuardrailRule
+      security:
+        - supabaseJwt: []
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGuardrailRuleRequest'
+      responses:
+        '200':
+          description: Guardrail rule updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardrailRule'
+  /v1/admin/guardrails/events:
+    get:
+      operationId: listGuardrailEvents
+      description: Admin-only redacted event list; blocked candidate is never included.
+      security:
+        - supabaseJwt: []
+      parameters:
+        - name: conversationId
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Redacted guardrail events
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events]
+                properties:
+                  events:
+                    type: array
+                    items: { $ref: '#/components/schemas/GuardrailEvent' }
+  /v1/admin/guardrails/events/{eventId}/candidate:
+    get:
+      operationId: getGuardrailCandidate
+      description: Distinct Admin-only authorization boundary for one withheld candidate.
+      security:
+        - supabaseJwt: []
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Withheld candidate or null when the input gate blocked before generation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardrailCandidateResponse'
   /v1/admin/dashboard/summary:
     get:
       operationId: getDashboardSummary
@@ -576,3 +723,320 @@ components:
         jobId: { type: string, format: uuid }
         source:
           $ref: '#/components/schemas/KnowledgeSource'
+    GuardrailRule:
+      type: object
+      required:
+        [id, code, name, description, severity, ruleType, safeResponse, enabled, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{2,79}$' }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: string, minLength: 1, maxLength: 2000 }
+        severity: { type: string, enum: [low, medium, high, critical] }
+        ruleType:
+          {
+            type: string,
+            enum:
+              [
+                price,
+                delivery,
+                competitor,
+                security,
+                unsupported_claim,
+                safety,
+                custom,
+              ],
+          }
+        safeResponse: { type: string, minLength: 1, maxLength: 4000 }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateGuardrailRuleRequest:
+      type: object
+      required: [code, name, description, severity, ruleType, safeResponse]
+      properties:
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{2,79}$' }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: string, minLength: 1, maxLength: 2000 }
+        severity: { type: string, enum: [low, medium, high, critical] }
+        ruleType:
+          {
+            type: string,
+            enum:
+              [
+                price,
+                delivery,
+                competitor,
+                security,
+                unsupported_claim,
+                safety,
+                custom,
+              ],
+          }
+        safeResponse: { type: string, minLength: 1, maxLength: 4000 }
+        enabled: { type: boolean, default: true }
+    UpdateGuardrailRuleRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: string, minLength: 1, maxLength: 2000 }
+        severity: { type: string, enum: [low, medium, high, critical] }
+        ruleType:
+          {
+            type: string,
+            enum:
+              [
+                price,
+                delivery,
+                competitor,
+                security,
+                unsupported_claim,
+                safety,
+                custom,
+              ],
+          }
+        safeResponse: { type: string, minLength: 1, maxLength: 4000 }
+        enabled: { type: boolean }
+    GuardrailEvent:
+      type: object
+      description: Redacted event; blocked candidate is intentionally absent.
+      required:
+        [id, conversationId, customerMessageId, ruleId, ruleCode, severity, reason, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        conversationId: { type: string, format: uuid }
+        customerMessageId:
+          oneOf:
+            - type: 'null'
+            - type: string
+              format: uuid
+        ruleId:
+          oneOf:
+            - type: 'null'
+            - type: string
+              format: uuid
+        ruleCode: { type: string, minLength: 1, maxLength: 80 }
+        severity: { type: string, enum: [low, medium, high, critical] }
+        reason: { type: string, minLength: 1, maxLength: 4000 }
+        createdAt: { type: string, format: date-time }
+    GuardrailCandidateResponse:
+      type: object
+      required: [eventId, blockedCandidate]
+      properties:
+        eventId: { type: string, format: uuid }
+        blockedCandidate:
+          oneOf:
+            - type: 'null'
+            - type: string
+              maxLength: 20000
+    CustomerCard:
+      type: object
+      required: [name, email, phone, company, language, channel]
+      properties:
+        name:
+          oneOf:
+            - type: 'null'
+            - type: string
+              maxLength: 160
+        email:
+          oneOf:
+            - type: 'null'
+            - type: string
+              maxLength: 320
+        phone:
+          oneOf:
+            - type: 'null'
+            - type: string
+              maxLength: 80
+        company:
+          oneOf:
+            - type: 'null'
+            - type: string
+              maxLength: 200
+        language: { type: string, enum: [zh-CN, en] }
+        channel: { type: string, enum: [text] }
+    HandoffSummary:
+      type: object
+      required:
+        [
+          customerQuestion,
+          confirmedFacts,
+          triggerReason,
+          nextStep,
+          currentIntent,
+          conversationSummary,
+          suggestedReply,
+        ]
+      properties:
+        customerQuestion: { type: string, minLength: 1, maxLength: 4000 }
+        confirmedFacts:
+          type: array
+          maxItems: 20
+          items: { type: string, maxLength: 500 }
+        triggerReason: { type: string, minLength: 1, maxLength: 1000 }
+        nextStep: { type: string, minLength: 1, maxLength: 1000 }
+        currentIntent: { type: string, minLength: 1, maxLength: 240 }
+        conversationSummary: { type: string, minLength: 1, maxLength: 4000 }
+        suggestedReply: { type: string, minLength: 1, maxLength: 1200 }
+    TeamInboxItem:
+      type: object
+      required:
+        [
+          conversationId,
+          customer,
+          status,
+          handoffReason,
+          handoffRequestedAt,
+          startedAt,
+          acceptedBy,
+          acceptedAt,
+          guardrailCount,
+          latestGuardrailCode,
+          summary,
+        ]
+      properties:
+        conversationId: { type: string, format: uuid }
+        customer: { $ref: '#/components/schemas/CustomerCard' }
+        status:
+          { type: string, enum: [handoff_requested, active_human, closed] }
+        handoffReason: { type: string, minLength: 1, maxLength: 2000 }
+        handoffRequestedAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time }
+        acceptedBy:
+          oneOf:
+            - type: 'null'
+            - type: string
+              format: uuid
+        acceptedAt:
+          oneOf:
+            - type: 'null'
+            - type: string
+              format: date-time
+        guardrailCount: { type: integer, minimum: 0 }
+        latestGuardrailCode:
+          oneOf:
+            - type: 'null'
+            - type: string
+              maxLength: 80
+        summary: { $ref: '#/components/schemas/HandoffSummary' }
+    TeamInboxResponse:
+      type: object
+      required: [conversations]
+      properties:
+        conversations:
+          type: array
+          maxItems: 200
+          items: { $ref: '#/components/schemas/TeamInboxItem' }
+    TeamMessage:
+      type: object
+      required:
+        [messageId, senderType, senderUserId, text, decision, citations, createdAt]
+      properties:
+        messageId: { type: string, format: uuid }
+        senderType: { type: string, enum: [customer, ai, human, system] }
+        senderUserId:
+          oneOf:
+            - type: 'null'
+            - type: string
+              format: uuid
+        text: { type: string, minLength: 1, maxLength: 20000 }
+        decision:
+          oneOf:
+            - type: 'null'
+            - type: string
+              enum: [answer, clarify, handoff, human]
+        citations:
+          type: array
+          maxItems: 5
+          items: { $ref: '#/components/schemas/Citation' }
+        createdAt: { type: string, format: date-time }
+    ConversationSummary:
+      type: object
+      required:
+        [
+          id,
+          summary,
+          primaryIntent,
+          intentLevel,
+          outcome,
+          customerFacts,
+          followUpActions,
+          suggestedScript,
+          createdAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        summary: { type: string, minLength: 1, maxLength: 2000 }
+        primaryIntent: { type: string, minLength: 1, maxLength: 200 }
+        intentLevel: { type: string, enum: [low, medium, high, unknown] }
+        outcome:
+          {
+            type: string,
+            enum:
+              [
+                resolved_ai,
+                resolved_human,
+                unresolved,
+                follow_up_required,
+              ],
+          }
+        customerFacts:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            required: [key, value, sourceMessageId]
+            properties:
+              key: { type: string, minLength: 1, maxLength: 100 }
+              value: { type: string, minLength: 1, maxLength: 300 }
+              sourceMessageId:
+                oneOf:
+                  - type: 'null'
+                  - type: string
+                    format: uuid
+        followUpActions:
+          type: array
+          maxItems: 10
+          items: { type: string, minLength: 1, maxLength: 300 }
+        suggestedScript: { type: string, minLength: 1, maxLength: 1200 }
+        createdAt: { type: string, format: date-time }
+    TeamConversationDetail:
+      allOf:
+        - $ref: '#/components/schemas/TeamInboxItem'
+        - type: object
+          required: [messages, guardrailEvents, summaryRecord]
+          properties:
+            messages:
+              type: array
+              maxItems: 500
+              items: { $ref: '#/components/schemas/TeamMessage' }
+            guardrailEvents:
+              type: array
+              maxItems: 200
+              items: { $ref: '#/components/schemas/GuardrailEvent' }
+            summaryRecord:
+              oneOf:
+                - type: 'null'
+                - $ref: '#/components/schemas/ConversationSummary'
+    ClaimConversationResponse:
+      type: object
+      required: [conversationId, acceptedBy, acceptedAt, status]
+      properties:
+        conversationId: { type: string, format: uuid }
+        acceptedBy: { type: string, format: uuid }
+        acceptedAt: { type: string, format: date-time }
+        status: { type: string, enum: [active_human] }
+    SendHumanMessageResponse:
+      type: object
+      required: [created, message]
+      properties:
+        created: { type: boolean }
+        message: { $ref: '#/components/schemas/TeamMessage' }
+    CloseConversationResponse:
+      type: object
+      required: [conversationId, status, finalizationQueued]
+      properties:
+        conversationId: { type: string, format: uuid }
+        status: { type: string, enum: [closed] }
+        finalizationQueued: { type: boolean }

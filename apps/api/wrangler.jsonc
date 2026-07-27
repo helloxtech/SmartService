@@ -8,13 +8,14 @@
   "preview_urls": true,
   "vars": {
     "ENVIRONMENT": "development",
+    "AUXILIARY_PROVIDER_MODE": "mock",
     "CHAT_PROVIDER_MODE": "mock",
     "INGESTION_PROVIDER_MODE": "mock",
     "OPENAI_EMBEDDING_DIMENSIONS": "1024",
     "OPENAI_EMBEDDING_MODEL": "text-embedding-3-large",
     "R2_BUCKET_NAME": "smartservice-knowledge-dev",
     "TURNSTILE_PROVIDER_MODE": "mock",
-    "VERSION": "0.3.0",
+    "VERSION": "0.4.0",
   },
   "r2_buckets": [
     {
@@ -29,6 +30,10 @@
         "binding": "INGEST_QUEUE",
         "queue": "smartservice-ingest-dev",
       },
+      {
+        "binding": "FINALIZE_QUEUE",
+        "queue": "smartservice-finalize-dev",
+      },
     ],
     "consumers": [
       {
@@ -36,6 +41,14 @@
         "dead_letter_queue": "smartservice-ingest-dlq-dev",
         "max_batch_size": 5,
         "max_batch_timeout": 5,
+        "max_retries": 2,
+      },
+      {
+        "queue": "smartservice-finalize-dev",
+        "dead_letter_queue": "smartservice-finalize-dlq-dev",
+        "max_batch_size": 5,
+        "max_batch_timeout": 5,
+        "max_concurrency": 1,
         "max_retries": 2,
       },
     ],

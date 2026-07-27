@@ -6,6 +6,7 @@ import { ApiError } from "./errors";
 import { createKnowledgeRouter } from "./knowledge-routes";
 import { createPublicConversationRouter } from "./public-conversation-routes";
 import { createRuntimeServices } from "./services";
+import { createTeamRouter } from "./team-routes";
 import type {
     AppEnvironment,
     RuntimeServiceFactory,
@@ -14,9 +15,9 @@ import type {
 /**
  * createApp
  * ----------------
- * Creates the Hono Worker application with request tracing, safe structured errors, health, knowledge, and public conversation routes.
+ * Creates the Hono Worker application with tracing, safe errors, public chat, knowledge, guardrail, and team routes.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 3 Grounded Text Chat
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Agent Workspace
  */
 export function createApp(
     serviceFactory: RuntimeServiceFactory = createRuntimeServices,
@@ -80,10 +81,13 @@ export function createApp(
 
     const knowledgeRouter = createKnowledgeRouter(serviceFactory);
     const publicConversationRouter = createPublicConversationRouter(serviceFactory);
+    const teamRouter = createTeamRouter(serviceFactory);
     app.route("/api", knowledgeRouter);
     app.route("/", knowledgeRouter);
     app.route("/api", publicConversationRouter);
     app.route("/", publicConversationRouter);
+    app.route("/api", teamRouter);
+    app.route("/", teamRouter);
 
     app.notFound((context) =>
     {

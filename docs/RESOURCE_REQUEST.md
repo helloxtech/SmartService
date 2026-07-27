@@ -39,9 +39,9 @@ Priority values:
 |---|---|---:|---|
 | Repository identity | BLOCKING-NOW | READY | Product `SmartService`; slug `smartservice`; resource prefix `smartservice-*` |
 | Local Git repository | BLOCKING-NOW | READY | Initialized on `main` |
-| Git remote | BLOCKING-NOW | READY | `origin` is `https://github.com/helloxtech/SmartService.git`; the reviewed Day 1 checkpoint is published on `origin/main` |
+| Git remote | BLOCKING-NOW | READY | `origin` is `https://github.com/helloxtech/SmartService.git`; the validated Day 4 checkpoint is published on `origin/main` |
 | Git author identity | BLOCKING-NOW | READY | Repository-local identity matches the existing `helloxtech` repository convention |
-| GitHub push authorization | BLOCKING-NOW | READY | Approved; Day 1 commit `1a2119a069abfe15dfa98d879553e4a1b4f6a0f0` is the current published checkpoint |
+| GitHub push authorization | BLOCKING-NOW | READY | Approved; Day 4 is the current published checkpoint |
 | GitHub CLI | OPTIONAL | NOT-NEEDED | `gh` is absent; Git itself can fetch and push |
 | Node.js | BLOCKING-NOW | READY | `v24.16.0` |
 | pnpm | BLOCKING-NOW | READY | `11.9.0` |
@@ -53,7 +53,7 @@ Priority values:
 | Supported browsers | BLOCKING-P1 | READY | Chrome, Edge, and Safari are installed |
 | Microphone/headset and browser permission | BLOCKING-P1 | VERIFY | Must be tested interactively on the final demo device |
 | Local secret file | BLOCKING-NOW | READY | Ignored mode-`0600` `.env.local` and generated app-local Wrangler variables contain only local Supabase/demo/signing values; external provider values remain unset |
-| Product/provider code | BLOCKING-NOW | READY | Days 1–3 exist, including R2, Queue, Browser Run, OpenAI embedding/Responses adapters, Turnstile validation, deterministic local providers, and the grounded public chat; Day 4 guardrails/handoff workspace is next |
+| Product/provider code | BLOCKING-NOW | READY | Days 1–4 are locally validated, including guardrails, handoff workspace, finalization Queue, auxiliary adapters, deterministic providers, and the zero-cost Day 4 smoke |
 | Cost-bearing project provider calls | BLOCKING-NOW | READY | None made; recorded project cost is USD 0 |
 
 ## BLOCKING-NOW
@@ -91,7 +91,7 @@ Provision these before a live P0 integration can pass G1. If a missing item is e
 | Supabase server configuration | MISSING | Service-role key and database URL/password | Apply migrations to the dedicated dev project and run a minimal server query |
 | Supabase CLI authentication | MISSING | Interactive CLI login or a tooling-only access token stored in native/ignored local storage | Link the project and read migration status without printing credentials |
 | Supabase project permissions | MISSING | Permission to manage Auth settings, extensions, migrations, and RLS | Enable/check `vector` and `pg_trgm`; run cross-tenant negative tests |
-| Demo identities and tenant-isolation seed | READY | Fictional admin and agent in tenant A plus a fictional admin in tenant B; local test passwords only | All three local Auth logins passed; 49 database tenant/role/ingestion/conversation assertions passed |
+| Demo identities and tenant-isolation seed | READY | Fictional admin and agent in tenant A plus a fictional admin in tenant B; local test passwords only | All three local Auth logins passed; 78 database tenant/role/privacy/ingestion/conversation/guardrail/handoff assertions passed |
 | Cloudflare account | MISSING | Account ID with Workers, Queues, R2, Browser Run, and Turnstile access | `wrangler whoami` and non-destructive resource lists |
 | Cloudflare deployment token | MISSING | Least-privilege token for development Worker, Queue, and R2 management | Authenticated dry run/resource listing; do not print token |
 | Browser Run token | MISSING | Separate least-privilege token with `Browser Rendering - Edit` | One bounded Markdown crawl against an approved fixture site |

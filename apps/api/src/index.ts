@@ -1,5 +1,5 @@
 import { createApp } from "./app";
-import { handleIngestionQueue } from "./queue";
+import { handleQueue } from "./queue";
 import type { SmartServiceBindings } from "./types";
 
 const app = createApp();
@@ -17,12 +17,12 @@ export default {
     /**
      * queue
      * ----------------
-     * Dispatches Cloudflare Queue batches through the tenant-reconciling ingestion consumer.
+     * Dispatches Cloudflare Queue batches through tenant-reconciling ingestion and finalization consumers.
      *
-     * July 26, 2026: Created by Forrest Zhang for SmartService Day 2 Knowledge Ingestion
+     * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Conversation Finalization
      */
     async queue(batch: MessageBatch<unknown>, env: SmartServiceBindings): Promise<void>
     {
-        await handleIngestionQueue(batch, env);
+        await handleQueue(batch, env);
     },
 } satisfies ExportedHandler<SmartServiceBindings>;

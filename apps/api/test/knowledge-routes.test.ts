@@ -102,6 +102,20 @@ function createTestServices(): RuntimeServices
         embeddings: {
             embed: vi.fn().mockResolvedValue([Array.from({ length: 1024 }, () => 0.01)]),
         },
+        finalizer: {
+            finalize: vi.fn(),
+            model: "deterministic-finalization-v1",
+            provider: "deterministic",
+        },
+        finalizeQueue: {
+            send: vi.fn().mockResolvedValue(undefined),
+            sendBatch: vi.fn().mockResolvedValue(undefined),
+        } as unknown as RuntimeServices["finalizeQueue"],
+        guardrails: {
+            model: "deterministic-guardrail-v1",
+            provider: "deterministic",
+            supervise: vi.fn(),
+        },
         objects: {
             delete: vi.fn().mockResolvedValue(undefined),
             getJson: vi.fn().mockResolvedValue(extractedPayload),
@@ -163,6 +177,7 @@ function createTestServices(): RuntimeServices
                 status: "uploaded",
             }),
         },
+        team: {} as RuntimeServices["team"],
         uploads: {
             create: vi.fn().mockResolvedValue({
                 expiresAt: "2026-07-26T12:05:00.000Z",

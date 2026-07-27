@@ -4,7 +4,7 @@ SmartService is a reusable, tenant-isolated AI customer-service demonstration. P
 
 ## Current state
 
-Gate 0 is approved. Days 1–3 are complete locally: the tenant-isolated foundation, PDF/DOCX/URL knowledge path, and grounded Chinese/English text-chat path now run end to end. The public `/chat` experience uses scoped conversation tokens, Turnstile verification, hybrid retrieval, Structured Output answers, validated citations, safe insufficient-knowledge handoff, cursor/ETag polling, and persisted audit records. Day 4 guardrails and the agent handoff workspace are next. See [the live project status](docs/STATUS.md) for exact evidence and blockers.
+Gate 0 is approved, and Days 1–4 are complete locally. The public `/chat` path includes deterministic and supervised guardrails before delivery, safe handoff, read-only post-handoff polling, and finalization. The authenticated team workspace includes an inbox, required customer context, transcript/citations, takeover, human replies, closure, guardrail administration, and audited final records. Day 5 dashboard and one-click knowledge-gap resolution are next. See [the live project status](docs/STATUS.md) for exact evidence and blockers.
 
 ## Locked delivery
 
@@ -38,6 +38,7 @@ pnpm db:lint
 pnpm fixtures:ingestion
 pnpm verify:ingestion
 pnpm verify:conversation
+pnpm checkpoint:day4
 ```
 
 `pnpm db:start` and `pnpm db:status` deliberately suppress generated local credentials. The fictional demo login values are generated into the ignored mode-`0600` `.env.local`; never paste or commit that file.
@@ -47,6 +48,8 @@ Use `pnpm dev:web` for the Vite shell and `pnpm dev:api` for the local Worker af
 `pnpm verify:ingestion` requires a fresh local database (`pnpm db:reset` followed by `pnpm bootstrap:local`). It signs in through a real Chromium session, ingests the committed PDF, DOCX, and bounded URL fixtures, verifies Ready rows and enabled embeddings, exercises disable/enable, checks mobile overflow, and writes review screenshots under `/tmp`.
 
 After ingestion succeeds, `pnpm verify:conversation` exercises all 12 fixed in-scope questions and all 8 fixed out-of-scope questions through the local Worker and Supabase. It verifies persisted citations, missing-knowledge gaps, handoff packages, scoped-token rejection, idempotency, and cursor/ETag polling.
+
+`pnpm checkpoint:day4` resets and bootstraps the local database, runs the repository checks, browser and database tests, the six fixed guardrail evaluations, and the local guardrail/handoff/finalization smoke. It uses deterministic providers and makes no paid calls.
 
 Local ingestion, chat, and Turnstile use explicit deterministic providers and make no paid calls. Hosted R2, Queue, Browser Run, Turnstile, Supabase, and OpenAI evidence is still required before G1; production refuses any mock provider mode.
 

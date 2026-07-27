@@ -1,16 +1,30 @@
 import type {
     CreatePublicConversationRequest,
     CreatePublicConversationResponse,
+    ClaimConversationResponse,
+    ConversationFinalizeMessage,
+    ConversationFinalization,
+    CreateGuardrailRuleRequest,
     FileUploadIntentRequest,
     FileUploadIntentResponse,
+    GuardrailEvent,
+    GuardrailRule,
     KnowledgeIngestMessage,
     KnowledgeSource,
     PublicMessageListResponse,
     RequestPublicHandoffResponse,
+    SendHumanMessageResponse,
     SendPublicMessageRequest,
     SendPublicMessageResponse,
     SourceAction,
+    TeamConversationDetail,
+    TeamInboxItem,
+    UpdateGuardrailRuleRequest,
 } from "@smartservice/contracts";
+import type {
+    ConversationFinalizer,
+    GuardrailSupervisor,
+} from "@smartservice/assistant-core";
 import type {
     DnsResolver,
     EmbeddingProvider,
@@ -21,19 +35,23 @@ import type {
 export type SmartServiceBindings = Omit<
     Env,
     | "CHAT_PROVIDER_MODE"
+    | "AUXILIARY_PROVIDER_MODE"
     | "ENVIRONMENT"
+    | "FINALIZE_QUEUE"
     | "INGESTION_PROVIDER_MODE"
     | "INGEST_QUEUE"
     | "TURNSTILE_PROVIDER_MODE"
     | "VERSION"
 > & {
     ALLOWED_ORIGINS?: string;
+    AUXILIARY_PROVIDER_MODE?: "live" | "mock";
     CLOUDFLARE_ACCOUNT_ID?: string;
     CLOUDFLARE_BROWSER_RUN_API_TOKEN?: string;
     CHAT_PROVIDER_MODE?: "live" | "mock";
     CONVERSATION_TOKEN_SECRET?: string;
     CONVERSATION_TOKEN_TTL_MINUTES?: string;
     ENVIRONMENT: string;
+    FINALIZE_QUEUE: Queue<ConversationFinalizeMessage>;
     INGESTION_PROVIDER_MODE?: "live" | "mock";
     INGEST_QUEUE: Queue<KnowledgeIngestMessage>;
     KNOWLEDGE_FILES: R2Bucket;
@@ -42,6 +60,7 @@ export type SmartServiceBindings = Omit<
     OPENAI_CHAT_MODEL?: string;
     OPENAI_EMBEDDING_DIMENSIONS?: string;
     OPENAI_EMBEDDING_MODEL?: string;
+    OPENAI_SUPERVISOR_MODEL?: string;
     R2_ACCESS_KEY_ID?: string;
     R2_BUCKET_NAME?: string;
     R2_S3_ENDPOINT?: string;
@@ -168,11 +187,97 @@ export interface RuntimeServices
     crawl: CrawlProvider;
     dnsResolver: DnsResolver;
     embeddings: EmbeddingProvider;
+    finalizer: ConversationFinalizer;
+    finalizeQueue: Queue<ConversationFinalizeMessage>;
+    guardrails: GuardrailSupervisor;
     objects: KnowledgeObjectStore;
     publicConversations: PublicConversationService;
     queue: Queue<KnowledgeIngestMessage>;
     repository: KnowledgeRepository;
+    team: TeamService;
     uploads: UploadIntentProvider;
+}
+
+export interface TeamService
+{
+    claim(
+        identity: MemberIdentity,
+        conversationId: string,
+        requestId: string,
+    ): Promise<ClaimConversationResponse>;
+    close(
+        identity: MemberIdentity,
+        conversationId: string,
+        requestId: string,
+    ): Promise<{ created: boolean; language: "zh-CN" | "en" }>;
+    completeFinalization(
+        aggregate: {
+            alreadyFinalized: boolean;
+            conversationId: string;
+            language: "zh-CN" | "en";
+            messages: Array<{
+                id: string;
+                senderType: "customer" | "ai" | "human" | "system";
+                text: string;
+            }>;
+            organizationId: string;
+        },
+        finalization: ConversationFinalization,
+        provider: string,
+        model: string,
+        inputTokens: number | null,
+        outputTokens: number | null,
+        latencyMs: number,
+        requestId: string,
+    ): Promise<void>;
+    getConversation(
+        organizationId: string,
+        conversationId: string,
+    ): Promise<TeamConversationDetail | null>;
+    getGuardrailCandidate(
+        identity: AdminIdentity,
+        eventId: string,
+    ): Promise<{ blockedCandidate: string | null; eventId: string }>;
+    listGuardrailEvents(
+        organizationId: string,
+        conversationId?: string,
+    ): Promise<GuardrailEvent[]>;
+    listInbox(
+        organizationId: string,
+        includeClosed?: boolean,
+    ): Promise<TeamInboxItem[]>;
+    listRules(organizationId: string): Promise<GuardrailRule[]>;
+    loadFinalizationAggregate(
+        organizationId: string,
+        conversationId: string,
+    ): Promise<{
+        alreadyFinalized: boolean;
+        conversationId: string;
+        language: "zh-CN" | "en";
+        messages: Array<{
+            id: string;
+            senderType: "customer" | "ai" | "human" | "system";
+            text: string;
+        }>;
+        organizationId: string;
+    }>;
+    manageRule(
+        identity: AdminIdentity,
+        ruleId: string | null,
+        input: CreateGuardrailRuleRequest | UpdateGuardrailRuleRequest,
+        requestId: string,
+    ): Promise<GuardrailRule>;
+    markFinalizationQueued(
+        organizationId: string,
+        conversationId: string,
+    ): Promise<void>;
+    sendHumanMessage(
+        identity: MemberIdentity,
+        conversationId: string,
+        clientMessageId: string,
+        text: string,
+        requestId: string,
+    ): Promise<SendHumanMessageResponse>;
 }
 
 export interface PublicConversationService

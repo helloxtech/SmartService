@@ -3,6 +3,8 @@ import type {
     ConversationLanguage,
     ConversationStatus,
     CreatePublicConversationRequest,
+    GuardrailRule,
+    GuardrailViolation,
     HandoffReason,
     PublicCitation,
     PublicMessage,
@@ -11,6 +13,7 @@ import type {
 import {
     conversationDecisionSchema,
     conversationStatusSchema,
+    guardrailRuleSchema,
     handoffReasonSchema,
     knowledgeSourceTypeSchema,
 } from "@smartservice/contracts";
@@ -108,6 +111,26 @@ const handoffRpcRowSchema = z.object({
     message_id: z.uuid(),
 });
 
+const guardrailRuleRowSchema = z.object({
+    code: z.string(),
+    created_at: z.string(),
+    description: z.string(),
+    enabled: z.boolean(),
+    id: z.uuid(),
+    name: z.string(),
+    rule_type: z.string(),
+    safe_response: z.string(),
+    severity: z.string(),
+    updated_at: z.string(),
+});
+
+const guardedTurnRowSchema = z.object({
+    created: z.boolean(),
+    guardrail_event_id: z.uuid(),
+    message_id: z.uuid(),
+    supervisor_ai_run_id: z.uuid(),
+});
+
 export interface TenantConfiguration
 {
     displayName: string;
@@ -172,6 +195,55 @@ export interface CompleteTurnInput
     requestId: string;
     retrievalMetadata: Record<string, unknown>;
     retrievedChunkIds: string[];
+}
+
+export interface CompleteGuardrailTurnInput
+{
+    blockedCandidate: string | null;
+    candidateInputTokens: number | null;
+    candidateLatencyMs: number | null;
+    candidateModel: string | null;
+    candidateOutputTokens: number | null;
+    candidatePromptVersion: string | null;
+    candidateProvider: string | null;
+    conversationId: string;
+    customerMessageId: string;
+    language: ConversationLanguage;
+    organizationId: string;
+    requestId: string;
+    safeResponse: string;
+    supervisorInputTokens: number | null;
+    supervisorLatencyMs: number;
+    supervisorModel: string;
+    supervisorOutputTokens: number | null;
+    supervisorPromptVersion: string;
+    supervisorProvider: string;
+    violations: GuardrailViolation[];
+}
+
+/**
+ * mapGuardrailRule
+ * ----------------
+ * Maps one database rule row into the shared tenant guardrail contract.
+ *
+ * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Guardrails
+ */
+function mapGuardrailRule(input: unknown): GuardrailRule
+{
+    const row = guardrailRuleRowSchema.parse(input);
+
+    return guardrailRuleSchema.parse({
+        code: row.code,
+        createdAt: row.created_at,
+        description: row.description,
+        enabled: row.enabled,
+        id: row.id,
+        name: row.name,
+        ruleType: row.rule_type,
+        safeResponse: row.safe_response,
+        severity: row.severity,
+        updatedAt: row.updated_at,
+    });
 }
 
 /**
@@ -484,6 +556,32 @@ export class SupabaseConversationRepository
     }
 
     /**
+     * listGuardrailRules
+     * ----------------
+     * Loads the current tenant's bounded rule configuration for deterministic checks and candidate supervision.
+     *
+     * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Guardrails
+     */
+    public async listGuardrailRules(
+        organizationId: string,
+    ): Promise<GuardrailRule[]>
+    {
+        const client = createServiceClient(this.bindings);
+        const { data, error } = await client
+            .from("guardrail_rules")
+            .select("id, code, name, description, severity, rule_type, safe_response, enabled, created_at, updated_at")
+            .eq("organization_id", organizationId)
+            .order("code");
+
+        if (error !== null)
+        {
+            throw new ApiError(503, "GUARDRAIL_RULES_UNAVAILABLE", "Guardrail rules could not be loaded.");
+        }
+
+        return (data ?? []).map(mapGuardrailRule);
+    }
+
+    /**
      * listRecentMessages
      * ----------------
      * Loads a bounded recent transcript for continuity without exposing it outside the server-side prompt boundary.
@@ -562,6 +660,101 @@ export class SupabaseConversationRepository
     }
 
     /**
+     * completeGuardrailTurn
+     * ----------------
+     * Atomically withholds a blocked candidate and stores the safe response, AI audit runs, rule events, and handoff.
+     *
+     * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Guardrails
+     */
+    public async completeGuardrailTurn(
+        input: CompleteGuardrailTurnInput,
+    ): Promise<string>
+    {
+        const client = createServiceClient(this.bindings);
+        const { data, error } = await client.rpc("complete_guardrail_turn", {
+            p_blocked_candidate: input.blockedCandidate,
+            p_candidate_input_tokens: input.candidateInputTokens,
+            p_candidate_latency_ms: input.candidateLatencyMs,
+            p_candidate_model: input.candidateModel,
+            p_candidate_output_tokens: input.candidateOutputTokens,
+            p_candidate_prompt_version: input.candidatePromptVersion,
+            p_candidate_provider: input.candidateProvider,
+            p_conversation_id: input.conversationId,
+            p_customer_message_id: input.customerMessageId,
+            p_language: input.language,
+            p_organization_id: input.organizationId,
+            p_request_id: input.requestId,
+            p_safe_response: input.safeResponse,
+            p_supervisor_input_tokens: input.supervisorInputTokens,
+            p_supervisor_latency_ms: input.supervisorLatencyMs,
+            p_supervisor_model: input.supervisorModel,
+            p_supervisor_output_tokens: input.supervisorOutputTokens,
+            p_supervisor_prompt_version: input.supervisorPromptVersion,
+            p_supervisor_provider: input.supervisorProvider,
+            p_violations: input.violations,
+        });
+
+        if (error !== null || data === null || data.length !== 1)
+        {
+            throw new ApiError(503, "GUARDRAIL_PERSISTENCE_FAILED", "The blocked response could not be saved.");
+        }
+
+        return guardedTurnRowSchema.parse(data[0]).message_id;
+    }
+
+    /**
+     * refreshIncrementalSummary
+     * ----------------
+     * Stores a bounded transcript snapshot after a completed turn so a later handoff never starts from a cold summary.
+     *
+     * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Handoff Summary
+     */
+    public async refreshIncrementalSummary(
+        organizationId: string,
+        conversationId: string,
+        requestId: string,
+    ): Promise<void>
+    {
+        const client = createServiceClient(this.bindings);
+        const { error } = await client.rpc("refresh_incremental_conversation_summary", {
+            p_conversation_id: conversationId,
+            p_organization_id: organizationId,
+            p_request_id: requestId,
+        });
+
+        if (error !== null)
+        {
+            throw new ApiError(503, "SUMMARY_REFRESH_FAILED", "The handoff summary could not be refreshed.");
+        }
+    }
+
+    /**
+     * refreshHandoffSnapshot
+     * ----------------
+     * Rebuilds the handoff package from authoritative customer, transcript, and incremental-summary data.
+     *
+     * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Handoff Summary
+     */
+    public async refreshHandoffSnapshot(
+        organizationId: string,
+        conversationId: string,
+        requestId: string,
+    ): Promise<void>
+    {
+        const client = createServiceClient(this.bindings);
+        const { error } = await client.rpc("refresh_handoff_snapshot", {
+            p_conversation_id: conversationId,
+            p_organization_id: organizationId,
+            p_request_id: requestId,
+        });
+
+        if (error !== null)
+        {
+            throw new ApiError(503, "HANDOFF_SNAPSHOT_FAILED", "The handoff package could not be refreshed.");
+        }
+    }
+
+    /**
      * findResponseToCustomerMessage
      * ----------------
      * Finds an already persisted AI response so a retried client message does not trigger a second model call.
@@ -604,7 +797,7 @@ export class SupabaseConversationRepository
      *
      * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Public Conversations
      */
-    private async loadCitations(
+    public async loadCitations(
         organizationId: string,
         messageIds: readonly string[],
     ): Promise<Map<string, PublicCitation[]>>

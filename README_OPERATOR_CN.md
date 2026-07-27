@@ -2,7 +2,7 @@
 
 ## 当前进度
 
-G0 已批准，Day 1–3 已在本地完成并通过验证。当前环境已经具备 pnpm workspace、React 登录壳、Hono Worker、Supabase 有序 migration、强制 RLS、三套虚构 Demo 身份，以及 PDF / DOCX / URL 知识导入路径。公开 `/chat` 页面已完成中英文 RAG、范围受限的 Conversation Token、Turnstile、混合检索、Structured Output、引用校验、知识不足转人工、Cursor/ETag 轮询和完整审计记录。下一步是 Day 4 Guardrail 和客服工作台。
+G0 已批准，Day 1–4 已在本地完成并通过验证。公开 `/chat` 已加入输入与候选答案 Guardrail、安全转人工、转人工后的只读轮询和会话结案。登录后的客服工作台已包含队列、客户资料、对话与引用、接管、人工回复、关闭会话、Guardrail 管理和最终审计记录。下一步是 Day 5 Dashboard 和一键处理 Knowledge Gap。
 
 ## 推荐工作方式
 
@@ -45,6 +45,7 @@ pnpm db:lint
 pnpm fixtures:ingestion
 pnpm verify:ingestion
 pnpm verify:conversation
+pnpm checkpoint:day4
 ```
 
 `pnpm db:start` 和 `pnpm db:status` 会隐藏 Supabase 生成的本地凭证。三套虚构 Demo 登录值只写入被 Git 忽略且权限为 `0600` 的 `.env.local`，不要粘贴到聊天或提交到 Git。
@@ -52,6 +53,8 @@ pnpm verify:conversation
 运行 `pnpm verify:ingestion` 前，先执行 `pnpm db:reset` 和 `pnpm bootstrap:local`。该验证会用真实 Chromium 登录，导入固定 PDF、DOCX 和 URL fixture，检查 3 个 Ready source、Embedding、禁用/启用以及 390 像素移动端布局。截图只写入 `/tmp`。
 
 知识导入完成后，运行 `pnpm verify:conversation`。该验证会通过本地 Worker 和 Supabase 跑完 12 个范围内问题及 8 个范围外问题，并检查引用、Knowledge Gap、转人工包、Token 隔离、幂等和轮询缓存。
+
+运行 `pnpm checkpoint:day4` 可一次完成本地数据库重置与初始化、代码检查、浏览器与数据库测试、六条固定 Guardrail 用例，以及转人工和结案 smoke test。它只使用 deterministic provider，不会产生付费调用。
 
 本地知识导入、Chat 和 Turnstile 明确使用 deterministic mock provider，不产生付费调用；G1 前仍需要补齐 Hosted Supabase、R2、Queue、Browser Run、Turnstile 和 OpenAI 的真实验证。Production 配置不会允许任何 mock provider。
 

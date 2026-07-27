@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { readVoiceAgentConfiguration } from "./config";
+import { normalizeVoiceSpeech } from "./agent";
 import { VoiceInternalApiClient } from "./internal-api";
 import { readVoiceSessionId } from "./metadata";
 
@@ -24,6 +25,9 @@ describe("voice agent foundation", () =>
             DEEPGRAM_API_KEY: "deepgram-test",
             DEEPGRAM_STT_LANGUAGE: "zh-CN",
             DEEPGRAM_STT_MODEL: "nova-3",
+            ELEVENLABS_API_KEY: "elevenlabs-test",
+            ELEVENLABS_MODEL_ID: "eleven_flash_v2_5",
+            ELEVENLABS_VOICE_ID: "voice-test",
             LIVEKIT_AGENT_NAME: "smartservice-voice-agent",
             LIVEKIT_API_KEY: "livekit-test",
             LIVEKIT_API_SECRET: "livekit-secret",
@@ -34,6 +38,14 @@ describe("voice agent foundation", () =>
 
         expect(configuration.DEEPGRAM_STT_MODEL).toBe("nova-3");
         expect(configuration.DEEPGRAM_STT_LANGUAGE).toBe("zh-CN");
+    });
+
+    it("normalizes product models and units without adding internal identifiers", () =>
+    {
+        expect(normalizeVoiceSpeech(
+            "NF-500 supports 300 L/min at 20°C.",
+            "en",
+        )).toBe("N F 500 supports 300 litres per minute at 20 degrees Celsius.");
     });
 
     it("authenticates configuration and transcript calls without logging content", async () =>

@@ -1,4 +1,6 @@
 import {
+    completeVoiceTurnRequestSchema,
+    completeVoiceTurnResponseSchema,
     createVoiceTokenRequestSchema,
     createVoiceTokenResponseSchema,
     recordVoiceTranscriptRequestSchema,
@@ -131,6 +133,24 @@ export function createVoiceRouter(
         );
 
         return context.json(recordVoiceTranscriptResponseSchema.parse(response), 201);
+    });
+
+    router.post("/v1/internal/voice/sessions/:voiceSessionId/turns", async (context) =>
+    {
+        const voiceSessionId = parseVoiceSessionId(context.req.param("voiceSessionId"));
+        const input = await parseJsonBody(
+            context.req.raw,
+            completeVoiceTurnRequestSchema,
+        );
+        const services = getServices(serviceFactory, context.env);
+        const response = await services.voice.completeTurn(
+            context.req.raw,
+            voiceSessionId,
+            input,
+            context.get("requestId"),
+        );
+
+        return context.json(completeVoiceTurnResponseSchema.parse(response), 201);
     });
 
     return router;

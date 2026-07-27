@@ -9,6 +9,7 @@ import {
 } from "vitest";
 
 import { createApp } from "../src/app";
+import { buildVoiceSpokenText } from "../src/voice-service";
 import type {
     RuntimeServices,
     SmartServiceBindings,
@@ -28,6 +29,14 @@ const voiceSessionId = "60000000-0000-4000-a000-000000000001";
 function createVoiceService(): VoiceService
 {
     return {
+        completeTurn: vi.fn().mockResolvedValue({
+            answer: "NF-500 的最大流量是每分钟 300 升。",
+            citations: [],
+            decision: "answer",
+            handoff: null,
+            messageId: "30000000-0000-4000-a000-000000000001",
+            spokenText: "NF-500 的最大流量是每分钟 300 升。",
+        }),
         createToken: vi.fn().mockResolvedValue({
             agentName: "smartservice-voice-agent",
             expiresAt: "2099-07-27T08:10:00.000Z",
@@ -78,6 +87,17 @@ async function requestVoiceApp(
 
 describe("voice routes", () =>
 {
+    it("limits spoken output and removes URLs, UUIDs, and JSON delimiters", () =>
+    {
+        const spoken = buildVoiceSpokenText(
+            "NF-500 details are documented at https://example.test/source. Reference 30000000-0000-4000-a000-000000000001. {\"internal\":true} Third sentence must be omitted.",
+            "en",
+        );
+
+        expect(spoken).not.toMatch(/https?:|30000000|\{|\}/u);
+        expect(spoken).not.toContain("Third sentence");
+    });
+
     it("issues a no-store short-lived room token from a validated conversation ID", async () =>
     {
         const voice = createVoiceService();

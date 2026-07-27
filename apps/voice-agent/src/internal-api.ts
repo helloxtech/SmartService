@@ -1,7 +1,9 @@
 import {
+    completeVoiceTurnResponseSchema,
     recordVoiceTranscriptResponseSchema,
     voiceSessionConfigurationSchema,
     type ConversationLanguage,
+    type CompleteVoiceTurnResponse,
     type VoiceSessionConfiguration,
     type VoiceSessionStatus,
 } from "@smartservice/contracts";
@@ -25,6 +27,35 @@ export class VoiceInternalApiClient
         private readonly fetcher: typeof fetch = fetch,
     )
     {
+    }
+
+    /**
+     * completeTurn
+     * ----------------
+     * Sends one final STT utterance through the shared server-side RAG and guardrail path and receives only approved public answer fields.
+     *
+     * July 27, 2026: Created by Forrest Zhang for SmartService Day 7 Shared Voice Assistant Core
+     */
+    public async completeTurn(
+        voiceSessionId: string,
+        clientMessageId: string,
+        text: string,
+        transcribedAt: string,
+    ): Promise<CompleteVoiceTurnResponse>
+    {
+        return completeVoiceTurnResponseSchema.parse(
+            await this.request(
+                `/api/v1/internal/voice/sessions/${voiceSessionId}/turns`,
+                {
+                    body: JSON.stringify({
+                        clientMessageId,
+                        text,
+                        transcribedAt,
+                    }),
+                    method: "POST",
+                },
+            ),
+        );
     }
 
     /**

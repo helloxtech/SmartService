@@ -1,7 +1,10 @@
 import {
+    completeVoiceTurnResponseSchema,
     createVoiceTokenResponseSchema,
     recordVoiceTranscriptResponseSchema,
     type CreateVoiceTokenResponse,
+    type CompleteVoiceTurnRequest,
+    type CompleteVoiceTurnResponse,
     type RecordVoiceTranscriptRequest,
     type RecordVoiceTranscriptResponse,
     type UpdateVoiceSessionStatusRequest,
@@ -21,6 +24,7 @@ import {
 import { ApiError } from "./errors";
 import type {
     SmartServiceBindings,
+    PublicConversationService,
     VoiceService,
 } from "./types";
 import type { SupabaseVoiceRepository } from "./voice-repository";
@@ -239,6 +243,43 @@ function createVoiceTokenProvider(bindings: SmartServiceBindings): VoiceTokenPro
     );
 }
 
+/**
+ * buildVoiceSpokenText
+ * ----------------
+ * Produces at most two short sentences while removing URLs, UUIDs, markdown links, and JSON delimiters that must never be spoken.
+ *
+ * July 27, 2026: Created by Forrest Zhang for SmartService Day 7 Voice RAG and TTS
+ */
+export function buildVoiceSpokenText(
+    answer: string,
+    language: "zh-CN" | "en",
+): string
+{
+    const cleaned = answer
+        .replace(/\[([^\]]+)\]\(https?:\/\/[^)]+\)/giu, "$1")
+        .replace(/https?:\/\/\S+?(?=[。！？.!?](?:\s|$)|\s|$)/giu, "")
+        .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/giu, "")
+        .replace(/\{[^{}]{0,500}\}/gu, "")
+        .replace(/[{}[\]`]/gu, "")
+        .replace(/\s+/gu, " ")
+        .trim();
+    const sentences = cleaned.match(/[^。！？.!?]+[。！？.!?]?/gu)
+        ?.map((sentence) => sentence.trim())
+        .filter((sentence) => sentence.length > 0)
+        .slice(0, 2)
+        ?? [];
+    const spokenText = sentences.join(language === "zh-CN" ? "" : " ").slice(0, 500).trim();
+
+    if (spokenText.length > 0)
+    {
+        return spokenText;
+    }
+
+    return language === "zh-CN"
+        ? "抱歉，我无法安全地朗读这个回答。"
+        : "Sorry, I cannot read that answer safely.";
+}
+
 export class DefaultVoiceService implements VoiceService
 {
     private readonly tokenProvider: VoiceTokenProvider;
@@ -255,6 +296,7 @@ export class DefaultVoiceService implements VoiceService
         private readonly bindings: SmartServiceBindings,
         private readonly conversations: SupabaseConversationRepository,
         private readonly repository: SupabaseVoiceRepository,
+        private readonly assistant: PublicConversationService,
     )
     {
         this.tokenProvider = createVoiceTokenProvider(bindings);
@@ -262,6 +304,54 @@ export class DefaultVoiceService implements VoiceService
             bindings.CONVERSATION_TOKEN_SECRET ?? "",
             7_200,
         );
+    }
+
+    /**
+     * completeTurn
+     * ----------------
+     * Authorizes the Agent, runs the exact shared text assistant pipeline, and returns a bounded speech-safe view of the approved answer.
+     *
+     * July 27, 2026: Created by Forrest Zhang for SmartService Day 7 Shared Voice Assistant Core
+     */
+    public async completeTurn(
+        request: Request,
+        voiceSessionId: string,
+        input: CompleteVoiceTurnRequest,
+        requestId: string,
+    ): Promise<CompleteVoiceTurnResponse>
+    {
+        const session = await this.getConfiguration(request, voiceSessionId);
+
+        if (
+            session.status === "handoff"
+            || session.status === "closed"
+            || session.status === "failed"
+        )
+        {
+            throw new ApiError(409, "VOICE_SESSION_NOT_ACTIVE", "The voice session is no longer AI-active.");
+        }
+
+        const response = await this.assistant.sendTrusted(
+            session.organizationId,
+            session.conversationId,
+            {
+                clientMessageId: input.clientMessageId,
+                text: input.text,
+            },
+            requestId,
+        );
+        const nextStatus = response.decision === "handoff" ? "handoff" : "active";
+        await this.repository.updateStatus(
+            voiceSessionId,
+            nextStatus,
+            null,
+            requestId,
+        );
+
+        return completeVoiceTurnResponseSchema.parse({
+            ...response,
+            spokenText: buildVoiceSpokenText(response.answer, session.language),
+        });
     }
 
     /**

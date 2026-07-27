@@ -118,6 +118,16 @@ test("starts voice only after click and falls back cleanly when microphone is de
             status: 201,
         });
     });
+    await page.route(`**/api/v1/public/conversations/${conversationId}/messages?**`, async (route) =>
+    {
+        await route.fulfill({
+            body: "",
+            headers: {
+                etag: 'W/"day7-voice-empty"',
+            },
+            status: 304,
+        });
+    });
 
     await page.goto("/voice");
     await expect(page.getByRole("heading", {

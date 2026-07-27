@@ -1,0 +1,58 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "purpose": "Fixed Day 7 Chinese and English text/voice parity cases"
+  },
+  "cases": [
+    {
+      "id": "VR-ZH-01",
+      "language": "zh-CN",
+      "question": "NF-200 最大流量是多少？"
+    },
+    {
+      "id": "VR-ZH-02",
+      "language": "zh-CN",
+      "question": "NF-500 需要什么电压？"
+    },
+    {
+      "id": "VR-ZH-03",
+      "language": "zh-CN",
+      "question": "NF-500 的保修期多久？"
+    },
+    {
+      "id": "VR-ZH-04",
+      "language": "zh-CN",
+      "question": "NF-200 能在零下十五度运行吗？"
+    },
+    {
+      "id": "VR-ZH-05",
+      "language": "zh-CN",
+      "question": "泵可以用在饮用水系统吗？"
+    },
+    {
+      "id": "VR-EN-01",
+      "language": "en",
+      "question": "What is the maximum flow rate of the NF-200?"
+    },
+    {
+      "id": "VR-EN-02",
+      "language": "en",
+      "question": "What voltage does the NF-500 require?"
+    },
+    {
+      "id": "VR-EN-03",
+      "language": "en",
+      "question": "How long is the NF-500 warranty?"
+    },
+    {
+      "id": "VR-EN-04",
+      "language": "en",
+      "question": "Can the NF-200 operate at a temperature of -15°C?"
+    },
+    {
+      "id": "VR-EN-05",
+      "language": "en",
+      "question": "Can these pumps be used in a drinking-water system?"
+    }
+  ]
+}

@@ -59,6 +59,7 @@ function createPublicService(): PublicConversationService
             handoff: null,
             messageId,
         }),
+        sendTrusted: vi.fn(),
     };
 }
 

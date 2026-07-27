@@ -21,6 +21,7 @@
   "dependencies": {
     "@livekit/agents": "1.5.5",
     "@livekit/agents-plugin-deepgram": "1.5.5",
+    "@livekit/agents-plugin-elevenlabs": "1.5.5",
     "@smartservice/contracts": "workspace:*",
     "zod": "4.4.3"
   }

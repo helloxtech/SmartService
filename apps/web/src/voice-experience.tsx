@@ -1,4 +1,7 @@
-import type { ConversationLanguage } from "@smartservice/contracts";
+import type {
+    ConversationLanguage,
+    PublicMessage,
+} from "@smartservice/contracts";
 import { Button } from "@smartservice/ui";
 import {
     Headphones,
@@ -16,6 +19,7 @@ import {
 import {
     createPublicConversation,
     createVoiceToken,
+    pollPublicMessages,
 } from "./lib/public-conversation-api";
 import {
     LiveKitVoiceRoomConnector,
@@ -100,7 +104,14 @@ export function VoiceExperience({
     const [language, setLanguage] = useState<ConversationLanguage>("zh-CN");
     const [state, setState] = useState<VoiceUiState>("idle");
     const [transcript, setTranscript] = useState("");
+    const [messages, setMessages] = useState<PublicMessage[]>([]);
+    const [voiceConversation, setVoiceConversation] = useState<{
+        conversationId: string;
+        conversationToken: string;
+    } | null>(null);
     const connection = useRef<VoiceRoomConnection | null>(null);
+    const cursor = useRef<string | null>(null);
+    const etag = useRef<string | null>(null);
     const publicKey = import.meta.env.VITE_DEMO_PUBLIC_KEY ?? "novaflow-public-demo";
 
     useEffect(() =>
@@ -114,6 +125,72 @@ export function VoiceExperience({
         };
     }, []);
 
+    useEffect(() =>
+    {
+        if (voiceConversation === null)
+        {
+            return;
+        }
+
+        let active = true;
+        const activeConversation = voiceConversation;
+
+        /**
+         * pollAnswers
+         * ----------------
+         * Polls only public AI, handoff, or human messages so citations appear on screen without traveling through the audio channel.
+         *
+         * July 27, 2026: Created by Forrest Zhang for SmartService Day 7 Voice RAG and TTS
+         */
+        async function pollAnswers(): Promise<void>
+        {
+            try
+            {
+                const result = await pollPublicMessages(
+                    activeConversation.conversationId,
+                    activeConversation.conversationToken,
+                    cursor.current,
+                    etag.current,
+                );
+
+                if (!active || result.response === null)
+                {
+                    return;
+                }
+
+                const response = result.response;
+                etag.current = result.etag;
+                cursor.current = response.nextCursor;
+                setMessages((current) =>
+                {
+                    const known = new Set(current.map((message) => message.messageId));
+                    return [
+                        ...current,
+                        ...response.messages.filter(
+                            (message) => !known.has(message.messageId),
+                        ),
+                    ];
+                });
+            }
+            catch
+            {
+                // Voice audio remains usable when a bounded display-only poll fails.
+            }
+        }
+
+        void pollAnswers();
+        const timer = window.setInterval(() =>
+        {
+            void pollAnswers();
+        }, 1_000);
+
+        return () =>
+        {
+            active = false;
+            window.clearInterval(timer);
+        };
+    }, [voiceConversation]);
+
     /**
      * startVoice
      * ----------------
@@ -125,6 +202,10 @@ export function VoiceExperience({
     {
         setState("warming");
         setTranscript("");
+        setMessages([]);
+        setVoiceConversation(null);
+        cursor.current = null;
+        etag.current = null;
 
         try
         {
@@ -138,6 +219,10 @@ export function VoiceExperience({
                 conversation.conversationId,
                 conversation.conversationToken,
             );
+            setVoiceConversation({
+                conversationId: conversation.conversationId,
+                conversationToken: conversation.conversationToken,
+            });
             const selectedConnector = connector
                 ?? (token.provider === "mock"
                     ? new MockVoiceRoomConnector()
@@ -262,6 +347,33 @@ export function VoiceExperience({
                         {transcript || "Your transcript will appear here after you speak."}
                     </p>
                 </div>
+
+                {messages.length > 0
+                    ? (
+                        <section aria-label="Voice answers" className="mt-5 space-y-4">
+                            {messages.map((message) => (
+                                <article className="rounded-2xl border border-white/10 bg-slate-800 p-5" key={message.messageId}>
+                                    <p className="text-slate-100">{message.text}</p>
+                                    {message.citations.length > 0
+                                        ? (
+                                            <div className="mt-4 flex flex-wrap gap-2">
+                                                {message.citations.map((citation) => (
+                                                    <span
+                                                        className="rounded-full bg-cyan-950 px-3 py-1 text-xs text-cyan-200"
+                                                        key={citation.citationId}
+                                                        title={citation.supportingExcerpt}
+                                                    >
+                                                        {citation.label}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )
+                                        : null}
+                                </article>
+                            ))}
+                        </section>
+                    )
+                    : null}
 
                 <p className="mt-5 flex items-center gap-2 text-sm text-slate-400">
                     <ShieldCheck aria-hidden="true" className="size-4" />

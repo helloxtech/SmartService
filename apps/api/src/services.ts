@@ -128,6 +128,14 @@ export function createRuntimeServices(bindings: SmartServiceBindings): RuntimeSe
 
     const embeddings = createEmbeddingProvider(bindings);
     const answers = createRagAnswerProvider(bindings);
+    const publicConversations = new DefaultPublicConversationService(
+        bindings,
+        conversationRepository,
+        embeddings,
+        answers,
+        guardrails,
+        createTurnstileVerifier(bindings),
+    );
 
     return {
         analytics: new SupabaseAnalyticsService(bindings, {
@@ -169,14 +177,7 @@ export function createRuntimeServices(bindings: SmartServiceBindings): RuntimeSe
         finalizeQueue: bindings.FINALIZE_QUEUE,
         guardrails,
         objects,
-        publicConversations: new DefaultPublicConversationService(
-            bindings,
-            conversationRepository,
-            embeddings,
-            answers,
-            guardrails,
-            createTurnstileVerifier(bindings),
-        ),
+        publicConversations,
         queue: bindings.INGEST_QUEUE,
         repository,
         team,
@@ -185,6 +186,7 @@ export function createRuntimeServices(bindings: SmartServiceBindings): RuntimeSe
             bindings,
             conversationRepository,
             voiceRepository,
+            publicConversations,
         ),
     };
 }

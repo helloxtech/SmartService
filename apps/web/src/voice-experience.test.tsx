@@ -34,7 +34,9 @@ afterEach(() =>
  *
  * July 27, 2026: Created by Forrest Zhang for SmartService Day 6 Voice Foundation
  */
-function createFetchMock(): ReturnType<typeof vi.fn<typeof fetch>>
+function createFetchMock(
+    includeAnswer = false,
+): ReturnType<typeof vi.fn<typeof fetch>>
 {
     return vi.fn<typeof fetch>(async (input) =>
     {
@@ -74,12 +76,70 @@ function createFetchMock(): ReturnType<typeof vi.fn<typeof fetch>>
             });
         }
 
+        if (url.includes(`/api/v1/public/conversations/${conversationId}/messages`))
+        {
+            if (includeAnswer)
+            {
+                return new Response(JSON.stringify({
+                    messages: [{
+                        citations: [{
+                            citationId: "50000000-0000-4000-a000-000000000001",
+                            label: "NF-Series Product Manual, p. 4",
+                            sourceType: "pdf",
+                            sourceUrl: null,
+                            supportingExcerpt: "Maximum flow | 300 litres per minute",
+                        }],
+                        createdAt: "2026-07-27T08:00:00.000Z",
+                        decision: "answer",
+                        messageId: "30000000-0000-4000-a000-000000000001",
+                        senderType: "ai",
+                        text: "NF-500 的最大流量是每分钟 300 升。",
+                    }],
+                    nextCursor: "voice-answer-cursor",
+                    status: "active_ai",
+                }), {
+                    headers: {
+                        "content-type": "application/json",
+                        etag: 'W/"voice-answer"',
+                    },
+                    status: 200,
+                });
+            }
+
+            return new Response(null, {
+                headers: {
+                    etag: 'W/"voice-fixture"',
+                },
+                status: 304,
+            });
+        }
+
         throw new Error(`Unexpected request: ${url}`);
     });
 }
 
 describe("VoiceExperience", () =>
 {
+    it("shows the approved answer citation on screen without adding it to transcript text", async () =>
+    {
+        const fetchMock = createFetchMock(true);
+        vi.stubGlobal("fetch", fetchMock);
+        const user = userEvent.setup();
+        render(
+            <VoiceExperience
+                requestMicrophone={vi.fn(async () => undefined)}
+            />,
+        );
+
+        await user.click(screen.getByRole("button", { name: "Start voice" }));
+
+        expect(await screen.findByText("NF-500 的最大流量是每分钟 300 升。")).toBeInTheDocument();
+        expect(screen.getByText("NF-Series Product Manual, p. 4")).toBeInTheDocument();
+        expect(screen.getByText(
+            "Your transcript will appear here after you speak.",
+        )).toBeInTheDocument();
+    });
+
     it("creates no session before click and requests microphone only after Ready", async () =>
     {
         const fetchMock = createFetchMock();

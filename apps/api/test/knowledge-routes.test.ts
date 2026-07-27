@@ -152,6 +152,7 @@ function createTestServices(): RuntimeServices
             list: vi.fn(),
             requestHandoff: vi.fn(),
             send: vi.fn(),
+            sendTrusted: vi.fn(),
         },
         queue: {
             send: vi.fn().mockResolvedValue(undefined),

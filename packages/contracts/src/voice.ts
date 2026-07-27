@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 import { conversationLanguageSchema } from "./conversation";
+import {
+    publicCitationSchema,
+    publicHandoffSchema,
+} from "./conversation";
 
 export const voiceSessionStatusSchema = z.enum([
     "warming",
@@ -50,8 +54,25 @@ export const recordVoiceTranscriptResponseSchema = z.object({
     messageId: z.uuid(),
 });
 
+export const completeVoiceTurnRequestSchema = z.object({
+    clientMessageId: z.uuid(),
+    text: z.string().trim().min(1).max(5000),
+    transcribedAt: z.iso.datetime({ offset: true }),
+});
+
+export const completeVoiceTurnResponseSchema = z.object({
+    answer: z.string().min(1).max(1600),
+    citations: z.array(publicCitationSchema).max(5),
+    decision: z.enum(["answer", "clarify", "handoff"]),
+    handoff: publicHandoffSchema.nullable(),
+    messageId: z.uuid(),
+    spokenText: z.string().min(1).max(500),
+});
+
 export type CreateVoiceTokenRequest = z.infer<typeof createVoiceTokenRequestSchema>;
 export type CreateVoiceTokenResponse = z.infer<typeof createVoiceTokenResponseSchema>;
+export type CompleteVoiceTurnRequest = z.infer<typeof completeVoiceTurnRequestSchema>;
+export type CompleteVoiceTurnResponse = z.infer<typeof completeVoiceTurnResponseSchema>;
 export type RecordVoiceTranscriptRequest = z.infer<typeof recordVoiceTranscriptRequestSchema>;
 export type RecordVoiceTranscriptResponse = z.infer<typeof recordVoiceTranscriptResponseSchema>;
 export type UpdateVoiceSessionStatusRequest = z.infer<typeof updateVoiceSessionStatusRequestSchema>;

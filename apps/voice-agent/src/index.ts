@@ -1,4 +1,7 @@
-export { createVoiceAgent } from "./agent";
+export {
+    createVoiceAgent,
+    normalizeVoiceSpeech,
+} from "./agent";
 export {
     loadLocalEnvironment,
     readVoiceAgentConfiguration,

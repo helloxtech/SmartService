@@ -626,9 +626,68 @@ export class DefaultPublicConversationService implements PublicConversationServi
             30,
             60,
         );
+
+        return this.processTurn(
+            authorization.claims.org,
+            conversationId,
+            input,
+            requestId,
+        );
+    }
+
+    /**
+     * sendTrusted
+     * ----------------
+     * Reuses the exact text RAG, citation, guardrail, and persistence path for one Agent-authenticated active voice conversation.
+     *
+     * July 27, 2026: Created by Forrest Zhang for SmartService Day 7 Voice RAG and TTS
+     */
+    public async sendTrusted(
+        organizationId: string,
+        conversationId: string,
+        input: SendPublicMessageRequest,
+        requestId: string,
+    ): Promise<SendPublicMessageResponse>
+    {
+        const conversation = await this.repository.getConversation(
+            organizationId,
+            conversationId,
+        );
+
+        if (
+            conversation === null
+            || conversation.channel !== "voice"
+            || conversation.status !== "active_ai"
+        )
+        {
+            throw new ApiError(409, "VOICE_CONVERSATION_NOT_ACTIVE", "This voice conversation is no longer AI-active.");
+        }
+
+        return this.processTurn(
+            organizationId,
+            conversationId,
+            input,
+            requestId,
+        );
+    }
+
+    /**
+     * processTurn
+     * ----------------
+     * Applies the shared idempotent customer-message, RAG, citation, guardrail, handoff, and audit pipeline after caller authorization.
+     *
+     * July 27, 2026: Created by Forrest Zhang for SmartService Day 7 Shared Voice Assistant Core
+     */
+    private async processTurn(
+        organizationId: string,
+        conversationId: string,
+        input: SendPublicMessageRequest,
+        requestId: string,
+    ): Promise<SendPublicMessageResponse>
+    {
         const language = detectConversationLanguage(input.text);
         const customerMessage = await this.repository.recordCustomerMessage(
-            authorization.claims.org,
+            organizationId,
             conversationId,
             input.clientMessageId,
             input.text,
@@ -638,7 +697,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
         if (!customerMessage.created)
         {
             const existing = await this.repository.findResponseToCustomerMessage(
-                authorization.claims.org,
+                organizationId,
                 conversationId,
                 customerMessage.id,
             );
@@ -646,7 +705,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
             if (existing !== null)
             {
                 await this.refreshOperationalContext(
-                    authorization.claims.org,
+                    organizationId,
                     conversationId,
                     requestId,
                     existing.handoff !== null,
@@ -681,7 +740,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
             else
             {
                 const rules: GuardrailRule[] = await this.repository.listGuardrailRules(
-                    authorization.claims.org,
+                    organizationId,
                 );
                 const inputGuardrailStartedAt = Date.now();
                 const inputEvaluation = evaluateDeterministicGuardrails({
@@ -714,7 +773,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                             provider: "deterministic",
                         },
                         language,
-                        organizationId: authorization.claims.org,
+                        organizationId,
                         requestId,
                     });
                 }
@@ -728,7 +787,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 }
 
                 evidence = await this.repository.retrieveEvidence(
-                    authorization.claims.org,
+                    organizationId,
                     input.text,
                     queryEmbedding,
                     parseThreshold(this.bindings),
@@ -744,7 +803,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 else
                 {
                     const recentMessages = await this.repository.listRecentMessages(
-                        authorization.claims.org,
+                        organizationId,
                         conversationId,
                     );
                     const generated = await this.answers.generate({
@@ -794,7 +853,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                                     provider: "deterministic",
                                 },
                                 language,
-                                organizationId: authorization.claims.org,
+                                organizationId,
                                 requestId,
                             });
                         }
@@ -822,7 +881,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                                     provider: this.guardrails.provider,
                                 },
                                 language,
-                                organizationId: authorization.claims.org,
+                                organizationId,
                                 requestId,
                             });
                         }
@@ -865,7 +924,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
             latencyMs: Date.now() - startedAt,
             model,
             normalizedQuestion: answer.normalizedQuestion,
-            organizationId: authorization.claims.org,
+            organizationId,
             outputTokens,
             promptVersion: ragPromptVersion,
             provider,
@@ -881,13 +940,13 @@ export class DefaultPublicConversationService implements PublicConversationServi
             retrievedChunkIds: evidence.map((item) => item.chunkId),
         });
         await this.refreshOperationalContext(
-            authorization.claims.org,
+            organizationId,
             conversationId,
             requestId,
             answer.decision === "handoff",
         );
         const response = await this.repository.loadResponse(
-            authorization.claims.org,
+            organizationId,
             conversationId,
             messageId,
         );

@@ -28,6 +28,8 @@ import type {
     TeamInboxItem,
     UpdateGuardrailRuleRequest,
     CreateVoiceTokenResponse,
+    CompleteVoiceTurnRequest,
+    CompleteVoiceTurnResponse,
     RecordVoiceTranscriptRequest,
     RecordVoiceTranscriptResponse,
     UpdateVoiceSessionStatusRequest,
@@ -369,10 +371,22 @@ export interface PublicConversationService
         requestId: string,
         remoteIp: string | null,
     ): Promise<SendPublicMessageResponse>;
+    sendTrusted(
+        organizationId: string,
+        conversationId: string,
+        input: SendPublicMessageRequest,
+        requestId: string,
+    ): Promise<SendPublicMessageResponse>;
 }
 
 export interface VoiceService
 {
+    completeTurn(
+        request: Request,
+        voiceSessionId: string,
+        input: CompleteVoiceTurnRequest,
+        requestId: string,
+    ): Promise<CompleteVoiceTurnResponse>;
     createToken(
         request: Request,
         conversationId: string,

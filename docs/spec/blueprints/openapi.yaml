@@ -155,6 +155,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RecordVoiceTranscriptResponse'
+  /v1/internal/voice/sessions/{voiceSessionId}/turns:
+    post:
+      operationId: completeVoiceTurn
+      security:
+        - voiceServiceToken: []
+      parameters:
+        - $ref: '#/components/parameters/VoiceSessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteVoiceTurnRequest'
+      responses:
+        '201':
+          description: Shared grounded and guardrail-approved voice answer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompleteVoiceTurnResponse'
   /v1/admin/knowledge/file-upload-intents:
     post:
       operationId: createFileUploadIntent
@@ -691,6 +711,20 @@ components:
       properties:
         created: { type: boolean }
         messageId: { type: string, format: uuid }
+    CompleteVoiceTurnRequest:
+      type: object
+      required: [clientMessageId, text, transcribedAt]
+      properties:
+        clientMessageId: { type: string, format: uuid }
+        text: { type: string, minLength: 1, maxLength: 5000 }
+        transcribedAt: { type: string, format: date-time }
+    CompleteVoiceTurnResponse:
+      allOf:
+        - $ref: '#/components/schemas/SendMessageResponse'
+        - type: object
+          required: [spokenText]
+          properties:
+            spokenText: { type: string, minLength: 1, maxLength: 500 }
     SendMessageRequest:
       type: object
       required: [text, clientMessageId]

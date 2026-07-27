@@ -5,20 +5,45 @@ import {
     type JobContext,
 } from "@livekit/agents";
 import * as deepgram from "@livekit/agents-plugin-deepgram";
+import * as elevenlabs from "@livekit/agents-plugin-elevenlabs";
 
 import type { VoiceAgentConfiguration } from "./config";
 import { VoiceInternalApiClient } from "./internal-api";
 import { readVoiceSessionId } from "./metadata";
 
 /**
- * persistFinalTranscript
+ * normalizeVoiceSpeech
  * ----------------
- * Persists one final non-empty STT event by ID without writing transcript content to process logs.
+ * Expands product-model separators and common units before TTS while preserving the approved answer's meaning.
  *
- * July 27, 2026: Created by Forrest Zhang for SmartService Day 6 Voice Foundation
+ * July 27, 2026: Created by Forrest Zhang for SmartService Day 7 Voice RAG and TTS
  */
-async function persistFinalTranscript(
+export function normalizeVoiceSpeech(
+    text: string,
+    language: "zh-CN" | "en",
+): string
+{
+    return text
+        .replace(/\b([A-Z]{1,4})-(\d{2,6})\b/gu, (_match, letters: string, digits: string) =>
+        {
+            return `${letters.split("").join(" ")} ${digits}`;
+        })
+        .replace(/\bL\/min\b/giu, language === "zh-CN" ? "升每分钟" : "litres per minute")
+        .replace(/°C/gu, language === "zh-CN" ? "摄氏度" : " degrees Celsius")
+        .replace(/\s+/gu, " ")
+        .trim();
+}
+
+/**
+ * completeAndSpeak
+ * ----------------
+ * Sends one final non-empty transcript through shared server guardrails, then speaks only the approved bounded text.
+ *
+ * July 27, 2026: Created by Forrest Zhang for SmartService Day 7 Voice RAG and TTS
+ */
+async function completeAndSpeak(
     api: VoiceInternalApiClient,
+    session: voice.AgentSession,
     voiceSessionId: string,
     language: "zh-CN" | "en",
     transcript: string,
@@ -31,12 +56,18 @@ async function persistFinalTranscript(
         return;
     }
 
-    await api.recordTranscript(
+    const result = await api.completeTurn(
         voiceSessionId,
         crypto.randomUUID(),
         text,
-        language,
         new Date().toISOString(),
+    );
+    session.say(
+        normalizeVoiceSpeech(result.spokenText, language),
+        {
+            addToChatCtx: true,
+            allowInterruptions: true,
+        },
     );
 }
 
@@ -71,10 +102,20 @@ async function runVoiceJob(
             punctuate: true,
             smartFormat: true,
         });
+        const tts = new elevenlabs.TTS({
+            apiKey: configuration.ELEVENLABS_API_KEY,
+            applyTextNormalization: "on",
+            enableLogging: false,
+            language: sessionConfiguration.language === "zh-CN" ? "zh" : "en",
+            model: "eleven_flash_v2_5",
+            syncAlignment: true,
+            voiceId: configuration.ELEVENLABS_VOICE_ID,
+        });
         const session = new voice.AgentSession({
             stt,
+            tts,
             turnHandling: {
-                turnDetection: "stt",
+                turnDetection: "manual",
             },
         });
         const agent = new voice.Agent({
@@ -87,8 +128,9 @@ async function runVoiceJob(
         {
             if (event.isFinal)
             {
-                void persistFinalTranscript(
+                void completeAndSpeak(
                     api,
+                    session,
                     voiceSessionId,
                     sessionConfiguration.language,
                     event.transcript,

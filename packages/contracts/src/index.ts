@@ -4,3 +4,4 @@ export * from "./knowledge";
 export * from "./operations";
 export * from "./organization";
 export * from "./system";
+export * from "./voice";

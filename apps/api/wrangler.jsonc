@@ -15,7 +15,9 @@
     "OPENAI_EMBEDDING_MODEL": "text-embedding-3-large",
     "R2_BUCKET_NAME": "smartservice-knowledge-dev",
     "TURNSTILE_PROVIDER_MODE": "mock",
-    "VERSION": "0.4.0",
+    "VOICE_PROVIDER_MODE": "mock",
+    "LIVEKIT_AGENT_NAME": "smartservice-voice-agent",
+    "VERSION": "0.5.0",
   },
   "r2_buckets": [
     {

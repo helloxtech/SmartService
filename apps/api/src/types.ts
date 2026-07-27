@@ -27,6 +27,11 @@ import type {
     TeamConversationDetail,
     TeamInboxItem,
     UpdateGuardrailRuleRequest,
+    CreateVoiceTokenResponse,
+    RecordVoiceTranscriptRequest,
+    RecordVoiceTranscriptResponse,
+    UpdateVoiceSessionStatusRequest,
+    VoiceSessionConfiguration,
 } from "@smartservice/contracts";
 import type {
     ConversationFinalizer,
@@ -48,6 +53,7 @@ export type SmartServiceBindings = Omit<
     | "INGESTION_PROVIDER_MODE"
     | "INGEST_QUEUE"
     | "TURNSTILE_PROVIDER_MODE"
+    | "VOICE_PROVIDER_MODE"
     | "VERSION"
 > & {
     ALLOWED_ORIGINS?: string;
@@ -78,6 +84,12 @@ export type SmartServiceBindings = Omit<
     TURNSTILE_EXPECTED_HOSTNAME?: string;
     TURNSTILE_PROVIDER_MODE?: "live" | "mock";
     TURNSTILE_SECRET_KEY?: string;
+    LIVEKIT_AGENT_NAME?: string;
+    LIVEKIT_API_KEY?: string;
+    LIVEKIT_API_SECRET?: string;
+    LIVEKIT_URL?: string;
+    VOICE_INTERNAL_SERVICE_TOKEN?: string;
+    VOICE_PROVIDER_MODE?: "live" | "mock";
     VERSION: string;
 };
 
@@ -209,6 +221,7 @@ export interface RuntimeServices
     repository: KnowledgeRepository;
     team: TeamService;
     uploads: UploadIntentProvider;
+    voice: VoiceService;
 }
 
 export interface AnalyticsService
@@ -356,6 +369,30 @@ export interface PublicConversationService
         requestId: string,
         remoteIp: string | null,
     ): Promise<SendPublicMessageResponse>;
+}
+
+export interface VoiceService
+{
+    createToken(
+        request: Request,
+        conversationId: string,
+        requestId: string,
+    ): Promise<CreateVoiceTokenResponse>;
+    getConfiguration(
+        request: Request,
+        voiceSessionId: string,
+    ): Promise<VoiceSessionConfiguration>;
+    recordTranscript(
+        request: Request,
+        voiceSessionId: string,
+        input: RecordVoiceTranscriptRequest,
+    ): Promise<RecordVoiceTranscriptResponse>;
+    updateStatus(
+        request: Request,
+        voiceSessionId: string,
+        input: UpdateVoiceSessionStatusRequest,
+        requestId: string,
+    ): Promise<void>;
 }
 
 export type RuntimeServiceFactory = (bindings: SmartServiceBindings) => RuntimeServices;

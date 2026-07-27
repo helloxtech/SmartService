@@ -9,7 +9,7 @@ paths:
   /v1/public/conversations:
     post:
       operationId: createPublicConversation
-      summary: Create a public text conversation
+      summary: Create a public text or voice conversation
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -89,19 +89,72 @@ paths:
       operationId: createVoiceToken
       security:
         - conversationToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [conversationId]
+              properties:
+                conversationId: { type: string, format: uuid }
       responses:
-        '200':
+        '201':
           description: Short-lived LiveKit token
           content:
             application/json:
               schema:
-                type: object
-                required: [url, token, roomName, expiresAt]
-                properties:
-                  url: { type: string, format: uri }
-                  token: { type: string }
-                  roomName: { type: string }
-                  expiresAt: { type: string, format: date-time }
+                $ref: '#/components/schemas/CreateVoiceTokenResponse'
+  /v1/internal/voice/sessions/{voiceSessionId}/config:
+    get:
+      operationId: getVoiceSessionConfiguration
+      security:
+        - voiceServiceToken: []
+      parameters:
+        - $ref: '#/components/parameters/VoiceSessionId'
+      responses:
+        '200':
+          description: Minimum tenant-bound Agent configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceSessionConfiguration'
+  /v1/internal/voice/sessions/{voiceSessionId}/status:
+    post:
+      operationId: updateVoiceSessionStatus
+      security:
+        - voiceServiceToken: []
+      parameters:
+        - $ref: '#/components/parameters/VoiceSessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVoiceSessionStatusRequest'
+      responses:
+        '204':
+          description: Lifecycle state recorded
+  /v1/internal/voice/sessions/{voiceSessionId}/transcripts:
+    post:
+      operationId: recordVoiceTranscript
+      security:
+        - voiceServiceToken: []
+      parameters:
+        - $ref: '#/components/parameters/VoiceSessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordVoiceTranscriptRequest'
+      responses:
+        '201':
+          description: Final transcript persisted idempotently
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordVoiceTranscriptResponse'
   /v1/admin/knowledge/file-upload-intents:
     post:
       operationId: createFileUploadIntent
@@ -527,9 +580,18 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    voiceServiceToken:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
   parameters:
     ConversationId:
       name: conversationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    VoiceSessionId:
+      name: voiceSessionId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -554,7 +616,7 @@ components:
       required: [publicKey, channel, turnstileToken]
       properties:
         publicKey: { type: string }
-        channel: { type: string, enum: [text] }
+        channel: { type: string, enum: [text, voice] }
         customer:
           type: object
           properties:
@@ -574,6 +636,61 @@ components:
         displayName: { type: string, minLength: 1, maxLength: 120 }
         expiresAt: { type: string, format: date-time }
         welcomeMessage: { type: string, minLength: 1, maxLength: 500 }
+    CreateVoiceTokenResponse:
+      type: object
+      required:
+        [agentName, expiresAt, provider, roomName, token, url, voiceSessionId]
+      properties:
+        agentName: { type: string, minLength: 1, maxLength: 120 }
+        expiresAt: { type: string, format: date-time }
+        provider: { type: string, enum: [live, mock] }
+        roomName: { type: string, minLength: 1, maxLength: 180 }
+        token: { type: string, minLength: 16 }
+        url: { type: string, format: uri }
+        voiceSessionId: { type: string, format: uuid }
+    VoiceSessionConfiguration:
+      type: object
+      required:
+        [conversationId, language, organizationId, status, voiceSessionId]
+      properties:
+        conversationId: { type: string, format: uuid }
+        language: { type: string, enum: [zh-CN, en] }
+        organizationId: { type: string, format: uuid }
+        status:
+          {
+            type: string,
+            enum: [warming, ready, active, handoff, closed, failed],
+          }
+        voiceSessionId: { type: string, format: uuid }
+    UpdateVoiceSessionStatusRequest:
+      type: object
+      required: [errorCode, status]
+      properties:
+        errorCode:
+          oneOf:
+            - type: 'null'
+            - type: string
+              minLength: 1
+              maxLength: 120
+        status:
+          {
+            type: string,
+            enum: [warming, ready, active, handoff, closed, failed],
+          }
+    RecordVoiceTranscriptRequest:
+      type: object
+      required: [clientMessageId, language, text, transcribedAt]
+      properties:
+        clientMessageId: { type: string, format: uuid }
+        language: { type: string, enum: [zh-CN, en] }
+        text: { type: string, minLength: 1, maxLength: 5000 }
+        transcribedAt: { type: string, format: date-time }
+    RecordVoiceTranscriptResponse:
+      type: object
+      required: [created, messageId]
+      properties:
+        created: { type: boolean }
+        messageId: { type: string, format: uuid }
     SendMessageRequest:
       type: object
       required: [text, clientMessageId]

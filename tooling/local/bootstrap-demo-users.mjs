@@ -157,13 +157,14 @@ async function updateLocalEnvironment(filePath, currentText, updates)
  *
  * July 26, 2026: Updated by Forrest Zhang for SmartService Day 3 Grounded Text Chat
  */
-async function writeWorkerDevelopmentVariables(filePath, localStatus)
+async function writeWorkerDevelopmentVariables(filePath, localStatus, voiceServiceToken)
 {
     const values = [
         `SUPABASE_URL=${localStatus.API_URL}`,
         `SUPABASE_SERVICE_ROLE_KEY=${localStatus.SERVICE_ROLE_KEY}`,
         `LOCAL_UPLOAD_SIGNING_SECRET=${randomBytes(32).toString("base64url")}`,
         `CONVERSATION_TOKEN_SECRET=${randomBytes(32).toString("base64url")}`,
+        `VOICE_INTERNAL_SERVICE_TOKEN=${voiceServiceToken}`,
     ];
     const temporaryPath = `${filePath}.bootstrap`;
     await writeFile(temporaryPath, `${values.join("\n")}\n`, {
@@ -259,9 +260,9 @@ async function upsertMembership(client, organizationId, userId, role)
 /**
  * main
  * ----------------
- * Bootstraps fictional local identities plus public-chat configuration and stores credentials only in ignored local files.
+ * Bootstraps fictional local identities plus public chat and voice configuration and stores credentials only in ignored local files.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 3 Grounded Text Chat
+ * July 27, 2026: Updated by Forrest Zhang for SmartService Day 6 Voice Foundation
  */
 async function main()
 {
@@ -270,6 +271,11 @@ async function main()
     const currentText = await readFile(environmentPath, "utf8");
     const currentValues = parseEnvironmentText(currentText);
     const localStatus = readLocalStatus();
+    const voiceServiceToken = getConfiguredValue(
+        currentValues,
+        "VOICE_INTERNAL_SERVICE_TOKEN",
+        () => randomBytes(32).toString("base64url"),
+    );
 
     const demoValues = new Map([
         ["DEMO_ADMIN_EMAIL", "admin@novaflow.smartservice.local"],
@@ -296,6 +302,8 @@ async function main()
         ["VITE_SUPABASE_ANON_KEY", localStatus.ANON_KEY],
         ["VITE_SUPABASE_URL", localStatus.API_URL],
         ["VITE_DEMO_PUBLIC_KEY", "novaflow-public-demo"],
+        ["VOICE_INTERNAL_API_BASE_URL", "http://127.0.0.1:8787"],
+        ["VOICE_INTERNAL_SERVICE_TOKEN", voiceServiceToken],
     ]);
 
     bootstrapStage = "storing ignored local configuration";
@@ -303,6 +311,7 @@ async function main()
     await writeWorkerDevelopmentVariables(
         resolve("apps/api/.dev.vars"),
         localStatus,
+        voiceServiceToken,
     );
 
     bootstrapStage = "connecting to local Auth";

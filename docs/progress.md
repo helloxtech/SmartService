@@ -10,19 +10,19 @@ human_gates:
 Gate 0 was approved on July 26, 2026. The July 27, 2026 instruction authorizes automatic continuation through G1 and G2 implementation and local validation. Live deployment, new paid resources, secret/account changes, destructive production actions, and optional R11 still require their documented authorization or entry conditions.
 
 current_phase:
-Day 5 P0 publication, then Day 6 voice-session foundation.
+Day 6 voice-session foundation publication, then Day 7 shared voice answer/TTS.
 
 active_step:
-Record the green P0 evidence, review and publish the separate Day 5 commit, then orient to the Day 6 voice specifications.
+Publish the green Day 6 checkpoint as its separate commit, then begin Day 7.
 
 completed_steps:
-Gate 0 resource audit; Days 1 through 4 implementation, validation, commits, and publication; Day 5 dashboard and knowledge-gap implementation; full Day 5 checkpoint; three consecutive clean-reset P0 demos.
+Gate 0 resource audit; Days 1 through 5 implementation, validation, commits, and publication; three consecutive clean-reset P0 demos; Day 6 tenant voice schema, token and internal API boundary, browser Ready/microphone flow, Nova-3 Agent foundation, unit/browser/database tests, and local end-to-end smoke.
 
 next_step:
-After the full Day 5 checkpoint is green, begin the Day 6 voice-session foundation using the approved provider adapters and zero-cost local mocks when live credentials are unavailable.
+Complete and publish the Day 6 checkpoint, then add the Day 7 shared grounded-answer and streaming ElevenLabs TTS path.
 
 verification_evidence:
-Day 4 is published at `6164083d4a0958935d91335d410b923a6738b82c`. `pnpm checkpoint:day5` passed in one uninterrupted run. Three `pnpm demo:p0:run` executions passed from clean resets with diagnostic, calibration, and replacement cases; exact times are in `docs/P0_DEMO_SCRIPT.md`.
+Day 5 is published at `c327ea5356f66cd74203dc3a4e7fcc345daab08b`. Its complete checkpoint and three clean-reset demos passed. The clean-reset Day 6 composite checkpoint passed format, lint, all strict workspace typechecks/tests/builds, 4/4 Playwright flows, 121/121 database assertions, database lint, and `pnpm verify:day6`.
 
 blockers:
 External provider credentials and hosted environments are not currently available. This does not block local implementation or mock-backed acceptance work, but any missing live-provider or deployed evidence must remain explicitly labeled.
@@ -31,7 +31,7 @@ decisions:
 Use separate reviewable commits per vertical slice; run all applicable automated checks; never claim live-provider evidence from mocks; continue autonomously until UAT-ready or genuinely blocked.
 
 files_changed:
-The Day 5 working tree listed in `git status`; this progress ledger; future Day 6 through Day 10 slice files.
+The current Day 6 working tree listed in `git status`; future Day 7 through Day 10 slice files.
 
 resume_instruction:
 Read this ledger, `docs/STATUS.md`, `docs/DECISIONS.md`, `docs/RESOURCE_REQUEST.md`, and current `git status`. Resume `active_step`, preserve slice boundaries, and update this ledger after every completed phase and validation checkpoint.

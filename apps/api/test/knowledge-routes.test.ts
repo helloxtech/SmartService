@@ -190,6 +190,7 @@ function createTestServices(): RuntimeServices
                 uploadUrl: "https://example.invalid/signed-upload",
             }),
         },
+        voice: {} as RuntimeServices["voice"],
     };
 }
 

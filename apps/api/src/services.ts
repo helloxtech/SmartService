@@ -32,6 +32,8 @@ import type {
     SmartServiceBindings,
 } from "./types";
 import { createTurnstileVerifier } from "./turnstile";
+import { DefaultVoiceService } from "./voice-service";
+import { SupabaseVoiceRepository } from "./voice-repository";
 
 class CompositeExtractedPayloadProvider implements ExtractedPayloadProvider
 {
@@ -78,7 +80,7 @@ class CompositeExtractedPayloadProvider implements ExtractedPayloadProvider
 /**
  * assertSafeProviderMode
  * ----------------
- * Fails closed when a production Worker is configured to use any deterministic ingestion, chat, auxiliary-AI, or Turnstile provider.
+ * Fails closed when a production Worker is configured to use any deterministic ingestion, chat, auxiliary-AI, Turnstile, or voice provider.
  *
  * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Guardrails and Handoff
  */
@@ -91,6 +93,7 @@ function assertSafeProviderMode(bindings: SmartServiceBindings): void
             || bindings.CHAT_PROVIDER_MODE !== "live"
             || bindings.AUXILIARY_PROVIDER_MODE !== "live"
             || bindings.TURNSTILE_PROVIDER_MODE !== "live"
+            || bindings.VOICE_PROVIDER_MODE !== "live"
         )
     )
     {
@@ -117,6 +120,7 @@ export function createRuntimeServices(bindings: SmartServiceBindings): RuntimeSe
     const guardrails = createGuardrailSupervisor(bindings);
     const finalizer = createConversationFinalizer(bindings);
     const team = new SupabaseTeamRepository(bindings, conversationRepository);
+    const voiceRepository = new SupabaseVoiceRepository(bindings, conversationRepository);
     const objects = new R2KnowledgeObjectStore(bindings.KNOWLEDGE_FILES);
     const crawl = bindings.INGESTION_PROVIDER_MODE === "live"
         ? new CloudflareBrowserRunCrawlProvider(bindings, cloudflareDnsResolver)
@@ -177,5 +181,10 @@ export function createRuntimeServices(bindings: SmartServiceBindings): RuntimeSe
         repository,
         team,
         uploads: createUploadIntentProvider(bindings),
+        voice: new DefaultVoiceService(
+            bindings,
+            conversationRepository,
+            voiceRepository,
+        ),
     };
 }

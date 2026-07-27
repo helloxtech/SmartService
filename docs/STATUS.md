@@ -2,9 +2,9 @@
 
 **Last updated:** July 27, 2026
 **Current gate:** Local P0 evidence complete; automatic P1 continuation authorized
-**Current phase:** Day 5 complete — publishing the P0 slice before Day 6
-**Active step:** Review and publish the separate Day 5 commit, then implement the Day 6 voice-session foundation
-**Overall state:** Days 1–5 are green locally, including the full checkpoint and three consecutive demos; hosted P0 and live voice-provider evidence remain unavailable without external credentials
+**Current phase:** Day 6 voice-session foundation complete locally; publication next
+**Active step:** Publish the separate Day 6 slice, then implement Day 7 grounded voice answers and TTS
+**Overall state:** Days 1–5 are published and green locally; the complete clean-reset Day 6 checkpoint is green; hosted P0 and live voice-provider evidence remain unavailable without external credentials
 
 ## Original goal
 
@@ -22,7 +22,7 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 |---|---|---|
 | Gate 0 | Approved July 26, 2026 | Baseline `b965aabd027c7c5b1d063f3ee0e5daaf711f0b45` published to `origin/main` |
 | P0 | Days 1–5 complete locally | Full composite checkpoint and three independent clean-reset demos passed; hosted deployment/provider evidence remains |
-| P1 | Authorized to start | Day 6–10 implementation and local/mock evidence may proceed; live provider/device evidence remains pending |
+| P1 | Day 6 focused evidence green | Browser/Worker/Agent session foundation is implemented; Day 7–10 and live provider/device evidence remain |
 | R11 | Deferred | Entry conditions not met |
 
 ## Completed steps
@@ -80,6 +80,11 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Added the eighth ordered P0 migration, a 31-assertion Day 5 pgTAP suite, API/web/core coverage, complete OpenAPI contracts, P0 demo/evaluation documents, and a zero-cost Day 5 end-to-end verifier.
 - Corrected the Day 2 ingestion verifier to navigate explicitly to Knowledge after the Day 5 default-route change, then passed the complete Day 5 checkpoint from a fresh database.
 - Ran three consecutive clean-reset P0 demos with distinct diagnostic, calibration, and replacement questions; every full local chain passed with no Blocker/Critical defect and no provider cost.
+- Added tenant-owned forced-RLS voice sessions, voice-enabled organization configuration, service-only lifecycle functions, short-lived LiveKit token issuance, explicit Agent dispatch, and production mock-provider denial.
+- Added service-token-authenticated Agent configuration/status/transcript endpoints that accept only opaque session IDs and persist final STT text idempotently through the existing conversation boundary.
+- Replaced the disabled P1 scaffold with a named LiveKit Agents Node worker using explicit Deepgram Nova-3 Chinese/English STT, ID-only dispatch metadata, transcript persistence, Ready/failed lifecycle reporting, and audio recording disabled.
+- Added `/voice` with explicit-click creation, muted warming, documented Agent-state detection, Ready-gated microphone activation, bilingual selection, live transcript display, teardown, and friendly text fallback.
+- Added the two ordered Day 6 migrations, 12 voice pgTAP assertions, API/Agent/web coverage, expanded OpenAPI contract, and a zero-cost local end-to-end verifier.
 
 ## Architecture findings
 
@@ -112,6 +117,8 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 27. Every customer input is checked deterministically before retrieval; every candidate answer is checked deterministically and by the auxiliary supervisor before it may be delivered. A blocked candidate is retained only in Admin-authorized evidence.
 28. The public conversation token becomes read-only after handoff or closure so customers may poll human/final messages while AI writes remain disabled.
 29. Finalization is an ID-only, single-concurrency Queue path that reconciles authoritative conversation state and checks for an existing final record before any model call.
+30. Public voice startup remains conversation-token bound: the browser supplies no organization ID, room credential lifetime is ten minutes, Agent dispatch metadata contains only `voiceSessionId`, and the Agent retrieves configuration through a distinct server-only bearer boundary.
+31. Microphone publication occurs only after the LiveKit Agent state leaves initialization; mock mode reproduces the lifecycle for zero-cost tests but is forbidden in production and cannot count as live WebRTC/STT evidence.
 
 ## Validation evidence
 
@@ -144,7 +151,7 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | `pnpm eval:p0` | Passed: 4 tests, including deterministic 12/12 cited in-scope and 8/8 missing-knowledge handoff behavior; live model quality remains unclaimed |
 | `pnpm eval:guardrails` | Passed: all six fixed cases were blocked by their expected enabled rule with safe handoff |
 | `supabase db reset` | Passed from all eight ordered P0 migrations and deterministic seed |
-| `supabase test db` | Passed: 109/109 tenant, role, privacy, ingestion, conversation, citation, rate-limit, idempotency, guardrail, handoff, finalization, dashboard, knowledge-gap, audit, and anonymous-denial assertions |
+| `supabase test db` | Passed: 121/121 tenant, role, privacy, ingestion, conversation, citation, rate-limit, idempotency, guardrail, handoff, finalization, dashboard, knowledge-gap, voice-session, audit, and anonymous-denial assertions |
 | `supabase db lint --schema public` | Passed; no schema errors |
 | RLS posture query | Passed: 18/18 public tables have RLS enabled and forced; `anon` has 0 table privileges |
 | Foreign-key index audit | Passed: every public foreign key has an exact leading-column index, including tenant-qualified composite keys |
@@ -173,6 +180,11 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Local Day 5 smoke | Passed: exact dashboard `+2` closed-handoff deltas, one 2-occurrence grouped gap, Agent/Admin and two-tenant isolation, manual source Ready, cited source-scoped re-test, and zero provider cost |
 | Full Day 5 composite checkpoint | Passed in one uninterrupted Codex run after fixing the explicit Knowledge-navigation regression: reset/bootstrap, check, Chromium, 109/109 database assertions, lint, evaluations, and Days 2–5 smokes |
 | Three consecutive P0 demo runs | Passed from clean resets: diagnostic 00:23:12–00:24:27 PDT, calibration 00:24:27–00:25:41 PDT, replacement 00:25:41–00:26:55 PDT |
+| Day 6 focused static checks | Passed: contracts/API/Agent/web strict TypeScript and repository Prettier |
+| Day 6 API and Agent tests | Passed: 38/38 API tests across 13 files and 3/3 Agent foundation tests |
+| Day 6 web tests | Passed: 7/7 unit tests plus 5/5 real-browser extraction tests, including no-pre-click creation, Ready-gated microphone, transcript display, and denial fallback |
+| Local Day 6 smoke | Passed: zero pre-click sessions, tenant-bound mock token, internal Agent authentication denial/allow, Ready timestamp, exact Chinese transcript persistence, replay idempotency, and zero provider cost |
+| Full Day 6 composite checkpoint | Passed from a clean reset: format, lint, all strict workspace typechecks/tests/builds, 4/4 Playwright flows, 121/121 database assertions, database lint, and the Day 6 Worker/Supabase smoke |
 | Live provider smoke tests | Not run; external P0 provider credentials remain absent |
 | Cost-bearing provider calls | None |
 
@@ -189,13 +201,13 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 - Gate 0 defaults were approved by Forrest Zhang on July 26, 2026 and are recorded in `DEC-031`.
 - Automatic testing ownership and continuation through Day 10 were approved by Forrest Zhang on July 27, 2026 and are recorded in `DEC-053`.
 
-## Day 5 checkpoint scope
+## Day 6 checkpoint scope
 
-- Exact tenant/date dashboard totals, AI containment, handoff rate, and unresolved grouped-gap aggregation.
-- Admin-only list/detail, ignore/reopen, idempotent one-click manual source, shared ingestion, automatic Ready-to-Resolved transition, and source-scoped cited re-test.
-- Responsive Dashboard and Knowledge gaps workspaces with compact navigation and complete operational states.
-- Ordered Day 5 migration, 31-assertion database suite, API/core/web coverage, OpenAPI contract, evaluation report, demo script, and local Worker/Supabase end-to-end verifier.
-- Checkpoint command: `pnpm checkpoint:day5`.
+- Tenant-bound voice lifecycle schema, short-lived token provider, service-only Agent API, and explicit production mock prohibition.
+- LiveKit Node Agent foundation with Nova-3 STT, final transcript persistence, ID-only job metadata, and audio recording off.
+- Responsive `/voice` warming/Ready/listening/denied/failed/ended flow with microphone permission only after Ready.
+- Two ordered migrations, 12 database assertions, API/Agent/web coverage, OpenAPI contract, and local Worker/Supabase end-to-end verifier.
+- Checkpoint command: `pnpm checkpoint:day6`.
 
 ## Cost to date
 
@@ -204,7 +216,7 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 
 ## Next step
 
-Review and publish the separate Day 5 slice, then implement and validate the Day 6 browser-voice session foundation. Preserve the local/mock versus hosted evidence boundary and keep R11 gated.
+Complete and publish the separate Day 6 slice, then implement and validate Day 7 shared grounded voice answers and streaming TTS. Preserve the local/mock versus hosted evidence boundary and keep R11 gated.
 
 ## Resume instruction
 

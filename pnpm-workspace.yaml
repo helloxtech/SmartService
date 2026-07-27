@@ -3,7 +3,9 @@ packages:
   - packages/*
 
 allowBuilds:
+  "@livekit/local-inference": false
   esbuild: true
+  protobufjs: false
   sharp: true
   workerd: true
 

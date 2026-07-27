@@ -8,6 +8,7 @@ import { createKnowledgeRouter } from "./knowledge-routes";
 import { createPublicConversationRouter } from "./public-conversation-routes";
 import { createRuntimeServices } from "./services";
 import { createTeamRouter } from "./team-routes";
+import { createVoiceRouter } from "./voice-routes";
 import type {
     AppEnvironment,
     RuntimeServiceFactory,
@@ -84,6 +85,7 @@ export function createApp(
     const knowledgeRouter = createKnowledgeRouter(serviceFactory);
     const publicConversationRouter = createPublicConversationRouter(serviceFactory);
     const teamRouter = createTeamRouter(serviceFactory);
+    const voiceRouter = createVoiceRouter(serviceFactory);
     app.route("/api", analyticsRouter);
     app.route("/", analyticsRouter);
     app.route("/api", knowledgeRouter);
@@ -92,6 +94,8 @@ export function createApp(
     app.route("/", publicConversationRouter);
     app.route("/api", teamRouter);
     app.route("/", teamRouter);
+    app.route("/api", voiceRouter);
+    app.route("/", voiceRouter);
 
     app.notFound((context) =>
     {

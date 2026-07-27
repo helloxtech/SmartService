@@ -61,6 +61,77 @@ test("renders the responsive public customer chat and evidence panel", async ({ 
     expect(horizontalOverflow).toBeLessThanOrEqual(1);
 });
 
+test("starts voice only after click and falls back cleanly when microphone is denied", async ({ page }) =>
+{
+    const conversationId = "20000000-0000-4000-a000-000000000006";
+    const voiceSessionId = "60000000-0000-4000-a000-000000000006";
+    let startupRequests = 0;
+
+    await page.addInitScript(() =>
+    {
+        Object.defineProperty(navigator, "mediaDevices", {
+            configurable: true,
+            value: {
+                /**
+                 * getUserMedia
+                 * ----------------
+                 * Reproduces a deterministic customer permission denial without opening a real microphone in CI.
+                 *
+                 * July 27, 2026: Created by Forrest Zhang for SmartService Day 6 Browser Verification
+                 */
+                getUserMedia: async () =>
+                {
+                    throw new DOMException("Permission denied", "NotAllowedError");
+                },
+            },
+        });
+    });
+    await page.route("**/api/v1/public/conversations", async (route) =>
+    {
+        startupRequests += 1;
+        await route.fulfill({
+            body: JSON.stringify({
+                conversationId,
+                conversationToken: "x".repeat(32),
+                displayName: "NovaFlow",
+                expiresAt: "2099-07-27T08:00:00.000Z",
+                welcomeMessage: "您好，欢迎联系 NovaFlow。",
+            }),
+            contentType: "application/json",
+            status: 201,
+        });
+    });
+    await page.route("**/api/v1/public/voice/token", async (route) =>
+    {
+        startupRequests += 1;
+        await route.fulfill({
+            body: JSON.stringify({
+                agentName: "smartservice-voice-agent",
+                expiresAt: "2099-07-27T08:10:00.000Z",
+                provider: "mock",
+                roomName: "ss-day6-browser",
+                token: "mock.browser-token.signature",
+                url: "https://mock-livekit.smartservice.local",
+                voiceSessionId,
+            }),
+            contentType: "application/json",
+            status: 201,
+        });
+    });
+
+    await page.goto("/voice");
+    await expect(page.getByRole("heading", {
+        name: "Talk when the agent is Ready",
+    })).toBeVisible();
+    expect(startupRequests).toBe(0);
+
+    await page.getByRole("button", { name: "Start voice" }).click();
+
+    await expect(page.getByText(/Microphone access was denied/u)).toBeVisible();
+    await expect(page.getByRole("link", { name: "Continue by text" })).toHaveAttribute("href", "/chat");
+    expect(startupRequests).toBe(2);
+});
+
 test("runs the authenticated dashboard and one-click gap repair flow", async ({ page }) =>
 {
     const gapId = "70000000-0000-4000-a000-000000000001";

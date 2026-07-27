@@ -24,7 +24,8 @@ insert into public.organization_settings (
     display_name,
     default_language,
     chat_welcome_message,
-    retention_days
+    retention_days,
+    voice_enabled
 )
 values
     (
@@ -32,14 +33,16 @@ values
         'NovaFlow',
         'zh-CN',
         '您好，欢迎联系 NovaFlow。请问有什么可以帮您？',
-        30
+        30,
+        true
     ),
     (
         '00000000-0000-4000-a000-000000000002',
         'HarborWorks',
         'en',
         'Welcome to HarborWorks test support. How can we help?',
-        30
+        30,
+        false
     )
 on conflict (organization_id) do nothing;
 

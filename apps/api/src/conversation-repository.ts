@@ -45,6 +45,7 @@ const rateLimitRowSchema = z.object({
 });
 
 const conversationRowSchema = z.object({
+    channel: z.enum(["text", "voice"]),
     id: z.uuid(),
     language: z.enum(["zh-CN", "en"]),
     organization_id: z.uuid(),
@@ -140,6 +141,7 @@ export interface TenantConfiguration
 
 export interface PublicConversationRecord
 {
+    channel: "text" | "voice";
     id: string;
     language: ConversationLanguage;
     organizationId: string;
@@ -450,7 +452,7 @@ export class SupabaseConversationRepository
         const client = createServiceClient(this.bindings);
         const { data, error } = await client
             .from("conversations")
-            .select("id, organization_id, status, language")
+            .select("id, organization_id, channel, status, language")
             .eq("organization_id", organizationId)
             .eq("id", conversationId)
             .maybeSingle();
@@ -468,6 +470,7 @@ export class SupabaseConversationRepository
         const row = conversationRowSchema.parse(data);
 
         return {
+            channel: row.channel,
             id: row.id,
             language: row.language,
             organizationId: row.organization_id,

@@ -30,7 +30,7 @@ export const customerProfileSchema = z.object({
 });
 
 export const createPublicConversationRequestSchema = z.object({
-    channel: z.literal("text"),
+    channel: z.enum(["text", "voice"]),
     customer: customerProfileSchema,
     publicKey: z.string().trim().min(8).max(200),
     turnstileToken: z.string().min(1).max(2048),

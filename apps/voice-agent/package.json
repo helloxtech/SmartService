@@ -8,11 +8,20 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx src/main.ts dev",
+    "start": "tsx src/main.ts start",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
+    "tsx": "4.20.6",
     "typescript": "6.0.3",
     "vitest": "4.1.10"
+  },
+  "dependencies": {
+    "@livekit/agents": "1.5.5",
+    "@livekit/agents-plugin-deepgram": "1.5.5",
+    "@smartservice/contracts": "workspace:*",
+    "zod": "4.4.3"
   }
 }

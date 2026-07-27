@@ -42,6 +42,15 @@ const PublicChat = lazy(async () =>
     };
 });
 
+const VoiceExperience = lazy(async () =>
+{
+    const module = await import("./voice-experience");
+
+    return {
+        default: module.VoiceExperience,
+    };
+});
+
 /**
  * describeError
  * ----------------
@@ -404,6 +413,21 @@ function WorkspaceApp(): JSX.Element
  */
 export function App(): JSX.Element
 {
+    if (window.location.pathname.startsWith("/voice"))
+    {
+        return (
+            <Suspense
+                fallback={(
+                    <main className="flex min-h-screen items-center justify-center bg-slate-950 text-sm text-slate-400">
+                        Loading secure voice support…
+                    </main>
+                )}
+            >
+                <VoiceExperience />
+            </Suspense>
+        );
+    }
+
     if (window.location.pathname.startsWith("/chat"))
     {
         return (

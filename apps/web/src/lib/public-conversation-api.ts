@@ -4,10 +4,12 @@ import {
     requestPublicHandoffResponseSchema,
     sendPublicMessageResponseSchema,
     type ConversationLanguage,
+    type CreateVoiceTokenResponse,
     type CreatePublicConversationResponse,
     type PublicMessageListResponse,
     type RequestPublicHandoffResponse,
     type SendPublicMessageResponse,
+    createVoiceTokenResponseSchema,
 } from "@smartservice/contracts";
 import { z } from "zod";
 
@@ -74,11 +76,12 @@ export async function createPublicConversation(
     publicKey: string,
     language: ConversationLanguage,
     turnstileToken: string,
+    channel: "text" | "voice" = "text",
 ): Promise<CreatePublicConversationResponse>
 {
     const response = await fetch(getApiUrl("/api/v1/public/conversations"), {
         body: JSON.stringify({
-            channel: "text",
+            channel,
             customer: {
                 language,
             },
@@ -98,6 +101,37 @@ export async function createPublicConversation(
     }
 
     return createPublicConversationResponseSchema.parse(await response.json());
+}
+
+/**
+ * createVoiceToken
+ * ----------------
+ * Exchanges one scoped voice-conversation token for a short-lived LiveKit room credential after an explicit customer click.
+ *
+ * July 27, 2026: Created by Forrest Zhang for SmartService Day 6 Voice Foundation
+ */
+export async function createVoiceToken(
+    conversationId: string,
+    conversationToken: string,
+): Promise<CreateVoiceTokenResponse>
+{
+    const response = await fetch(getApiUrl("/api/v1/public/voice/token"), {
+        body: JSON.stringify({
+            conversationId,
+        }),
+        headers: {
+            authorization: `Bearer ${conversationToken}`,
+            "content-type": "application/json",
+        },
+        method: "POST",
+    });
+
+    if (!response.ok)
+    {
+        throw await readApiFailure(response);
+    }
+
+    return createVoiceTokenResponseSchema.parse(await response.json());
 }
 
 /**

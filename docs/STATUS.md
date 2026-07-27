@@ -1,10 +1,10 @@
 # SmartService Project Status
 
 **Last updated:** July 26, 2026
-**Current gate:** G0 — Resource and readiness audit
-**Current phase:** Gate 0 documentation and repository baseline
-**Active step:** Await resource provisioning, approval boundaries, and explicit Gate 0 approval
-**Overall state:** Blocked at the required human approval gate; no product code started
+**Current gate:** P0 implementation after G0 approval
+**Current phase:** Day 1 complete — Foundation and tenant isolation
+**Active step:** Create the Day 1 checkpoint, then begin Day 2 knowledge ingestion
+**Overall state:** Day 1 green; local and mocked P0 implementation may continue
 
 ## Original goal
 
@@ -12,16 +12,16 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 
 ## Scope boundary
 
-- In scope now: repository/specification audit, SmartService identity migration, resource and budget audit, secret-safety preparation, architecture validation, Git baseline, and Gate 0 reporting.
-- Not authorized now: P0/P1 feature code, live resource creation, remote database mutation/reset, externally reachable deployment, billable provider use, or GitHub push.
+- In scope now: Day 1 through Day 5 P0 implementation, local tests, deterministic provider mocks, approved development resources, and bounded smoke tests within the USD 50 cap.
+- Not authorized now: production deployment, production data, destructive production actions, paid upgrades without separate approval, P1 work before its scheduled slice, or R11 before G3.
 - Later gates: stop for G1 after P0, G2 after P1, and G3 before optional R11.
 
 ## Delivery summary
 
 | Scope | State | Acceptance |
 |---|---|---|
-| Gate 0 | Audit complete; approval pending | Waiting for Forrest Zhang |
-| P0 | Not started by design | Not run |
+| Gate 0 | Approved July 26, 2026 | Baseline `b965aabd027c7c5b1d063f3ee0e5daaf711f0b45` published to `origin/main` |
+| P0 | Day 1 complete; Day 2 next | Day 1 checks passed |
 | P1 | Not started by design | Not run |
 | R11 | Deferred | Entry conditions not met |
 
@@ -34,12 +34,20 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Completed independent read-only resource, architecture, and acceptance reviews and reconciled their high-impact findings into the controlling documents.
 - Validated the locked stack against current official documentation for OpenAI models, Supabase pgvector/RLS, Cloudflare Browser Run/Queues/R2, LiveKit Agents, Deepgram Nova-3 Chinese, and ElevenLabs Flash v2.5.
 - Initialized Git on `main`, configured the requested GitHub remote, and set the repository-local author identity to the existing `helloxtech` convention.
-- Verified the remote is reachable and currently has no `main`/`HEAD` ref; no push was attempted.
+- Published the reviewed Gate 0 baseline to `origin/main` and verified local/remote commit equality.
 - Verified Node.js, pnpm, Git, Supabase CLI, Docker, Wrangler through the package runner, Chrome, Edge, and Safari.
-- Confirmed `.env.local` is absent and audited provider environment-variable names are unset without printing values.
+- Created the ignored `.env.local` container from `.env.example`; generated local Supabase/demo values are present, external provider values remain unset, and no values were displayed.
 - Migrated repository-owned product identity to SmartService and standardized the environment-variable contract.
 - Hardened ignore rules for environment files, Wrangler variables, credentials, certificates, generated artifacts, and audio recordings.
 - Completed the consolidated classified resource, credential-placement, permission, budget, asset, browser, and deployment request.
+- Created an eight-project pnpm workspace with strict TypeScript, ESLint Allman-brace enforcement, formatting, Vitest, Playwright, and fixed-fixture evaluation commands.
+- Added the React/Vite/Tailwind/shadcn-style authentication shell, responsive desktop/mobile layout, shared UI package, browser-safe configuration validation, and role-aware membership display.
+- Added the Hono Cloudflare Worker health contract, generated Wrangler bindings, structured request logs, safe JSON errors, Static Assets configuration, Worker-runtime tests, and a successful deployment dry run.
+- Split the P0 data blueprint into four ordered Supabase migrations with `vector(1024)`, HNSW/trigram indexes, composite tenant foreign keys, explicit privileges, forced RLS, immutable audit links, and no P1/R11 tables.
+- Created fictional NovaFlow Admin and Agent identities plus an isolation-tenant Admin in ignored local storage; verified all three real Auth login paths without displaying credentials.
+- Proved tenant and role isolation with 16 pgTAP assertions, including cross-tenant denial, Agent/Admin boundaries, blocked-candidate privacy, human-sender enforcement, and anonymous permission denial.
+- Added deterministic fixture-integrity checks for the fixed P0 and guardrail sets without making provider calls.
+- Visually inspected the built shell at 2560×1440 and 390-pixel mobile width and corrected shared Tailwind source discovery before acceptance.
 
 ## Architecture findings
 
@@ -87,40 +95,45 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Supabase CLI | `2.109.1` |
 | Docker daemon | `29.5.2` |
 | Wrangler | `4.114.0` via package runner |
-| SQL blueprint execution | Deferred until approved Day 1 migrations; no database mutation authorized at G0 |
-| Product tests/build/evals | Not run; no product code exists and Gate 0 forbids implementation |
-| Live provider smoke tests | Not run; credentials/budget/approval absent |
+| `pnpm check` | Passed: format, lint, strict typecheck, 8 unit/Worker-runtime tests, web build, and Worker dry run |
+| `pnpm test:e2e` | Passed: 1 Chromium foundation-shell test |
+| `pnpm eval:p0` | Passed: 2 fixed-fixture integrity tests; this is not yet a model-quality claim |
+| `pnpm eval:guardrails` | Passed: 1 fixed-fixture integrity test; this is not yet a live guardrail claim |
+| `supabase db reset` | Passed from the four ordered migrations and deterministic seed |
+| `supabase test db` | Passed: 16/16 tenant, role, privacy, and anonymous-denial assertions |
+| `supabase db lint --schema public` | Passed; no schema errors |
+| RLS posture query | Passed: 17/17 public tables have RLS enabled and forced; `anon` has 0 table privileges |
+| Foreign-key index audit | Passed: every public foreign key has an exact leading-column index, including tenant-qualified composite keys |
+| Local Auth verification | Passed: NovaFlow Admin, NovaFlow Agent, and isolation-tenant Admin; each sees exactly one tenant |
+| Worker Static Assets dry run | Passed: 617.35 KiB upload / 96.46 KiB gzip; no deployment performed |
+| Dependency audit | Passed: no known production vulnerability at `high` or above |
+| Day 1 secret-pattern scan | Passed; no key/JWT/private-key pattern in candidate commit files |
+| Local secret handling | Passed; `.env.local` is ignored with mode `0600` and no values were printed |
+| Desktop/mobile visual inspection | Passed after correcting shared Tailwind source scanning |
+| Live provider smoke tests | Not run; external P0 provider credentials remain absent |
 | Cost-bearing provider calls | None |
 
 ## Current blockers
 
-- Explicit Gate 0 approval.
-- `.env.local` creation and P0 credential groups.
-- Approved total USD cap and provider-specific voice limits.
-- Authority boundaries for dev resource creation, live smoke calls, development migrations/reset, an externally reachable preview, generated service secrets, and initial GitHub push.
-- Supabase project region selection.
-- P1 provider credentials, commercial-use confirmation, voice ID, and final microphone/device/network may be deferred until before Day 6.
+- No blocker prevents Day 2 local/mocked implementation.
+- P0 provider credentials and a dedicated development project remain unset; live P0 integration and G1 acceptance remain blocked until those groups are provisioned.
+- P1 provider credentials, commercial-use confirmation, voice ID, and the final microphone/device/network remain deferred until before Day 6.
 
 See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact non-secret actions.
 
 ## Decisions
 
 - Durable decisions are in `docs/DECISIONS.md`.
-- Gate 0 proposals marked `pending G0 confirmation` become approved only when Forrest Zhang explicitly accepts Gate 0 or replaces them.
+- Gate 0 defaults were approved by Forrest Zhang on July 26, 2026 and are recorded in `DEC-031`.
 
-## Files changed in Gate 0
+## Day 1 checkpoint scope
 
-- `.env.example`
-- `.gitignore`
-- `AGENTS.md`
-- `CODEX_PROJECT_LEAD_PROMPT.md`
-- `MANIFEST.md`
-- `README.md`
-- `README_OPERATOR_CN.md`
-- `docs/RESOURCE_REQUEST.md`
-- `docs/STATUS.md`
-- `docs/DECISIONS.md`
-- Repository-owned identity/configuration sections under `docs/spec/`
+- Root pnpm, TypeScript, lint, format, evaluation, and dependency-lock configuration.
+- `apps/web`, `apps/api`, and the scope-gated `apps/voice-agent` scaffold.
+- Shared `packages/config`, `packages/contracts`, `packages/assistant-core`, and `packages/ui`.
+- Four ordered migrations, deterministic seed, local Supabase configuration, and 16 database tests under `supabase/`.
+- Ignored local identity bootstrap/access verification tooling under `tooling/local/`.
+- G0 approval and Day 1 evidence updates in the controlling documentation.
 
 ## Cost to date
 
@@ -129,8 +142,8 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 
 ## Next step
 
-Forrest Zhang reviews `docs/RESOURCE_REQUEST.md`, stores secrets only in ignored/provider stores, answers all `BLOCKING-NOW` boundaries in one message, and explicitly approves Gate 0. Codex then verifies resources without displaying values and starts Day 1 only if the approval/resource state allows it.
+Create and publish the separate Day 1 checkpoint, then begin Day 2 file/URL ingestion with provider adapters and deterministic mocks. Live hosted-provider acceptance remains deferred until the corresponding credential groups are present.
 
 ## Resume instruction
 
-Read this file, `docs/RESOURCE_REQUEST.md`, `docs/DECISIONS.md`, and current `git status` first. If Gate 0 is not explicitly approved, do not implement product code. If it is approved, verify the documented resource groups non-destructively, record the G0 approval, and begin the Day 1 foundation slice.
+Read this file, `docs/RESOURCE_REQUEST.md`, `docs/DECISIONS.md`, and current `git status` first. Gate 0 is approved. Resume the active numbered slice, preserve its validation checkpoint, and stop only at a documented human gate or genuine blocker.

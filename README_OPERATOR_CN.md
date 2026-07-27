@@ -1,5 +1,9 @@
 # SmartService 操作指南 — 让 Codex 牵头完成项目
 
+## 当前进度
+
+G0 已批准，Day 1 基础工程已完成并通过验证。当前本地环境已经具备 pnpm workspace、React 登录壳、Hono Worker、Supabase 有序 migration、强制 RLS、三套虚构 Demo 身份，以及自动化租户隔离测试。下一步是 Day 2 知识导入。
+
 ## 推荐工作方式
 
 - 使用 ChatGPT/Codex 桌面应用中的 Codex 项目作为“项目经理 + 主开发”。
@@ -24,7 +28,23 @@ git branch -M main
 4. 创建 `.env.local`，只放真实凭证；不要提交。
 5. 在 Codex 桌面应用中选择该本地仓库，使用 Local 模式，新建一个名为 `Project Lead` 的持久聊天。
 6. 把 `CODEX_PROJECT_LEAD_PROMPT.md` 全文发给它。
-7. Codex 第一轮只应完成 Gate 0：审查仓库并一次性向你索取资源，不应开始业务开发。
+7. 首次启动时 Codex 只完成 Gate 0；本仓库的 Gate 0 已经批准，后续应从 `docs/STATUS.md` 记录的当前切片继续。
+
+## 本地基础命令
+
+```bash
+pnpm install
+pnpm db:start
+pnpm db:reset
+pnpm bootstrap:local
+pnpm verify:local-access
+pnpm check
+pnpm test:e2e
+pnpm db:test
+pnpm db:lint
+```
+
+`pnpm db:start` 和 `pnpm db:status` 会隐藏 Supabase 生成的本地凭证。三套虚构 Demo 登录值只写入被 Git 忽略且权限为 `0600` 的 `.env.local`，不要粘贴到聊天或提交到 Git。
 
 ## 你应该怎样提供资源
 

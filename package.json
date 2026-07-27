@@ -1,0 +1,49 @@
+{
+  "name": "smartservice",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SmartService AI customer-service demonstration workspace",
+  "type": "module",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "bootstrap:local": "node tooling/local/bootstrap-demo-users.mjs",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "db:lint": "supabase db lint --schema public --level warning --fail-on error",
+    "db:reset": "supabase db reset",
+    "db:start": "node tooling/local/run-supabase-safely.mjs start",
+    "db:status": "node tooling/local/run-supabase-safely.mjs status",
+    "db:stop": "supabase stop",
+    "db:test": "supabase test db",
+    "eval:guardrails": "vitest run --config vitest.evaluation.config.ts tooling/evaluation/guardrail-fixtures.test.ts",
+    "eval:p0": "vitest run --config vitest.evaluation.config.ts tooling/evaluation/p0-fixtures.test.ts",
+    "format": "prettier --write . --ignore-unknown",
+    "format:check": "prettier --check . --ignore-unknown",
+    "lint": "eslint . --max-warnings 0",
+    "dev:api": "pnpm --filter @smartservice/api dev",
+    "dev:web": "pnpm --filter @smartservice/web dev",
+    "test": "pnpm -r --if-present test",
+    "test:e2e": "pnpm --filter @smartservice/web test:e2e",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "verify:local-access": "node tooling/local/verify-demo-access.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@stylistic/eslint-plugin": "5.10.0",
+    "@supabase/supabase-js": "2.110.8",
+    "@types/node": "26.1.1",
+    "@vitest/coverage-v8": "4.1.10",
+    "eslint": "10.8.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.3",
+    "globals": "17.8.0",
+    "prettier": "3.9.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.65.0",
+    "vitest": "4.1.10",
+    "zod": "4.4.3"
+  }
+}

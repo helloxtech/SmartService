@@ -1,0 +1,12 @@
+**/*.ts
+**/*.tsx
+**/*.mjs
+*.md
+docs/
+需求/
+node_modules/
+dist/
+coverage/
+.env.local
+worker-configuration.d.ts
+pnpm-lock.yaml

@@ -2,7 +2,7 @@
 
 **Last audited:** July 26, 2026
 **Secret values stored here:** None
-**Current decision:** No product implementation may begin until Forrest Zhang explicitly approves Gate 0.
+**Current decision:** Gate 0 was approved by Forrest Zhang on July 26, 2026. Product implementation may proceed within the approved scope and budget boundaries below.
 
 ## Status and priority
 
@@ -39,46 +39,46 @@ Priority values:
 |---|---|---:|---|
 | Repository identity | BLOCKING-NOW | READY | Product `SmartService`; slug `smartservice`; resource prefix `smartservice-*` |
 | Local Git repository | BLOCKING-NOW | READY | Initialized on `main` |
-| Git remote | BLOCKING-NOW | READY | `origin` is `https://github.com/helloxtech/SmartService.git`; read-only `ls-remote` succeeded and returned no branch refs |
+| Git remote | BLOCKING-NOW | READY | `origin` is `https://github.com/helloxtech/SmartService.git`; the reviewed Gate 0 baseline is published on `origin/main` |
 | Git author identity | BLOCKING-NOW | READY | Repository-local identity matches the existing `helloxtech` repository convention |
-| GitHub push authorization | BLOCKING-NOW | MISSING | Explicitly authorize the initial push after reviewing the baseline commit |
+| GitHub push authorization | BLOCKING-NOW | READY | Approved; baseline commit `b965aabd027c7c5b1d063f3ee0e5daaf711f0b45` was pushed to `origin/main` |
 | GitHub CLI | OPTIONAL | NOT-NEEDED | `gh` is absent; Git itself can fetch and push |
 | Node.js | BLOCKING-NOW | READY | `v24.16.0` |
 | pnpm | BLOCKING-NOW | READY | `11.9.0` |
 | Git | BLOCKING-NOW | READY | `2.50.1` |
 | Supabase CLI | BLOCKING-P0 | READY | `2.109.1` |
 | Docker engine | BLOCKING-P0 | READY | Client `29.6.1`; daemon `29.5.2` |
-| Wrangler | BLOCKING-P0 | READY | `4.114.0` is runnable through the package runner; add it as a pinned workspace dev dependency on Day 1 |
+| Wrangler | BLOCKING-P0 | READY | `4.114.0` is pinned in the API workspace; generated bindings and a Static Assets deployment dry run passed |
 | macOS | BLOCKING-NOW | READY | macOS `26.5.1`, Apple silicon |
 | Supported browsers | BLOCKING-P1 | READY | Chrome, Edge, and Safari are installed |
 | Microphone/headset and browser permission | BLOCKING-P1 | VERIFY | Must be tested interactively on the final demo device |
-| Local secret file | BLOCKING-NOW | MISSING | `.env.local` does not exist; all audited provider environment names are unset |
-| Product/provider code | BLOCKING-NOW | NOT-NEEDED | Correctly absent during Gate 0 |
+| Local secret file | BLOCKING-NOW | READY | Ignored mode-`0600` `.env.local` contains generated local Supabase/demo values; external provider values remain unset |
+| Product/provider code | BLOCKING-NOW | READY | Day 1 foundation exists; live provider adapters remain scheduled for their P0/P1 slices |
 | Cost-bearing project provider calls | BLOCKING-NOW | READY | None made; recorded project cost is USD 0 |
 
 ## BLOCKING-NOW
 
-These are the only decisions and actions that prevent Gate 0 approval and implementation from starting.
+These decisions and actions were approved on July 26, 2026. Missing P0/P1 credentials still block their live-provider acceptance checks, but not local or mocked implementation.
 
 | Resource or approval | Status | Exact non-secret action |
 |---|---:|---|
-| Explicit Gate 0 approval | MISSING | Review this file and reply with an explicit `Gate 0 approved` statement after the other `BLOCKING-NOW` items are resolved |
-| Local secret container | MISSING | Run `cp .env.example .env.local`, then fill values locally; do not paste the file or values into chat |
-| Total live-provider development budget | MISSING | Approve a USD cap. Proposed default: **USD 50 total**, no paid plan or subscription change without separate approval |
-| Resource-creation authority | MISSING | Approve or deny Codex creating clearly named **development-only** Supabase and Cloudflare resources within the budget |
-| Live smoke-test authority | MISSING | Approve or deny small OpenAI, Browser Run, STT, and TTS verification calls within the approved cap |
-| Development database authority | MISSING | Approve local `supabase db reset` and ordered migrations on a dedicated development project; production databases remain excluded |
-| Preview deployment authority | MISSING | Approve or deny an externally reachable non-production `*.workers.dev` preview and LiveKit development deployment. A bare `workers.dev` URL is public unless a separate access control is configured |
-| Initial GitHub push | MISSING | Approve pushing the reviewed documentation-only baseline commit to the empty `origin/main`; no force push or history rewrite |
-| Supabase project region | MISSING | Approve the closest available North American west region to the Vancouver demo location; the exact provider region is chosen before project creation |
-| Generated development secrets | MISSING | Approve or deny Codex generating high-entropy conversation-signing and internal-service tokens and storing them only in ignored/provider secret stores |
-| Subscription treatment | MISSING | Confirm whether any approved monthly subscription counts inside the total cap; proposed default is **inside the cap** and still requires separate approval |
+| Explicit Gate 0 approval | READY | Approved by Forrest Zhang on July 26, 2026 |
+| Local secret container | READY | Ignored `.env.local` created from `.env.example`; values are supplied only through local/provider stores |
+| Total live-provider development budget | READY | **USD 50 aggregate cap** approved; no paid plan or subscription change without separate approval |
+| Resource-creation authority | READY | Clearly named development-only Supabase and Cloudflare resources may be created within the approved boundaries |
+| Live smoke-test authority | READY | Small bounded OpenAI, Browser Run, STT, and TTS verification calls are approved within the aggregate cap |
+| Development database authority | READY | Local reset and ordered migrations on a dedicated development project are approved; production databases remain excluded |
+| Preview deployment authority | READY | A non-production `*.workers.dev` preview and LiveKit development deployment are approved; production deployment remains excluded |
+| Initial GitHub push | READY | Reviewed documentation baseline pushed to `origin/main`; no force push or history rewrite used |
+| Supabase project region | READY | Use the closest available North American west region to the Vancouver demo location |
+| Generated development secrets | READY | High-entropy development secrets may be generated and stored only in ignored/provider secret stores |
+| Subscription treatment | READY | Approved subscriptions count inside the aggregate cap and each paid upgrade still requires separate approval |
 | Demo data boundary | READY | Fixed default: fictional NovaFlow data only; no customer, production, regulated, or sensitive personal data |
 | Demo branding/default company | READY | Fixed default: SmartService product branding, neutral visual theme, and NovaFlow as the fictional demo tenant unless optional assets are supplied |
 | P0 business rules | READY | Defaults in the specification apply: no price, discount, exact delivery, competitor, unsupported certification/claim, secret-disclosure, or unsafe repair commitment |
 | Handoff customer-card fields | READY | Name, company, email, phone, preferred language, intent, confirmed facts, channel, summary, risk reason, and next action; unknown values display as not provided |
 | Audio recording | READY | Disabled by default; enabling it requires a separate privacy/retention approval |
-| Application retention | VERIFY | Approve the specification's 30-day demo record retention; deletion by conversation remains required |
+| Application retention | READY | The specification's 30-day demo record retention is approved; deletion by conversation remains required |
 
 ## BLOCKING-P0
 
@@ -91,7 +91,7 @@ Provision these before a live P0 integration can pass G1. If a missing item is e
 | Supabase server configuration | MISSING | Service-role key and database URL/password | Apply migrations to the dedicated dev project and run a minimal server query |
 | Supabase CLI authentication | MISSING | Interactive CLI login or a tooling-only access token stored in native/ignored local storage | Link the project and read migration status without printing credentials |
 | Supabase project permissions | MISSING | Permission to manage Auth settings, extensions, migrations, and RLS | Enable/check `vector` and `pg_trgm`; run cross-tenant negative tests |
-| Demo identities and tenant-isolation seed | MISSING | Fictional admin and agent in tenant A plus a fictional admin in tenant B; local test passwords only | Login, role, same-tenant positive checks, and cross-tenant denial |
+| Demo identities and tenant-isolation seed | READY | Fictional admin and agent in tenant A plus a fictional admin in tenant B; local test passwords only | All three local Auth logins passed; 16 database isolation/role assertions passed |
 | Cloudflare account | MISSING | Account ID with Workers, Queues, R2, Browser Run, and Turnstile access | `wrangler whoami` and non-destructive resource lists |
 | Cloudflare deployment token | MISSING | Least-privilege token for development Worker, Queue, and R2 management | Authenticated dry run/resource listing; do not print token |
 | Browser Run token | MISSING | Separate least-privilege token with `Browser Rendering - Edit` | One bounded Markdown crawl against an approved fixture site |
@@ -248,18 +248,18 @@ Current official free tiers are sufficient for most infrastructure, but only the
 
 ## Gate 0 approval record
 
-- Approved by:
-- Approval date:
-- Approved total live-provider budget:
-- Approved development resource creation:
-- Approved live smoke tests:
-- Approved local/dev database reset and migrations:
-- Approved externally reachable preview deployment:
-- Approved generated development secrets:
-- Approved initial GitHub push:
-- Approved Supabase region:
-- Approved 30-day retention:
-- Monthly subscriptions inside/outside cap:
-- P0 credential groups present:
-- P1 credential groups present or deferred:
-- Remaining exceptions:
+- Approved by: Forrest Zhang
+- Approval date: July 26, 2026
+- Approved total live-provider budget: USD 50 aggregate cap
+- Approved development resource creation: Yes, development-only and within the approved boundaries
+- Approved live smoke tests: Yes, bounded calls within the aggregate cap
+- Approved local/dev database reset and migrations: Yes; production databases excluded
+- Approved externally reachable preview deployment: Yes, non-production only
+- Approved generated development secrets: Yes, ignored/provider secret stores only
+- Approved initial GitHub push: Yes; baseline commit pushed to `origin/main`
+- Approved Supabase region: Closest available North American west region to Vancouver
+- Approved 30-day retention: Yes
+- Monthly subscriptions inside/outside cap: Inside the aggregate cap; every paid upgrade still requires separate approval
+- P0 credential groups present: Local Supabase and fictional demo identities are ready; hosted Supabase, Cloudflare, Browser Run, R2, Queue, and OpenAI groups remain unset, so G1 live integration remains blocked
+- P1 credential groups present or deferred: Deferred until before Day 6
+- Remaining exceptions: Only generated local Supabase/demo values are stored in the ignored local file; external provider credentials remain absent. Production deployment, production data, destructive production actions, and paid upgrades remain outside this approval.

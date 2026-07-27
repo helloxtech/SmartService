@@ -4,7 +4,7 @@ SmartService is a reusable, tenant-isolated AI customer-service demonstration. P
 
 ## Current state
 
-The repository is at Gate 0: resource and readiness review. No product functionality has been implemented. Product work must not begin until Forrest Zhang explicitly approves Gate 0.
+Gate 0 is approved. The Day 1 foundation is complete: the pnpm workspace, React authentication shell, Hono Worker, ordered Supabase migrations, local fictional identities, forced tenant RLS, and validation toolchain are operational. Day 2 knowledge ingestion is next. See [the live project status](docs/STATUS.md) for exact evidence and blockers.
 
 ## Locked delivery
 
@@ -23,8 +23,26 @@ The implementation uses React/Vite/TypeScript, Cloudflare Workers/Hono/Queues/R2
 
 Historical source PDFs retain their original titles.
 
-## Gate 0
+## Local foundation
 
-Review [the resource request](docs/RESOURCE_REQUEST.md), provision secrets only in ignored local/provider secret stores, and then explicitly approve Gate 0. Never paste credentials into chat or commit `.env.local`.
+```bash
+pnpm install
+pnpm db:start
+pnpm db:reset
+pnpm bootstrap:local
+pnpm verify:local-access
+pnpm check
+pnpm test:e2e
+pnpm db:test
+pnpm db:lint
+```
+
+`pnpm db:start` and `pnpm db:status` deliberately suppress generated local credentials. The fictional demo login values are generated into the ignored mode-`0600` `.env.local`; never paste or commit that file.
+
+Use `pnpm dev:web` for the Vite shell and `pnpm dev:api` for the local Worker after the web build exists.
+
+## Gate records
+
+Gate 0 approval and remaining hosted-provider requirements are in [the resource request](docs/RESOURCE_REQUEST.md). Provision secrets only in ignored local/provider secret stores. Never paste credentials into chat or commit `.env.local`.
 
 The durable project state is in [docs/STATUS.md](docs/STATUS.md), and durable decisions are in [docs/DECISIONS.md](docs/DECISIONS.md).

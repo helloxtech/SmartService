@@ -91,6 +91,7 @@ function createTestServices(): RuntimeServices
     };
 
     return {
+        analytics: {} as RuntimeServices["analytics"],
         authenticateAdmin: vi.fn().mockResolvedValue(adminIdentity),
         authenticateMember: vi.fn().mockResolvedValue(adminIdentity),
         crawl: {
@@ -119,6 +120,7 @@ function createTestServices(): RuntimeServices
         objects: {
             delete: vi.fn().mockResolvedValue(undefined),
             getJson: vi.fn().mockResolvedValue(extractedPayload),
+            putExtractedJson: vi.fn().mockResolvedValue(undefined),
             putMockUpload: vi.fn().mockResolvedValue(undefined),
             verify: vi.fn().mockImplementation(
                 (_key: string, expectation: UploadObjectExpectation) =>

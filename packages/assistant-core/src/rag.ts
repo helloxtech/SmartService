@@ -312,6 +312,47 @@ function createEvidenceAnswer(
 }
 
 /**
+ * createApprovedManualAnswer
+ * ----------------
+ * Returns an exact Admin-authored Question/Answer section only when its normalized question matches the current request.
+ *
+ * July 26, 2026: Created by Forrest Zhang for SmartService Day 5 One-click Knowledge
+ */
+function createApprovedManualAnswer(input: RagGenerationInput): RagAnswer | null
+{
+    const normalizedQuestion = normalizeQuestion(input.question);
+
+    for (const evidence of input.evidence)
+    {
+        const match = /^Question:\s*(.+?)\n\nAnswer:\s*([\s\S]+?)(?:\n\nSource note:|$)/iu
+            .exec(evidence.content.trim());
+
+        if (
+            match?.[1] !== undefined
+            && match[2] !== undefined
+            && normalizeQuestion(match[1]) === normalizedQuestion
+        )
+        {
+            const answer = match[2].replace(/\s+/gu, " ").trim().slice(0, 1_600);
+
+            if (answer.length > 0)
+            {
+                return {
+                    answer,
+                    citationChunkIds: [evidence.chunkId],
+                    confidence: 0.95,
+                    decision: "answer",
+                    handoffReason: null,
+                    normalizedQuestion,
+                };
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
  * buildDeterministicFixtureAnswer
  * ----------------
  * Produces zero-cost bilingual fixture answers by matching question intent and extracting only explicitly verified corpus facts.
@@ -321,9 +362,11 @@ function createEvidenceAnswer(
 function buildDeterministicFixtureAnswer(input: RagGenerationInput): RagAnswer
 {
     const question = normalizeQuestion(input.question);
-    let result: RagAnswer | null = null;
+    let result: RagAnswer | null = createApprovedManualAnswer(input);
 
     if (
+        result === null
+        &&
         /(?:最大流量|maximum flow)/u.test(question)
         && /nf-(?:200|500)/u.test(question)
     )

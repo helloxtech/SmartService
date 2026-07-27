@@ -221,30 +221,93 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SourceActionResponse'
+  /v1/admin/knowledge-gaps:
+    get:
+      operationId: listKnowledgeGaps
+      summary: List grouped tenant knowledge gaps in priority order
+      security:
+        - supabaseJwt: []
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [open, resolved, ignored] }
+      responses:
+        '200':
+          description: Tenant-scoped grouped knowledge gaps
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGapListResponse'
+  /v1/admin/knowledge-gaps/{gapId}:
+    get:
+      operationId: getKnowledgeGap
+      security:
+        - supabaseJwt: []
+      parameters:
+        - $ref: '#/components/parameters/GapId'
+      responses:
+        '200':
+          description: Grouped gap detail and manual-source progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGap'
   /v1/admin/knowledge-gaps/{gapId}/resolve:
     post:
       operationId: resolveKnowledgeGap
       security:
         - supabaseJwt: []
       parameters:
-        - name: gapId
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/GapId'
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [title, answer]
-              properties:
-                title: { type: string, maxLength: 200 }
-                answer: { type: string, maxLength: 5000 }
-                sourceNote: { type: string, maxLength: 500 }
+              $ref: '#/components/schemas/ResolveKnowledgeGapRequest'
       responses:
         '202':
           description: Manual knowledge queued for embedding
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolveKnowledgeGapResponse'
+  /v1/admin/knowledge-gaps/{gapId}/actions/{action}:
+    post:
+      operationId: applyKnowledgeGapAction
+      security:
+        - supabaseJwt: []
+      parameters:
+        - $ref: '#/components/parameters/GapId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: action
+          in: path
+          required: true
+          schema: { type: string, enum: [ignore, reopen] }
+      responses:
+        '200':
+          description: Updated grouped gap
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGap'
+  /v1/admin/knowledge-gaps/{gapId}/retest:
+    post:
+      operationId: retestKnowledgeGap
+      summary: Re-run the original question against only its ready manual source
+      security:
+        - supabaseJwt: []
+      parameters:
+        - $ref: '#/components/parameters/GapId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Guarded answer with validated manual-source citations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeGapRetestResponse'
   /v1/admin/conversations:
     get:
       operationId: listTeamConversations
@@ -433,13 +496,19 @@ paths:
   /v1/admin/dashboard/summary:
     get:
       operationId: getDashboardSummary
+      summary: Aggregate exact P0 closed-conversation and open-gap metrics
       security:
         - supabaseJwt: []
       parameters:
-        - { name: from, in: query, schema: { type: string, format: date-time } }
-        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: from, in: query, description: Inclusive range start, schema: { type: string, format: date-time } }
+        - { name: to, in: query, description: Exclusive range end, schema: { type: string, format: date-time } }
       responses:
-        '200': { description: Dashboard metrics }
+        '200':
+          description: Tenant-scoped dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
   /v1/admin/tickets:
     get:
       operationId: listTickets
@@ -466,6 +535,11 @@ components:
       schema: { type: string, format: uuid }
     SourceId:
       name: sourceId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    GapId:
+      name: gapId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -716,6 +790,104 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/KnowledgeSource'
+    DashboardSummary:
+      type: object
+      required:
+        - from
+        - to
+        - totalConversations
+        - aiContainedConversations
+        - handedOffConversations
+        - aiContainmentRate
+        - handoffRate
+        - openKnowledgeGapCount
+      properties:
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        totalConversations: { type: integer, minimum: 0 }
+        aiContainedConversations: { type: integer, minimum: 0 }
+        handedOffConversations: { type: integer, minimum: 0 }
+        aiContainmentRate: { type: number, minimum: 0, maximum: 1 }
+        handoffRate: { type: number, minimum: 0, maximum: 1 }
+        openKnowledgeGapCount: { type: integer, minimum: 0 }
+    KnowledgeGapResolutionSource:
+      type: object
+      required: [id, name, status, chunkCount]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 240 }
+        status: { type: string, enum: [uploaded, extracting, chunking, embedding, ready, failed, disabled] }
+        chunkCount: { type: integer, minimum: 0 }
+    KnowledgeGap:
+      type: object
+      required:
+        - id
+        - normalizedQuestion
+        - exampleQuestion
+        - firstConversationId
+        - occurrenceCount
+        - reason
+        - status
+        - resolutionSource
+        - lastSeenAt
+        - createdAt
+        - updatedAt
+      properties:
+        id: { type: string, format: uuid }
+        normalizedQuestion: { type: string, minLength: 1, maxLength: 2000 }
+        exampleQuestion: { type: string, minLength: 1, maxLength: 4000 }
+        firstConversationId:
+          oneOf:
+            - type: 'null'
+            - type: string
+              format: uuid
+        occurrenceCount: { type: integer, minimum: 1 }
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+        status: { type: string, enum: [open, resolved, ignored] }
+        resolutionSource:
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/KnowledgeGapResolutionSource'
+        lastSeenAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    KnowledgeGapListResponse:
+      type: object
+      required: [gaps]
+      properties:
+        gaps:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/KnowledgeGap'
+    ResolveKnowledgeGapRequest:
+      type: object
+      required: [title, answer]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 240 }
+        answer: { type: string, minLength: 1, maxLength: 5000 }
+        sourceNote: { type: string, minLength: 1, maxLength: 500 }
+    ResolveKnowledgeGapResponse:
+      type: object
+      required: [gapId, sourceId, jobId, status]
+      properties:
+        gapId: { type: string, format: uuid }
+        sourceId: { type: string, format: uuid }
+        jobId: { type: string, format: uuid }
+        status: { type: string, enum: [uploaded, extracting, chunking, embedding, ready, failed, disabled] }
+    KnowledgeGapRetestResponse:
+      type: object
+      required: [gapId, decision, answer, citations, testedAt]
+      properties:
+        gapId: { type: string, format: uuid }
+        decision: { type: string, enum: [answer, clarify, handoff] }
+        answer: { type: string, minLength: 1, maxLength: 5000 }
+        citations:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/Citation'
+        testedAt: { type: string, format: date-time }
     SourceActionResponse:
       type: object
       required: [source]

@@ -53,7 +53,7 @@ Priority values:
 | Supported browsers | BLOCKING-P1 | READY | Chrome, Edge, and Safari are installed |
 | Microphone/headset and browser permission | BLOCKING-P1 | VERIFY | Must be tested interactively on the final demo device |
 | Local secret file | BLOCKING-NOW | READY | Ignored mode-`0600` `.env.local` and generated app-local Wrangler variables contain only local Supabase/demo/signing values; external provider values remain unset |
-| Product/provider code | BLOCKING-NOW | READY | Days 1–4 are locally validated, including guardrails, handoff workspace, finalization Queue, auxiliary adapters, deterministic providers, and the zero-cost Day 4 smoke |
+| Product/provider code | BLOCKING-NOW | READY | Days 1–5 are implemented; the full Day 5 checkpoint and three clean-reset P0 demo runs passed locally at zero provider cost |
 | Cost-bearing project provider calls | BLOCKING-NOW | READY | None made; recorded project cost is USD 0 |
 
 ## BLOCKING-NOW
@@ -263,5 +263,5 @@ Current official free tiers are sufficient for most infrastructure, but only the
 - Approved 30-day retention: Yes
 - Monthly subscriptions inside/outside cap: Inside the aggregate cap; every paid upgrade still requires separate approval
 - P0 credential groups present: Local Supabase and fictional demo identities are ready; hosted Supabase, Cloudflare, Browser Run, R2, Queue, and OpenAI groups remain unset, so G1 live integration remains blocked
-- P1 credential groups present or deferred: Deferred until before Day 6
+- P1 credential groups present or deferred: External credentials remain absent; Day 6–10 local/mock implementation is authorized, while live voice evidence remains blocked until credentials are provisioned
 - Remaining exceptions: Only generated local Supabase/demo values are stored in the ignored local file; external provider credentials remain absent. Production deployment, production data, destructive production actions, and paid upgrades remain outside this approval.

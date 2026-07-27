@@ -1,10 +1,10 @@
 # SmartService Project Status
 
-**Last updated:** July 26, 2026
-**Current gate:** P0 implementation after G0 approval
-**Current phase:** Day 4 complete — Guardrails, handoff, agent workspace, and finalization
-**Active step:** Publish the validated Day 4 slice, then begin Day 5 dashboard and knowledge-gap resolution
-**Overall state:** Days 1–4 green locally; hosted-provider evidence remains required before G1
+**Last updated:** July 27, 2026
+**Current gate:** Local P0 evidence complete; automatic P1 continuation authorized
+**Current phase:** Day 5 complete — publishing the P0 slice before Day 6
+**Active step:** Review and publish the separate Day 5 commit, then implement the Day 6 voice-session foundation
+**Overall state:** Days 1–5 are green locally, including the full checkpoint and three consecutive demos; hosted P0 and live voice-provider evidence remain unavailable without external credentials
 
 ## Original goal
 
@@ -12,17 +12,17 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 
 ## Scope boundary
 
-- In scope now: Day 1 through Day 5 P0 implementation, local tests, deterministic provider mocks, approved development resources, and bounded smoke tests within the USD 50 cap.
-- Not authorized now: production deployment, production data, destructive production actions, paid upgrades without separate approval, P1 work before its scheduled slice, or R11 before G3.
-- Later gates: stop for G1 after P0, G2 after P1, and G3 before optional R11.
+- In scope now: Day 1 through Day 10 P0/P1 implementation, local tests, deterministic provider mocks, approved development resources, and bounded smoke tests within the USD 50 cap.
+- Not authorized now: production deployment, production data, destructive production actions, paid upgrades without separate approval, or R11 before G3.
+- Review gates: automatic continuation through G1/G2 implementation is authorized by `DEC-053`; hosted acceptance claims remain evidence-gated, and G3 still gates optional R11.
 
 ## Delivery summary
 
 | Scope | State | Acceptance |
 |---|---|---|
 | Gate 0 | Approved July 26, 2026 | Baseline `b965aabd027c7c5b1d063f3ee0e5daaf711f0b45` published to `origin/main` |
-| P0 | Days 1–4 complete; Day 5 next | Guardrails, handoff, Agent/Admin workspace, closure, and finalization passed the local composite checkpoint |
-| P1 | Not started by design | Not run |
+| P0 | Days 1–5 complete locally | Full composite checkpoint and three independent clean-reset demos passed; hosted deployment/provider evidence remains |
+| P1 | Authorized to start | Day 6–10 implementation and local/mock evidence may proceed; live provider/device evidence remains pending |
 | R11 | Deferred | Entry conditions not met |
 
 ## Completed steps
@@ -73,6 +73,13 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Added the responsive team workspace with one-second inbox/detail polling, required customer-card fields, citations, handoff context, assignment, human messaging, closure, and Admin guardrail configuration.
 - Added ID-only finalization Queue processing with duplicate-before-model protection, strict Structured Output validation, complete audit persistence, and `ticket: null` while R11 remains gated.
 - Added the ordered Day 4 migration, a 29-assertion pgTAP suite, six-case deterministic guardrail evaluation, API/core tests, and a zero-cost local Day 4 end-to-end verifier.
+- Added exact date-filtered total, containment, handoff, and unresolved-gap aggregation with closed-conversation denominators and explicit inclusive/exclusive date semantics.
+- Added Admin-only grouped knowledge-gap list/detail, strict ignore/reopen actions, one-click manual knowledge, shared Queue/R2 ingestion progress, and automatic resolution only after the linked source becomes Ready.
+- Added source-scoped original-question re-test with exact retrieved-set citation enforcement, zero-cost deterministic exact manual Question/Answer support, AI-run audit, and no internal evidence IDs in browser DTOs.
+- Added responsive Dashboard and Knowledge gaps workspaces with date filters, compact rate charts, status grouping, example-conversation links, loading/empty/error states, one-click resolution, progress polling, and cited re-test results.
+- Added the eighth ordered P0 migration, a 31-assertion Day 5 pgTAP suite, API/web/core coverage, complete OpenAPI contracts, P0 demo/evaluation documents, and a zero-cost Day 5 end-to-end verifier.
+- Corrected the Day 2 ingestion verifier to navigate explicitly to Knowledge after the Day 5 default-route change, then passed the complete Day 5 checkpoint from a fresh database.
+- Ran three consecutive clean-reset P0 demos with distinct diagnostic, calibration, and replacement questions; every full local chain passed with no Blocker/Critical defect and no provider cost.
 
 ## Architecture findings
 
@@ -136,8 +143,8 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | `pnpm test:e2e` | Passed: 2 Chromium tests covering the foundation shell and responsive public chat/evidence panel |
 | `pnpm eval:p0` | Passed: 4 tests, including deterministic 12/12 cited in-scope and 8/8 missing-knowledge handoff behavior; live model quality remains unclaimed |
 | `pnpm eval:guardrails` | Passed: all six fixed cases were blocked by their expected enabled rule with safe handoff |
-| `supabase db reset` | Passed from all seven ordered P0 migrations and deterministic seed |
-| `supabase test db` | Passed: 78/78 tenant, role, privacy, ingestion, conversation, citation, rate-limit, idempotency, guardrail, handoff, finalization, audit, and anonymous-denial assertions |
+| `supabase db reset` | Passed from all eight ordered P0 migrations and deterministic seed |
+| `supabase test db` | Passed: 109/109 tenant, role, privacy, ingestion, conversation, citation, rate-limit, idempotency, guardrail, handoff, finalization, dashboard, knowledge-gap, audit, and anonymous-denial assertions |
 | `supabase db lint --schema public` | Passed; no schema errors |
 | RLS posture query | Passed: 18/18 public tables have RLS enabled and forced; `anon` has 0 table privileges |
 | Foreign-key index audit | Passed: every public foreign key has an exact leading-column index, including tenant-qualified composite keys |
@@ -153,19 +160,26 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Day 3 conversation-token tests | Passed: signature, expiry, scope, organization, URL subject, and safe rejection boundaries |
 | Day 3 Responses/Turnstile adapter tests | Passed: strict Structured Output request, validated response/usage, timeout/retry, action, hostname, and production mock denial |
 | Local Day 3 conversation smoke | Passed: 12/12 cited answers, 8/8 missing-knowledge handoffs, 12 persisted citations, 8 open gaps, polling/304, idempotency, manual handoff, and AI-run links |
-| OpenAPI contract validation | Passed: 22 paths, 25 operations, 34 unique local references, no missing local reference |
+| OpenAPI contract validation | Passed: 26 paths, 29 operations, 42 unique local references, no missing local reference |
 | Desktop/mobile visual inspection | Passed; Knowledge and public chat layouts have no horizontal overflow at 390 pixels |
 | Day 4 strict TypeScript check | Passed for all eight workspace projects |
 | Day 4 ESLint check | Passed for all workspace packages |
 | Day 4 verifier JavaScript syntax | Passed with `node --check tooling/local/verify-day4.mjs` |
 | Full Day 4 composite checkpoint | Passed: user-run checkpoint passed through database lint; the evaluation import defect was corrected and re-run green; final smoke passed 6/6 guardrails, handoff under 3 seconds, AI stopped, human polling under 3 seconds, closure/finalization, and zero provider cost |
+| Day 5 focused static checks | Passed: contracts/API/web strict TypeScript, repository ESLint, Prettier, OpenAPI YAML parse, and verifier `node --check` |
+| Day 5 API tests | Passed within the 12-file API suite: 36/36 tests |
+| Day 5 web workspace tests | Passed: 3/3 dashboard, manual-resolution, and cited re-test tests |
+| Day 5 focused Playwright flow | Passed in Chromium: real local Auth plus dashboard, gap detail, one-click resolution, and displayed citation |
+| Local Day 5 smoke | Passed: exact dashboard `+2` closed-handoff deltas, one 2-occurrence grouped gap, Agent/Admin and two-tenant isolation, manual source Ready, cited source-scoped re-test, and zero provider cost |
+| Full Day 5 composite checkpoint | Passed in one uninterrupted Codex run after fixing the explicit Knowledge-navigation regression: reset/bootstrap, check, Chromium, 109/109 database assertions, lint, evaluations, and Days 2–5 smokes |
+| Three consecutive P0 demo runs | Passed from clean resets: diagnostic 00:23:12–00:24:27 PDT, calibration 00:24:27–00:25:41 PDT, replacement 00:25:41–00:26:55 PDT |
 | Live provider smoke tests | Not run; external P0 provider credentials remain absent |
 | Cost-bearing provider calls | None |
 
 ## Current blockers
 
-- P0 provider credentials and a dedicated development project remain unset; live P0 integration and G1 acceptance remain blocked until those groups are provisioned.
-- P1 provider credentials, commercial-use confirmation, voice ID, and the final microphone/device/network remain deferred until before Day 6.
+- P0 provider credentials and a dedicated development project remain unset; hosted P0 integration and a live G1 claim remain blocked until those groups are provisioned.
+- P1 provider credentials, commercial-use confirmation, voice ID, and final microphone/device/network verification remain absent. Local/mock Day 6–10 work proceeds under `DEC-053`, but live voice quality/latency cannot be claimed without them.
 
 See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact non-secret actions.
 
@@ -173,15 +187,15 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 
 - Durable decisions are in `docs/DECISIONS.md`.
 - Gate 0 defaults were approved by Forrest Zhang on July 26, 2026 and are recorded in `DEC-031`.
+- Automatic testing ownership and continuation through Day 10 were approved by Forrest Zhang on July 27, 2026 and are recorded in `DEC-053`.
 
-## Day 4 checkpoint scope
+## Day 5 checkpoint scope
 
-- Deterministic input/candidate checks, strict auxiliary supervisor/finalizer schemas, six fixed rules, safe blocked responses, and Admin-only candidate evidence.
-- Worker-owned guardrail, handoff, Agent, human-message, closure, and finalization APIs with tenant/role enforcement and audit links.
-- Responsive Agent/Admin workspace for inbox, customer card, transcript, citations, handoff package, takeover, human replies, closure, rules, and events.
-- Ordered Day 4 migration, 29-assertion database suite, unit/API coverage, expanded guardrail evaluation, and local Worker/Supabase end-to-end verifier.
-- OpenAPI, environment, operator, status, resource, and durable-decision updates.
-- Checkpoint command: `pnpm checkpoint:day4`.
+- Exact tenant/date dashboard totals, AI containment, handoff rate, and unresolved grouped-gap aggregation.
+- Admin-only list/detail, ignore/reopen, idempotent one-click manual source, shared ingestion, automatic Ready-to-Resolved transition, and source-scoped cited re-test.
+- Responsive Dashboard and Knowledge gaps workspaces with compact navigation and complete operational states.
+- Ordered Day 5 migration, 31-assertion database suite, API/core/web coverage, OpenAPI contract, evaluation report, demo script, and local Worker/Supabase end-to-end verifier.
+- Checkpoint command: `pnpm checkpoint:day5`.
 
 ## Cost to date
 
@@ -190,7 +204,7 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 
 ## Next step
 
-Publish the separate Day 4 checkpoint, then begin Day 5 dashboard metrics, containment and handoff reporting, knowledge-gap ranking, and one-click gap resolution. Live hosted-provider acceptance remains deferred until the corresponding credential groups are present.
+Review and publish the separate Day 5 slice, then implement and validate the Day 6 browser-voice session foundation. Preserve the local/mock versus hosted evidence boundary and keep R11 gated.
 
 ## Resume instruction
 

@@ -88,7 +88,7 @@ async function loadMembership(client: SupabaseClient, session: Session): Promise
  * ----------------
  * Renders the authenticated SmartService shell and role-aware operations workspace.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Agent Workspace
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 5 P0 Operations
  */
 function WorkspaceApp(): JSX.Element
 {
@@ -240,13 +240,13 @@ function WorkspaceApp(): JSX.Element
                         </div>
                     </div>
                     <span className="rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
-                        Day 4 human handoff
+                        Day 5 P0 insights
                     </span>
                 </div>
             </header>
 
             <section className={authentication.kind === "signed-in"
-                ? "mx-auto max-w-6xl px-6 py-8"
+                ? "mx-auto max-w-6xl px-6 py-4"
                 : "mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:items-center"}>
                 {authentication.kind === "signed-in"
                     ? null
@@ -290,27 +290,27 @@ function WorkspaceApp(): JSX.Element
                         </div>
                     )}
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
+                <div className={authentication.kind === "signed-in"
+                    ? "rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
+                    : "rounded-2xl border border-slate-200 bg-white p-7 shadow-sm"}>
                     {authentication.kind === "signed-in"
                         ? (
-                            <div aria-live="polite">
-                                <p className="text-sm font-semibold text-emerald-700">Workspace ready</p>
-                                <h2 className="mt-2 text-2xl font-bold">Welcome back</h2>
-                                <dl className="mt-6 space-y-4 text-sm">
-                                    <div>
-                                        <dt className="text-slate-500">Signed in as</dt>
-                                        <dd className="mt-1 font-medium">{authentication.session.user.email}</dd>
-                                    </div>
-                                    <div>
-                                        <dt className="text-slate-500">Organization role</dt>
-                                        <dd className="mt-1 font-medium capitalize">{authentication.membership.role}</dd>
-                                    </div>
-                                    <div>
-                                        <dt className="text-slate-500">Organization</dt>
-                                        <dd className="mt-1 break-all font-mono text-xs">{authentication.membership.organization_id}</dd>
-                                    </div>
-                                </dl>
-                                <Button className="mt-7 w-full" onClick={handleSignOut} variant="outline">
+                            <div
+                                aria-live="polite"
+                                className="flex flex-wrap items-center justify-between gap-3"
+                            >
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                                        Workspace ready
+                                    </p>
+                                    <p className="mt-1 text-sm font-medium">
+                                        {authentication.session.user.email}
+                                        <span className="ml-2 capitalize text-slate-500">
+                                            · {authentication.membership.role}
+                                        </span>
+                                    </p>
+                                </div>
+                                <Button onClick={handleSignOut} size="sm" variant="outline">
                                     Sign out
                                 </Button>
                             </div>
@@ -398,9 +398,9 @@ function WorkspaceApp(): JSX.Element
 /**
  * App
  * ----------------
- * Routes public customer chat separately from the authenticated Day 4 operations workspace without exposing Supabase to customers.
+ * Routes public customer chat separately from the authenticated P0 operations workspace without exposing Supabase to customers.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Agent Workspace
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 5 P0 Operations
  */
 export function App(): JSX.Element
 {

@@ -6,6 +6,7 @@ import {
 } from "@smartservice/ingestion";
 
 import { authenticateAdmin, authenticateMember } from "./auth";
+import { SupabaseAnalyticsService } from "./analytics-service";
 import { createRagAnswerProvider } from "./answers";
 import {
     createConversationFinalizer,
@@ -104,9 +105,9 @@ function assertSafeProviderMode(bindings: SmartServiceBindings): void
 /**
  * createRuntimeServices
  * ----------------
- * Builds one request/queue-scoped modular-monolith service graph, including guarded chat, team handoff, and finalization adapters.
+ * Builds one request/queue-scoped modular-monolith graph including guarded chat, team handoff, analytics, gap resolution, and finalization.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Guardrails and Handoff
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 5 Dashboard and Knowledge Gaps
  */
 export function createRuntimeServices(bindings: SmartServiceBindings): RuntimeServices
 {
@@ -122,8 +123,18 @@ export function createRuntimeServices(bindings: SmartServiceBindings): RuntimeSe
         : new MockWebsiteCrawlProvider();
 
     const embeddings = createEmbeddingProvider(bindings);
+    const answers = createRagAnswerProvider(bindings);
 
     return {
+        analytics: new SupabaseAnalyticsService(bindings, {
+            answers,
+            conversationRepository,
+            embeddings,
+            guardrails,
+            knowledgeRepository: repository,
+            objects,
+            queue: bindings.INGEST_QUEUE,
+        }),
         /**
          * authenticateAdmin
          * ----------------
@@ -158,7 +169,7 @@ export function createRuntimeServices(bindings: SmartServiceBindings): RuntimeSe
             bindings,
             conversationRepository,
             embeddings,
-            createRagAnswerProvider(bindings),
+            answers,
             guardrails,
             createTurnstileVerifier(bindings),
         ),

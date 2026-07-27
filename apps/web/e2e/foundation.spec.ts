@@ -1,4 +1,33 @@
 import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+
+/**
+ * readDemoAdminCredentials
+ * ----------------
+ * Reads the fictional local Admin identity from ignored configuration without logging or attaching either value.
+ *
+ * July 26, 2026: Created by Forrest Zhang for SmartService Day 5 Playwright Flow
+ */
+async function readDemoAdminCredentials(): Promise<{
+    email: string;
+    password: string;
+}>
+{
+    const text = await readFile(resolve("../../.env.local"), "utf8");
+    const email = /^DEMO_ADMIN_EMAIL=(.+)$/mu.exec(text)?.[1]?.trim();
+    const password = /^DEMO_ADMIN_PASSWORD=(.+)$/mu.exec(text)?.[1]?.trim();
+
+    if (email === undefined || password === undefined)
+    {
+        throw new Error("The ignored fictional Admin credentials are not configured.");
+    }
+
+    return {
+        email,
+        password,
+    };
+}
 
 test("renders the SmartService foundation shell", async ({ page }) =>
 {
@@ -30,4 +59,172 @@ test("renders the responsive public customer chat and evidence panel", async ({ 
     });
 
     expect(horizontalOverflow).toBeLessThanOrEqual(1);
+});
+
+test("runs the authenticated dashboard and one-click gap repair flow", async ({ page }) =>
+{
+    const gapId = "70000000-0000-4000-a000-000000000001";
+    const sourceId = "40000000-0000-4000-a000-000000000001";
+    const timestamp = "2026-07-26T12:00:00.000Z";
+    let resolved = false;
+
+    await page.route("**/api/v1/admin/conversations**", async (route) =>
+    {
+        await route.fulfill({
+            body: JSON.stringify({
+                conversations: [],
+            }),
+            contentType: "application/json",
+            status: 200,
+        });
+    });
+    await page.route("**/api/v1/admin/dashboard/summary?**", async (route) =>
+    {
+        await route.fulfill({
+            body: JSON.stringify({
+                aiContainedConversations: 3,
+                aiContainmentRate: 0.75,
+                from: "2026-07-01T00:00:00.000Z",
+                handedOffConversations: 1,
+                handoffRate: 0.25,
+                openKnowledgeGapCount: resolved ? 0 : 1,
+                to: "2026-08-01T00:00:00.000Z",
+                totalConversations: 4,
+            }),
+            contentType: "application/json",
+            status: 200,
+        });
+    });
+    await page.route("**/api/v1/admin/knowledge-gaps**", async (route) =>
+    {
+        const url = new URL(route.request().url());
+        const suffix = url.pathname.split("/knowledge-gaps")[1] ?? "";
+        const gap = {
+            createdAt: timestamp,
+            exampleQuestion: "What is the diagnostic coverage window?",
+            firstConversationId: "20000000-0000-4000-a000-000000000001",
+            id: gapId,
+            lastSeenAt: timestamp,
+            normalizedQuestion: "what is the diagnostic coverage window",
+            occurrenceCount: 2,
+            reason: "No sufficiently relevant approved evidence was retrieved.",
+            resolutionSource: resolved
+                ? {
+                    chunkCount: 1,
+                    id: sourceId,
+                    name: "Diagnostic coverage",
+                    status: "ready",
+                }
+                : null,
+            status: resolved ? "resolved" : "open",
+            updatedAt: timestamp,
+        };
+
+        if (suffix === "" && route.request().method() === "GET")
+        {
+            await route.fulfill({
+                body: JSON.stringify({
+                    gaps: [gap],
+                }),
+                contentType: "application/json",
+                status: 200,
+            });
+            return;
+        }
+
+        if (suffix === `/${gapId}` && route.request().method() === "GET")
+        {
+            await route.fulfill({
+                body: JSON.stringify(gap),
+                contentType: "application/json",
+                status: 200,
+            });
+            return;
+        }
+
+        if (suffix === `/${gapId}/resolve`)
+        {
+            resolved = true;
+            await route.fulfill({
+                body: JSON.stringify({
+                    gapId,
+                    jobId: "50000000-0000-4000-a000-000000000001",
+                    sourceId,
+                    status: "uploaded",
+                }),
+                contentType: "application/json",
+                status: 202,
+            });
+            return;
+        }
+
+        if (suffix === `/${gapId}/retest`)
+        {
+            await route.fulfill({
+                body: JSON.stringify({
+                    answer: "The approved diagnostic coverage window is 14 days.",
+                    citations: [{
+                        citationId: "80000000-0000-4000-a000-000000000001",
+                        label: "Diagnostic coverage",
+                        sourceType: "manual",
+                        sourceUrl: null,
+                        supportingExcerpt: "Answer: The approved diagnostic coverage window is 14 days.",
+                    }],
+                    decision: "answer",
+                    gapId,
+                    testedAt: timestamp,
+                }),
+                contentType: "application/json",
+                status: 200,
+            });
+            return;
+        }
+
+        await route.fulfill({
+            body: JSON.stringify({
+                error: {
+                    code: "NOT_FOUND",
+                    message: "Unmatched Day 5 fixture route.",
+                },
+            }),
+            contentType: "application/json",
+            status: 404,
+        });
+    });
+
+    const credentials = await readDemoAdminCredentials();
+    await page.goto("/");
+    await page.getByLabel("Email").fill(credentials.email);
+    await page.getByLabel("Password").fill(credentials.password);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.getByRole("link", { name: "Dashboard" }).click();
+
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    await expect(page.getByText("75%").first()).toBeVisible();
+    await page.getByRole("button", { name: "Review knowledge gaps" }).click();
+    await page.getByRole("button", {
+        name: /what is the diagnostic coverage window/iu,
+    }).click();
+
+    await page.getByLabel("Knowledge title").fill("Diagnostic coverage");
+    await page.getByLabel("Approved answer").fill(
+        "The approved diagnostic coverage window is 14 days.",
+    );
+    await page.getByRole("button", { name: "Create and embed knowledge" }).click();
+    await page.getByRole("button", { name: "Re-test original question" }).click();
+
+    await expect(page.getByText(
+        "The approved diagnostic coverage window is 14 days.",
+        {
+            exact: true,
+        },
+    ))
+        .toBeVisible();
+    await expect(page.getByText(
+        "Answer: The approved diagnostic coverage window is 14 days.",
+        {
+            exact: true,
+        },
+    ))
+        .toBeVisible();
 });

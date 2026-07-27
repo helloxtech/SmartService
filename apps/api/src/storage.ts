@@ -1,5 +1,6 @@
 import {
     extractedJsonMimeType,
+    extractedKnowledgePayloadSchema,
     fileUploadIntentResponseSchema,
     type FileUploadIntentRequest,
     type FileUploadIntentResponse,
@@ -458,6 +459,44 @@ export class R2KnowledgeObjectStore implements KnowledgeObjectStore
         {
             throw new ApiError(422, "EXTRACTED_JSON_INVALID", "The extracted document payload is not valid JSON.");
         }
+    }
+
+    /**
+     * putExtractedJson
+     * ----------------
+     * Validates and stores a Worker-created tenant-owned manual payload with integrity metadata for the shared ingestion path.
+     *
+     * July 26, 2026: Created by Forrest Zhang for SmartService Day 5 Knowledge Gap Resolution
+     */
+    public async putExtractedJson(
+        key: string,
+        organizationId: string,
+        payload: unknown,
+    ): Promise<void>
+    {
+        assertTenantObjectKey(key, organizationId);
+        const validated = extractedKnowledgePayloadSchema.parse(payload);
+        const body = new TextEncoder().encode(JSON.stringify(validated));
+
+        if (body.byteLength > knowledgeLimits.extractedJsonBytes)
+        {
+            throw new ApiError(
+                413,
+                "MANUAL_KNOWLEDGE_TOO_LARGE",
+                "The manual knowledge entry exceeds its storage limit.",
+            );
+        }
+
+        const contentSha256 = await sha256Bytes(body);
+        await this.bucket.put(key, body, {
+            customMetadata: {
+                contentSha256,
+                uploadKind: "extracted",
+            },
+            httpMetadata: {
+                contentType: extractedJsonMimeType,
+            },
+        });
     }
 
     /**

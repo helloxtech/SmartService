@@ -54,6 +54,39 @@ describe("grounded RAG", () =>
         });
     });
 
+    it("returns an exact approved manual answer only for its matching original question", async () =>
+    {
+        const provider = new DeterministicRagAnswerProvider();
+        const manualEvidence: RetrievedEvidence[] = [{
+            chunkId: "40000000-0000-4000-a000-000000000003",
+            combinedScore: 0.99,
+            content: "Question: What is the diagnostic coverage window?\n\nAnswer: The approved diagnostic coverage window is 14 days.\n\nSource note: Approved by the demo product lead.",
+            sourceLocator: {
+                section: "Approved manual answer",
+                title: "Diagnostic coverage",
+            },
+        }];
+        const matching = await provider.generate({
+            evidence: manualEvidence,
+            language: "en",
+            question: "What is the diagnostic coverage window?",
+            recentMessages: [],
+        });
+        const different = await provider.generate({
+            evidence: manualEvidence,
+            language: "en",
+            question: "What is the delivery time?",
+            recentMessages: [],
+        });
+
+        expect(matching.answer).toMatchObject({
+            answer: "The approved diagnostic coverage window is 14 days.",
+            citationChunkIds: [manualEvidence[0]?.chunkId],
+            decision: "answer",
+        });
+        expect(different.answer.decision).toBe("handoff");
+    });
+
     it("rejects a structurally valid citation outside the retrieval set", () =>
     {
         expect(() => validateGroundedAnswer({

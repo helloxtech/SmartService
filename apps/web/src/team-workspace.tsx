@@ -2,7 +2,9 @@ import type { OrganizationMembership } from "@smartservice/contracts";
 import type { Session } from "@supabase/supabase-js";
 import {
     BookOpenCheck,
+    CircleHelp,
     Inbox,
+    LayoutDashboard,
     ShieldCheck,
 } from "lucide-react";
 import {
@@ -13,7 +15,9 @@ import {
 } from "react";
 
 import { AgentWorkspace } from "./agent-workspace";
+import { DashboardWorkspace } from "./dashboard-workspace";
 import { GuardrailWorkspace } from "./guardrail-workspace";
+import { KnowledgeGapWorkspace } from "./knowledge-gap-workspace";
 import { KnowledgeWorkspace } from "./knowledge-workspace";
 
 interface TeamWorkspaceProps
@@ -22,17 +26,18 @@ interface TeamWorkspaceProps
     session: Session;
 }
 
-type WorkspaceView = "guardrails" | "inbox" | "knowledge";
+type WorkspaceView = "dashboard" | "gaps" | "guardrails" | "inbox" | "knowledge";
 
 /**
  * readWorkspaceRoute
  * ----------------
  * Maps the current same-origin path to a bounded workspace view and optional conversation identifier.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Agent Workspace
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 5 Dashboard and Knowledge Gaps
  */
 function readWorkspaceRoute(pathname: string): {
     conversationId: string | null;
+    gapId: string | null;
     view: WorkspaceView;
 }
 {
@@ -42,7 +47,37 @@ function readWorkspaceRoute(pathname: string): {
     {
         return {
             conversationId: conversationMatch[1],
+            gapId: null,
             view: "inbox",
+        };
+    }
+
+    const gapMatch = /^\/app\/knowledge-gaps\/([0-9a-f-]{36})\/?$/iu.exec(pathname);
+
+    if (gapMatch?.[1] !== undefined)
+    {
+        return {
+            conversationId: null,
+            gapId: gapMatch[1],
+            view: "gaps",
+        };
+    }
+
+    if (pathname.startsWith("/app/knowledge-gaps"))
+    {
+        return {
+            conversationId: null,
+            gapId: null,
+            view: "gaps",
+        };
+    }
+
+    if (pathname.startsWith("/app/dashboard"))
+    {
+        return {
+            conversationId: null,
+            gapId: null,
+            view: "dashboard",
         };
     }
 
@@ -50,6 +85,7 @@ function readWorkspaceRoute(pathname: string): {
     {
         return {
             conversationId: null,
+            gapId: null,
             view: "guardrails",
         };
     }
@@ -58,12 +94,14 @@ function readWorkspaceRoute(pathname: string): {
     {
         return {
             conversationId: null,
+            gapId: null,
             view: "knowledge",
         };
     }
 
     return {
         conversationId: null,
+        gapId: null,
         view: "inbox",
     };
 }
@@ -71,9 +109,9 @@ function readWorkspaceRoute(pathname: string): {
 /**
  * TeamWorkspace
  * ----------------
- * Provides role-aware same-origin navigation across the agent inbox, knowledge, and Admin guardrail workspaces.
+ * Provides role-aware navigation across inbox, knowledge, dashboard, gap-resolution, and guardrail workspaces.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Agent Workspace
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 5 Dashboard and Knowledge Gaps
  */
 export function TeamWorkspace({
     membership,
@@ -82,7 +120,11 @@ export function TeamWorkspace({
 {
     const [pathname, setPathname] = useState(window.location.pathname);
     const route = readWorkspaceRoute(pathname);
-    const view = route.view === "guardrails" && membership.role !== "admin"
+    const view = (
+        route.view === "guardrails"
+        || route.view === "dashboard"
+        || route.view === "gaps"
+    ) && membership.role !== "admin"
         ? "inbox"
         : route.view;
 
@@ -148,6 +190,14 @@ export function TeamWorkspace({
     }
 
     const navigation = [
+        ...(membership.role === "admin"
+            ? [{
+                icon: LayoutDashboard,
+                label: "Dashboard",
+                path: "/app/dashboard",
+                view: "dashboard" as const,
+            }]
+            : []),
         {
             icon: Inbox,
             label: "Inbox",
@@ -161,12 +211,20 @@ export function TeamWorkspace({
             view: "knowledge" as const,
         },
         ...(membership.role === "admin"
-            ? [{
-                icon: ShieldCheck,
-                label: "Guardrails",
-                path: "/app/settings/guardrails",
-                view: "guardrails" as const,
-            }]
+            ? [
+                {
+                    icon: CircleHelp,
+                    label: "Knowledge gaps",
+                    path: "/app/knowledge-gaps",
+                    view: "gaps" as const,
+                },
+                {
+                    icon: ShieldCheck,
+                    label: "Guardrails",
+                    path: "/app/settings/guardrails",
+                    view: "guardrails" as const,
+                },
+            ]
             : []),
     ];
 
@@ -206,19 +264,40 @@ export function TeamWorkspace({
                 )
                 : (
                     <div className="mx-auto max-w-6xl px-6 pb-16">
-                        {view === "guardrails"
-                            ? <GuardrailWorkspace session={session} />
-                            : (
-                                <AgentWorkspace
-                                    initialConversationId={route.conversationId}
-                                    key={route.conversationId ?? "inbox"}
-                                    onOpenConversation={(conversationId) =>
-                                    {
-                                        navigate(`/app/conversations/${conversationId}`);
-                                    }}
+                        {view === "dashboard"
+                            ? (
+                                <DashboardWorkspace
+                                    onOpenKnowledgeGaps={() => navigate("/app/knowledge-gaps")}
                                     session={session}
                                 />
-                            )}
+                            )
+                            : view === "gaps"
+                                ? (
+                                    <KnowledgeGapWorkspace
+                                        initialGapId={route.gapId}
+                                        key={route.gapId ?? "knowledge-gaps"}
+                                        onOpenGap={(gapId) =>
+                                        {
+                                            navigate(gapId === null
+                                                ? "/app/knowledge-gaps"
+                                                : `/app/knowledge-gaps/${gapId}`);
+                                        }}
+                                        session={session}
+                                    />
+                                )
+                                : view === "guardrails"
+                                    ? <GuardrailWorkspace session={session} />
+                                    : (
+                                        <AgentWorkspace
+                                            initialConversationId={route.conversationId}
+                                            key={route.conversationId ?? "inbox"}
+                                            onOpenConversation={(conversationId) =>
+                                            {
+                                                navigate(`/app/conversations/${conversationId}`);
+                                            }}
+                                            session={session}
+                                        />
+                                    )}
                     </div>
                 )}
         </>

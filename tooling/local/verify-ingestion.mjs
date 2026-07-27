@@ -237,7 +237,7 @@ async function verifyDatabaseResults(environment)
  * ----------------
  * Runs real-browser PDF, DOCX, and URL intake through the local Worker, Queue, R2 binding, Supabase, and mock embeddings.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 2 Knowledge Ingestion
+ * July 27, 2026: Updated by Forrest Zhang for SmartService Day 5 Navigation Regression
  */
 async function main()
 {
@@ -273,6 +273,10 @@ async function main()
         await page.getByLabel("Password").fill(environment.DEMO_ADMIN_PASSWORD);
         await page.getByRole("button", {
             name: "Sign in",
+        }).click();
+        await page.getByRole("link", {
+            exact: true,
+            name: "Knowledge",
         }).click();
         await expect(page.getByRole("heading", {
             name: "Knowledge",

@@ -1,6 +1,7 @@
 import type {
     CreatePublicConversationRequest,
     CreatePublicConversationResponse,
+    DashboardSummary,
     ClaimConversationResponse,
     ConversationFinalizeMessage,
     ConversationFinalization,
@@ -10,9 +11,15 @@ import type {
     GuardrailEvent,
     GuardrailRule,
     KnowledgeIngestMessage,
+    KnowledgeGap,
+    KnowledgeGapAction,
+    KnowledgeGapRetestResponse,
+    KnowledgeGapStatus,
     KnowledgeSource,
     PublicMessageListResponse,
     RequestPublicHandoffResponse,
+    ResolveKnowledgeGapRequest,
+    ResolveKnowledgeGapResponse,
     SendHumanMessageResponse,
     SendPublicMessageRequest,
     SendPublicMessageResponse,
@@ -109,6 +116,11 @@ export interface KnowledgeObjectStore
 {
     delete(key: string): Promise<void>;
     getJson(key: string, organizationId: string): Promise<unknown>;
+    putExtractedJson(
+        key: string,
+        organizationId: string,
+        payload: unknown,
+    ): Promise<void>;
     putMockUpload(
         key: string,
         body: ArrayBuffer,
@@ -182,6 +194,7 @@ export type CrawlProvider = ExtractedPayloadProvider;
 
 export interface RuntimeServices
 {
+    analytics: AnalyticsService;
     authenticateAdmin(request: Request): Promise<AdminIdentity>;
     authenticateMember(request: Request): Promise<MemberIdentity>;
     crawl: CrawlProvider;
@@ -196,6 +209,41 @@ export interface RuntimeServices
     repository: KnowledgeRepository;
     team: TeamService;
     uploads: UploadIntentProvider;
+}
+
+export interface AnalyticsService
+{
+    getDashboard(
+        organizationId: string,
+        from: string,
+        to: string,
+    ): Promise<DashboardSummary>;
+    getKnowledgeGap(
+        organizationId: string,
+        gapId: string,
+    ): Promise<KnowledgeGap | null>;
+    listKnowledgeGaps(
+        organizationId: string,
+        status?: KnowledgeGapStatus,
+    ): Promise<KnowledgeGap[]>;
+    manageKnowledgeGap(
+        identity: AdminIdentity,
+        gapId: string,
+        action: KnowledgeGapAction,
+        requestId: string,
+    ): Promise<KnowledgeGap>;
+    resolveKnowledgeGap(
+        identity: AdminIdentity,
+        gapId: string,
+        input: ResolveKnowledgeGapRequest,
+        idempotencyKey: string,
+        requestId: string,
+    ): Promise<ResolveKnowledgeGapResponse>;
+    retestKnowledgeGap(
+        identity: AdminIdentity,
+        gapId: string,
+        requestId: string,
+    ): Promise<KnowledgeGapRetestResponse>;
 }
 
 export interface TeamService

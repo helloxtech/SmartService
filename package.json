@@ -13,6 +13,8 @@
     "bootstrap:local": "node tooling/local/bootstrap-demo-users.mjs",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "checkpoint:day4": "pnpm db:reset && pnpm bootstrap:local && pnpm check && pnpm test:e2e && pnpm db:test && pnpm db:lint && pnpm eval:guardrails && pnpm verify:day4",
+    "checkpoint:day5": "pnpm db:reset && pnpm bootstrap:local && pnpm check && pnpm test:e2e && pnpm db:test && pnpm db:lint && pnpm eval:p0 && pnpm eval:guardrails && pnpm verify:ingestion && pnpm verify:conversation && pnpm verify:day4 && pnpm verify:day5",
+    "demo:p0:run": "pnpm db:reset && pnpm bootstrap:local && pnpm verify:ingestion && pnpm verify:conversation && pnpm verify:day4 && pnpm verify:day5",
     "db:lint": "supabase db lint --schema public --level warning --fail-on error",
     "db:reset": "supabase db reset",
     "db:start": "node tooling/local/run-supabase-safely.mjs start",
@@ -33,6 +35,7 @@
     "verify:ingestion": "node tooling/local/verify-ingestion.mjs",
     "verify:conversation": "node tooling/local/verify-conversation.mjs",
     "verify:day4": "node tooling/local/verify-day4.mjs",
+    "verify:day5": "node tooling/local/verify-day5.mjs",
     "verify:local-access": "node tooling/local/verify-demo-access.mjs"
   },
   "devDependencies": {

@@ -3,6 +3,7 @@ import { UrlSafetyError } from "@smartservice/ingestion";
 import { Hono } from "hono";
 
 import { ApiError } from "./errors";
+import { createAnalyticsRouter } from "./analytics-routes";
 import { createKnowledgeRouter } from "./knowledge-routes";
 import { createPublicConversationRouter } from "./public-conversation-routes";
 import { createRuntimeServices } from "./services";
@@ -15,9 +16,9 @@ import type {
 /**
  * createApp
  * ----------------
- * Creates the Hono Worker application with tracing, safe errors, public chat, knowledge, guardrail, and team routes.
+ * Creates the Hono Worker application with tracing, safe errors, public chat, knowledge, team, dashboard, and gap routes.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Agent Workspace
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 5 Dashboard and Knowledge Gaps
  */
 export function createApp(
     serviceFactory: RuntimeServiceFactory = createRuntimeServices,
@@ -79,9 +80,12 @@ export function createApp(
         return context.json(response);
     });
 
+    const analyticsRouter = createAnalyticsRouter(serviceFactory);
     const knowledgeRouter = createKnowledgeRouter(serviceFactory);
     const publicConversationRouter = createPublicConversationRouter(serviceFactory);
     const teamRouter = createTeamRouter(serviceFactory);
+    app.route("/api", analyticsRouter);
+    app.route("/", analyticsRouter);
     app.route("/api", knowledgeRouter);
     app.route("/", knowledgeRouter);
     app.route("/api", publicConversationRouter);

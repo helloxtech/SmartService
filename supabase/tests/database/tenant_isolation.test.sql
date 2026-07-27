@@ -643,6 +643,7 @@ select extensions.results_eq(
             10,
             'Day 2 fixture'
         )
+        where chunk_id = '42000000-0000-4000-a000-000000000001'
     $$,
     array[1::bigint],
     'The prior active version remains retrievable while reprocessing is in progress'

@@ -1,7 +1,13 @@
 import { organizationMembershipSchema, type OrganizationMembership } from "@smartservice/contracts";
 import { Button } from "@smartservice/ui";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
-import { CheckCircle2, Headphones, Languages, LockKeyhole } from "lucide-react";
+import {
+    CheckCircle2,
+    Headphones,
+    Languages,
+    LockKeyhole,
+    MessageCircle,
+} from "lucide-react";
 import {
     lazy,
     Suspense,
@@ -24,6 +30,15 @@ const KnowledgeWorkspace = lazy(async () =>
 
     return {
         default: module.KnowledgeWorkspace,
+    };
+});
+
+const PublicChat = lazy(async () =>
+{
+    const module = await import("./public-chat");
+
+    return {
+        default: module.PublicChat,
     };
 });
 
@@ -69,13 +84,13 @@ async function loadMembership(client: SupabaseClient, session: Session): Promise
 }
 
 /**
- * App
+ * WorkspaceApp
  * ----------------
- * Renders the authenticated SmartService shell and Day 2 tenant-scoped knowledge workspace.
+ * Renders the authenticated SmartService shell and tenant-scoped knowledge workspace.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 2 Knowledge Ingestion
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 3 Grounded Text Q&A
  */
-export function App(): JSX.Element
+function WorkspaceApp(): JSX.Element
 {
     const client = getSupabaseClient();
     const [authentication, setAuthentication] = useState<AuthenticationState>(
@@ -225,7 +240,7 @@ export function App(): JSX.Element
                         </div>
                     </div>
                     <span className="rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
-                        Day 2 knowledge intake
+                        Day 3 grounded chat
                     </span>
                 </div>
             </header>
@@ -246,6 +261,14 @@ export function App(): JSX.Element
                             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
                                 SmartService keeps company answers tied to approved knowledge, routes uncertain requests to people, and gives agents the context they need.
                             </p>
+                            <div className="mt-7">
+                                <Button asChild size="lg">
+                                    <a href="/chat">
+                                        <MessageCircle aria-hidden="true" className="size-4" />
+                                        Try customer chat
+                                    </a>
+                                </Button>
+                            </div>
 
                             <div className="mt-8 grid gap-4 sm:grid-cols-3">
                                 <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -370,4 +393,31 @@ export function App(): JSX.Element
                 : null}
         </main>
     );
+}
+
+/**
+ * App
+ * ----------------
+ * Routes the public customer chat separately from the authenticated team workspace without exposing Supabase to customers.
+ *
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 3 Customer Chat
+ */
+export function App(): JSX.Element
+{
+    if (window.location.pathname.startsWith("/chat"))
+    {
+        return (
+            <Suspense
+                fallback={(
+                    <main className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-500">
+                        Loading secure customer chat…
+                    </main>
+                )}
+            >
+                <PublicChat />
+            </Suspense>
+        );
+    }
+
+    return <WorkspaceApp />;
 }

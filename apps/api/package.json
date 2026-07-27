@@ -11,6 +11,7 @@
     "types": "wrangler types worker-configuration.d.ts"
   },
   "dependencies": {
+    "@smartservice/assistant-core": "workspace:*",
     "@smartservice/contracts": "workspace:*",
     "@smartservice/ingestion": "workspace:*",
     "@supabase/supabase-js": "2.110.8",

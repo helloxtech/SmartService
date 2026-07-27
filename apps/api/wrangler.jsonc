@@ -8,11 +8,13 @@
   "preview_urls": true,
   "vars": {
     "ENVIRONMENT": "development",
+    "CHAT_PROVIDER_MODE": "mock",
     "INGESTION_PROVIDER_MODE": "mock",
     "OPENAI_EMBEDDING_DIMENSIONS": "1024",
     "OPENAI_EMBEDDING_MODEL": "text-embedding-3-large",
     "R2_BUCKET_NAME": "smartservice-knowledge-dev",
-    "VERSION": "0.2.0",
+    "TURNSTILE_PROVIDER_MODE": "mock",
+    "VERSION": "0.3.0",
   },
   "r2_buckets": [
     {

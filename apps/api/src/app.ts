@@ -4,6 +4,7 @@ import { Hono } from "hono";
 
 import { ApiError } from "./errors";
 import { createKnowledgeRouter } from "./knowledge-routes";
+import { createPublicConversationRouter } from "./public-conversation-routes";
 import { createRuntimeServices } from "./services";
 import type {
     AppEnvironment,
@@ -13,9 +14,9 @@ import type {
 /**
  * createApp
  * ----------------
- * Creates the Hono Worker application with request tracing, safe structured errors, health, and knowledge ingestion routes.
+ * Creates the Hono Worker application with request tracing, safe structured errors, health, knowledge, and public conversation routes.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 2 Knowledge Ingestion
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 3 Grounded Text Chat
  */
 export function createApp(
     serviceFactory: RuntimeServiceFactory = createRuntimeServices,
@@ -78,8 +79,11 @@ export function createApp(
     });
 
     const knowledgeRouter = createKnowledgeRouter(serviceFactory);
+    const publicConversationRouter = createPublicConversationRouter(serviceFactory);
     app.route("/api", knowledgeRouter);
     app.route("/", knowledgeRouter);
+    app.route("/api", publicConversationRouter);
+    app.route("/", publicConversationRouter);
 
     app.notFound((context) =>
     {

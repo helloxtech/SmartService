@@ -2,9 +2,9 @@
 
 **Last updated:** July 26, 2026
 **Current gate:** P0 implementation after G0 approval
-**Current phase:** Day 2 complete — Knowledge ingestion
-**Active step:** Publish the Day 2 checkpoint, then begin Day 3 grounded bilingual chat and citations
-**Overall state:** Days 1–2 green locally; hosted-provider evidence remains required before G1
+**Current phase:** Day 3 complete — Grounded bilingual text chat and citations
+**Active step:** Publish the Day 3 checkpoint, then begin Day 4 guardrails, handoff, and agent workspace
+**Overall state:** Days 1–3 green locally; hosted-provider evidence remains required before G1
 
 ## Original goal
 
@@ -21,7 +21,7 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Scope | State | Acceptance |
 |---|---|---|
 | Gate 0 | Approved July 26, 2026 | Baseline `b965aabd027c7c5b1d063f3ee0e5daaf711f0b45` published to `origin/main` |
-| P0 | Days 1–2 complete; Day 3 next | Foundation, tenant isolation, and local/mock ingestion checks passed |
+| P0 | Days 1–3 complete; Day 4 next | Foundation, ingestion, and grounded bilingual text-chat checks passed locally |
 | P1 | Not started by design | Not run |
 | R11 | Deferred | Entry conditions not met |
 
@@ -58,6 +58,14 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Ran the full local browser path through Auth, signed upload, local R2, Queue, Supabase, and deterministic embeddings: PDF, DOCX, and URL all reached Ready with 3 sources and 20 enabled embedded chunks.
 - Expanded database security and lifecycle coverage from 16 to 30 pgTAP assertions and added API/browser/package tests for role denial, upload integrity, SSRF, idempotency, version activation, and production provider boundaries.
 - Split the authenticated knowledge workspace, React, Supabase, PDF.js, and DOCX parser into bounded production chunks and visually reviewed the completed desktop and mobile layouts.
+- Added scoped public conversation tokens with organization, subject, nonce, expiry, and explicit message/read/handoff scopes; invalid signatures, expiry, wrong organizations, and URL-subject mismatches fail closed.
+- Added server-side Turnstile verification with expected action, optional hostname, timeout, bounded retry, and an explicit non-production deterministic adapter.
+- Added the OpenAI Responses API adapter with strict Structured Outputs, configurable undated model aliases, request timeout/retry, `store: false`, typed usage capture, and a zero-cost deterministic fixture provider.
+- Added shared Chinese/English RAG prompt/schema logic, localized safe handoff responses, exact retrieval-set citation validation, and deterministic semantic feature hashing for the fixed local corpus.
+- Added atomic public-conversation database functions for rate limiting, idempotent creation/messages, AI turn completion, citations, handoff packages, merged knowledge gaps, and complete `ai_runs`/audit links.
+- Added the responsive public `/chat` page with bilingual copy, citation chips/excerpts, explicit human handoff, session-only scoped-token storage, and one-second cursor/ETag polling.
+- Exercised the fixed Day 3 set through the real local Worker and Supabase: 12/12 in-scope questions returned persisted citations and 8/8 unsupported questions produced safe handoff plus open knowledge gaps.
+- Visually reviewed the public chat at desktop and 390-pixel mobile widths and confirmed no horizontal overflow.
 
 ## Architecture findings
 
@@ -81,6 +89,11 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 18. Day 2 keeps routine development at zero provider cost through explicit deterministic adapters, but any production runtime configured for mock ingestion fails closed.
 19. Knowledge reprocessing uses a new target version while the prior active version remains retrievable; only atomic completion switches active documents/chunks. Duplicate intake, retry, and Queue delivery paths are idempotent.
 20. Browser extraction is convenience, not trust: the Worker rechecks object ownership, declared and actual size, MIME metadata, signed integrity metadata, SHA-256, PDF/DOCX magic bytes, extracted-schema consistency, and locked page limits.
+21. Public conversation authorization is independent of Supabase browser sessions: a short-lived scoped token binds every operation to one organization and one conversation while all database access stays behind the Worker.
+22. A factual answer is not committed unless every returned citation belongs to the exact retrieved set and still resolves through the enabled active source version. Answer, citations, AI run, handoff/gap, and audit records commit atomically.
+23. The live combined-score retrieval threshold remains `0.72`. Local deterministic chat uses a zero threshold only to validate orchestration against feature-hashed fixtures; it is not live embedding calibration or hosted-model evidence.
+24. Production fails closed unless ingestion, chat, and Turnstile are all configured for live providers. Turnstile bypass exists only in explicit non-production mode.
+25. Public response DTOs expose purpose-built citation IDs, labels, excerpts, and optional source URLs; internal chunk/database evidence IDs remain server-side.
 
 ## Validation evidence
 
@@ -108,14 +121,14 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Supabase CLI | `2.109.1` |
 | Docker daemon | `29.5.2` |
 | Wrangler | `4.114.0` via package runner |
-| `pnpm check` | Passed: format, lint, strict typecheck, 54 package/API/real-browser tests, code-split web build, and Worker Queue/R2/Static Assets dry run |
-| `pnpm test:e2e` | Passed: 1 Chromium foundation-shell test |
-| `pnpm eval:p0` | Passed: 2 fixed-fixture integrity tests; this is not yet a model-quality claim |
+| `pnpm check` | Passed: format, lint, strict typecheck, 70 package/API/real-browser tests, code-split web build, and Worker Queue/R2/Static Assets dry run |
+| `pnpm test:e2e` | Passed: 2 Chromium tests covering the foundation shell and responsive public chat/evidence panel |
+| `pnpm eval:p0` | Passed: 4 tests, including deterministic 12/12 cited in-scope and 8/8 missing-knowledge handoff behavior; live model quality remains unclaimed |
 | `pnpm eval:guardrails` | Passed: 1 fixed-fixture integrity test; this is not yet a live guardrail claim |
-| `supabase db reset` | Passed from the four ordered migrations and deterministic seed |
-| `supabase test db` | Passed: 30/30 tenant, role, privacy, ingestion-RPC, idempotency, activation, retrieval-continuity, and anonymous-denial assertions |
+| `supabase db reset` | Passed from all six ordered P0 migrations and deterministic seed |
+| `supabase test db` | Passed clean and after populated smoke state: 49/49 tenant, role, privacy, ingestion, conversation, citation, rate-limit, idempotency, handoff/gap, and anonymous-denial assertions |
 | `supabase db lint --schema public` | Passed; no schema errors |
-| RLS posture query | Passed: 17/17 public tables have RLS enabled and forced; `anon` has 0 table privileges |
+| RLS posture query | Passed: 18/18 public tables have RLS enabled and forced; `anon` has 0 table privileges |
 | Foreign-key index audit | Passed: every public foreign key has an exact leading-column index, including tenant-qualified composite keys |
 | Local Auth verification | Passed: NovaFlow Admin, NovaFlow Agent, and isolation-tenant Admin; each sees exactly one tenant |
 | Worker Static Assets dry run | Passed with Static Assets, Queue, and R2 bindings; no deployment performed |
@@ -126,14 +139,17 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Real-browser PDF/DOCX extraction | Passed: 5/5 Chromium extraction/hash and negative-boundary tests against committed binary fixtures |
 | API knowledge tests | Passed: auth/role, upload authorization and metadata, file signatures, URL rejection, source list, intake, and live-adapter retry boundaries |
 | Local Day 2 ingestion smoke | Passed: real browser plus local Auth/Worker/R2/Queue/Supabase; 3 Ready sources and 20 enabled embedded chunks |
-| OpenAPI contract validation | Passed: 16 paths, 18 unique local references, no missing local reference |
-| Desktop/mobile visual inspection | Passed; file control resets after intake and the 390-pixel knowledge layout has no horizontal overflow |
+| Day 3 conversation-token tests | Passed: signature, expiry, scope, organization, URL subject, and safe rejection boundaries |
+| Day 3 Responses/Turnstile adapter tests | Passed: strict Structured Output request, validated response/usage, timeout/retry, action, hostname, and production mock denial |
+| Local Day 3 conversation smoke | Passed: 12/12 cited answers, 8/8 missing-knowledge handoffs, 12 persisted citations, 8 open gaps, polling/304, idempotency, manual handoff, and AI-run links |
+| OpenAPI contract validation | Passed: 16 paths, 18 operations, 19 unique local references, no missing local reference |
+| Desktop/mobile visual inspection | Passed; Knowledge and public chat layouts have no horizontal overflow at 390 pixels |
 | Live provider smoke tests | Not run; external P0 provider credentials remain absent |
 | Cost-bearing provider calls | None |
 
 ## Current blockers
 
-- No blocker prevents Day 3 local/mocked implementation.
+- No blocker prevents Day 4 local/mocked implementation.
 - P0 provider credentials and a dedicated development project remain unset; live P0 integration and G1 acceptance remain blocked until those groups are provisioned.
 - P1 provider credentials, commercial-use confirmation, voice ID, and the final microphone/device/network remain deferred until before Day 6.
 
@@ -144,14 +160,14 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 - Durable decisions are in `docs/DECISIONS.md`.
 - Gate 0 defaults were approved by Forrest Zhang on July 26, 2026 and are recorded in `DEC-031`.
 
-## Day 2 checkpoint scope
+## Day 3 checkpoint scope
 
-- `packages/ingestion` limits, standard-page calculation, SSRF validation, deterministic chunking/IDs/embeddings, pipeline, and tests.
-- Browser extraction and the responsive tenant-scoped Knowledge workspace in `apps/web`.
-- Authenticated upload/intake/source APIs, R2/Browser Run/OpenAI adapters, Queue consumer, and tests in `apps/api`.
-- Day 2 ingestion runtime migration and 30-test tenant/security/lifecycle suite under `supabase/`.
-- Deterministic native PDF/DOCX/site fixture generation and full local ingestion verification tooling.
-- Updated API blueprint, environment contract, operator instructions, status, resources, and durable decisions.
+- Public conversation/token/citation/handoff contracts plus shared bilingual RAG schema, prompt, deterministic provider, and citation validator.
+- Public conversation routes/services, OpenAI Responses adapter, Turnstile verifier, hybrid retrieval repository, cursor/ETag polling, and production fail-closed provider graph.
+- Responsive `/chat` UX with localized safe states, citation evidence panel, explicit handoff, and scoped session storage.
+- Day 3 conversation migration and 49-test tenant/security/ingestion/conversation database suite.
+- Full local fixed-set verification for 12 cited answers and 8 missing-knowledge handoffs, plus updated P0 evaluation.
+- Updated OpenAPI/environment/operator/status/resource contracts and durable decisions.
 
 ## Cost to date
 
@@ -160,7 +176,7 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 
 ## Next step
 
-Publish the separate Day 2 checkpoint, then begin Day 3 public conversation tokens, persisted bilingual chat, hybrid retrieval, Structured Output answers, citation validation, and insufficient-knowledge handoff/gap creation. Live hosted-provider acceptance remains deferred until the corresponding credential groups are present.
+Publish the separate Day 3 checkpoint, then begin Day 4 deterministic input checks, auxiliary-model output supervision, block logs, human handoff queue/workspace, assignment/claiming, and required agent customer-card fields. Live hosted-provider acceptance remains deferred until the corresponding credential groups are present.
 
 ## Resume instruction
 

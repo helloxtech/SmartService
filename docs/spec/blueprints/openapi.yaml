@@ -9,7 +9,9 @@ paths:
   /v1/public/conversations:
     post:
       operationId: createPublicConversation
-      summary: Create a public text or voice conversation
+      summary: Create a public text conversation
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -72,11 +74,16 @@ paths:
       operationId: requestPublicHandoff
       parameters:
         - $ref: '#/components/parameters/ConversationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
       security:
         - conversationToken: []
       responses:
         '202':
           description: Handoff requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestHandoffResponse'
   /v1/public/voice/token:
     post:
       operationId: createVoiceToken
@@ -326,7 +333,7 @@ components:
       required: [publicKey, channel, turnstileToken]
       properties:
         publicKey: { type: string }
-        channel: { type: string, enum: [text, voice] }
+        channel: { type: string, enum: [text] }
         customer:
           type: object
           properties:
@@ -338,11 +345,14 @@ components:
         turnstileToken: { type: string }
     CreateConversationResponse:
       type: object
-      required: [conversationId, conversationToken, expiresAt]
+      required:
+        [conversationId, conversationToken, displayName, expiresAt, welcomeMessage]
       properties:
         conversationId: { type: string, format: uuid }
         conversationToken: { type: string }
+        displayName: { type: string, minLength: 1, maxLength: 120 }
         expiresAt: { type: string, format: date-time }
+        welcomeMessage: { type: string, minLength: 1, maxLength: 500 }
     SendMessageRequest:
       type: object
       required: [text, clientMessageId]
@@ -351,11 +361,18 @@ components:
         clientMessageId: { type: string, format: uuid }
     Citation:
       type: object
-      required: [citationId, label, sourceType]
+      required:
+        [citationId, label, sourceType, sourceUrl, supportingExcerpt]
       properties:
         citationId: { type: string, format: uuid }
         label: { type: string }
         sourceType: { type: string, enum: [pdf, docx, url, manual] }
+        sourceUrl:
+          oneOf:
+            - type: 'null'
+            - type: string
+              format: uri
+        supportingExcerpt: { type: string, minLength: 1, maxLength: 2000 }
     SendMessageResponse:
       type: object
       required: [messageId, decision, answer, citations]
@@ -370,25 +387,72 @@ components:
           oneOf:
             - type: 'null'
             - type: object
-              required: [reason]
+              required: [reason, status]
               properties:
-                reason: { type: string }
+                reason:
+                  {
+                    type: string,
+                    enum:
+                      [
+                        missing_knowledge,
+                        conflicting_knowledge,
+                        guardrail,
+                        customer_requested,
+                        system_error,
+                      ],
+                  }
+                status: { type: string, enum: [handoff_requested] }
+    RequestHandoffResponse:
+      type: object
+      required: [messageId, handoff]
+      properties:
+        messageId: { type: string, format: uuid }
+        handoff:
+          type: object
+          required: [reason, status]
+          properties:
+            reason: { type: string, enum: [customer_requested] }
+            status: { type: string, enum: [handoff_requested] }
     PublicMessage:
       type: object
-      required: [messageId, senderType, text, createdAt]
+      required: [messageId, senderType, text, decision, citations, createdAt]
       properties:
         messageId: { type: string, format: uuid }
         senderType: { type: string, enum: [ai, human, system] }
         text: { type: string }
+        decision:
+          oneOf:
+            - type: 'null'
+            - type: string
+              enum: [answer, clarify, handoff, human]
+        citations:
+          type: array
+          maxItems: 5
+          items: { $ref: '#/components/schemas/Citation' }
         createdAt: { type: string, format: date-time }
     PublicMessageListResponse:
       type: object
-      required: [messages, nextCursor]
+      required: [messages, nextCursor, status]
       properties:
         messages:
           type: array
           items: { $ref: '#/components/schemas/PublicMessage' }
-        nextCursor: { type: string }
+        nextCursor:
+          oneOf:
+            - type: 'null'
+            - type: string
+        status:
+          {
+            type: string,
+            enum:
+              [
+                active_ai,
+                resolved_ai,
+                handoff_requested,
+                active_human,
+                closed,
+              ],
+          }
     FileUploadIntentRequest:
       type: object
       required: [kind, fileName, mimeType, sizeBytes, contentSha256]

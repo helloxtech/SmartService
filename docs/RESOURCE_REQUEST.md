@@ -53,7 +53,7 @@ Priority values:
 | Supported browsers | BLOCKING-P1 | READY | Chrome, Edge, and Safari are installed |
 | Microphone/headset and browser permission | BLOCKING-P1 | VERIFY | Must be tested interactively on the final demo device |
 | Local secret file | BLOCKING-NOW | READY | Ignored mode-`0600` `.env.local` and generated app-local Wrangler variables contain only local Supabase/demo/signing values; external provider values remain unset |
-| Product/provider code | BLOCKING-NOW | READY | Days 1–2 exist, including R2, Queue, Browser Run, OpenAI embedding, and deterministic local ingestion adapters; Day 3 Responses/Turnstile work is next |
+| Product/provider code | BLOCKING-NOW | READY | Days 1–3 exist, including R2, Queue, Browser Run, OpenAI embedding/Responses adapters, Turnstile validation, deterministic local providers, and the grounded public chat; Day 4 guardrails/handoff workspace is next |
 | Cost-bearing project provider calls | BLOCKING-NOW | READY | None made; recorded project cost is USD 0 |
 
 ## BLOCKING-NOW
@@ -91,7 +91,7 @@ Provision these before a live P0 integration can pass G1. If a missing item is e
 | Supabase server configuration | MISSING | Service-role key and database URL/password | Apply migrations to the dedicated dev project and run a minimal server query |
 | Supabase CLI authentication | MISSING | Interactive CLI login or a tooling-only access token stored in native/ignored local storage | Link the project and read migration status without printing credentials |
 | Supabase project permissions | MISSING | Permission to manage Auth settings, extensions, migrations, and RLS | Enable/check `vector` and `pg_trgm`; run cross-tenant negative tests |
-| Demo identities and tenant-isolation seed | READY | Fictional admin and agent in tenant A plus a fictional admin in tenant B; local test passwords only | All three local Auth logins passed; 30 database isolation/role/ingestion assertions passed |
+| Demo identities and tenant-isolation seed | READY | Fictional admin and agent in tenant A plus a fictional admin in tenant B; local test passwords only | All three local Auth logins passed; 49 database tenant/role/ingestion/conversation assertions passed |
 | Cloudflare account | MISSING | Account ID with Workers, Queues, R2, Browser Run, and Turnstile access | `wrangler whoami` and non-destructive resource lists |
 | Cloudflare deployment token | MISSING | Least-privilege token for development Worker, Queue, and R2 management | Authenticated dry run/resource listing; do not print token |
 | Browser Run token | MISSING | Separate least-privilege token with `Browser Rendering - Edit` | One bounded Markdown crawl against an approved fixture site |
@@ -104,12 +104,14 @@ Provision these before a live P0 integration can pass G1. If a missing item is e
 | `gpt-5-mini` access | MISSING | Configurable alias, no dated snapshot | Tiny Structured Output request validated against schema |
 | `gpt-5-nano` access | MISSING | Configurable supervisor alias | Tiny classification request validated against schema |
 | `text-embedding-3-large` access | MISSING | 1024-dimension output enabled | One embedding; verify length equals 1024 without logging vector contents |
-| Conversation signing secret | MISSING | Locally generated high-entropy value | Sign/verify an expiring test token; never print value |
+| Conversation signing secret (local) | READY | High-entropy value is generated into the ignored Worker development secret file | Sign/verify, expiry, scope, organization, and URL-subject tests passed without printing the value |
+| Conversation signing secret (preview) | MISSING | Provision a distinct high-entropy value with `wrangler secret put` before an externally reachable preview | Sign/verify one short-lived preview token without printing the value |
 | Voice-to-API internal token placeholder | MISSING | High-entropy value may be generated now and stored for P1 | Authenticated local service call when the P1 adapter exists |
 | G1 preview/runtime location | VERIFY | Default is one Cloudflare Worker with Static Assets plus Hono API to avoid cross-origin drift | HTTPS page load and API health check |
-| Public Turnstile keys | CAN-MOCK | Cloudflare test keys locally; real widget keys required only for an externally reachable preview | Test challenge flow, then hostname-bound live challenge before public use |
+| Public Turnstile keys | CAN-MOCK | Deterministic local verification is implemented; real hostname-bound widget/secret keys are required before an externally reachable preview | Local success/failure/action tests passed; complete one hostname-bound live challenge before public use |
 | Demo ingestion corpus | READY | Deterministic real text-layer PDF, no-text PDF, heading-aware DOCX, and SHA-256 manifest are committed; negative browser/unit cases cover empty, no-text, malformed, unsupported, and oversized boundaries | Real Chromium extraction plus full local signed-upload/R2/Queue/Supabase ingestion passed |
 | Bounded demo website | READY | Deterministic three-page same-origin mini-site with a cross-origin exclusion link is committed; advanced redirect/DNS fixtures remain part of pre-G1 hardening | Local bounded crawl passed; one live Browser Run crawl remains required before G1 |
+| Fixed bilingual text acceptance set | READY | The committed 12 in-scope and 8 out-of-scope cases are exercised without changing expected outcomes | Local Worker/Supabase smoke passed: 12/12 cited answers, 8/8 handoffs, 12 persisted citations, and 8 open gaps; live-model evidence remains required before G1 |
 | Logo and brand palette | OPTIONAL | Supply assets only if desired | Asset and contrast review |
 
 ## BLOCKING-P1

@@ -153,9 +153,9 @@ async function updateLocalEnvironment(filePath, currentText, updates)
 /**
  * writeWorkerDevelopmentVariables
  * ----------------
- * Writes only local Supabase server values and a generated mock-upload signer to Wrangler's ignored secret file.
+ * Writes only local Supabase server values plus generated upload and conversation signers to Wrangler's ignored secret file.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 2 Knowledge Ingestion
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 3 Grounded Text Chat
  */
 async function writeWorkerDevelopmentVariables(filePath, localStatus)
 {
@@ -163,6 +163,7 @@ async function writeWorkerDevelopmentVariables(filePath, localStatus)
         `SUPABASE_URL=${localStatus.API_URL}`,
         `SUPABASE_SERVICE_ROLE_KEY=${localStatus.SERVICE_ROLE_KEY}`,
         `LOCAL_UPLOAD_SIGNING_SECRET=${randomBytes(32).toString("base64url")}`,
+        `CONVERSATION_TOKEN_SECRET=${randomBytes(32).toString("base64url")}`,
     ];
     const temporaryPath = `${filePath}.bootstrap`;
     await writeFile(temporaryPath, `${values.join("\n")}\n`, {
@@ -258,9 +259,9 @@ async function upsertMembership(client, organizationId, userId, role)
 /**
  * main
  * ----------------
- * Bootstraps three fictional local login identities and stores their credentials only in the ignored local environment file.
+ * Bootstraps fictional local identities plus public-chat configuration and stores credentials only in ignored local files.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 1 Foundation
+ * July 26, 2026: Updated by Forrest Zhang for SmartService Day 3 Grounded Text Chat
  */
 async function main()
 {
@@ -294,6 +295,7 @@ async function main()
         ["SUPABASE_URL", localStatus.API_URL],
         ["VITE_SUPABASE_ANON_KEY", localStatus.ANON_KEY],
         ["VITE_SUPABASE_URL", localStatus.API_URL],
+        ["VITE_DEMO_PUBLIC_KEY", "novaflow-public-demo"],
     ]);
 
     bootstrapStage = "storing ignored local configuration";

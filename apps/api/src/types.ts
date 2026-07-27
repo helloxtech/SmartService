@@ -1,8 +1,14 @@
 import type {
+    CreatePublicConversationRequest,
+    CreatePublicConversationResponse,
     FileUploadIntentRequest,
     FileUploadIntentResponse,
     KnowledgeIngestMessage,
     KnowledgeSource,
+    PublicMessageListResponse,
+    RequestPublicHandoffResponse,
+    SendPublicMessageRequest,
+    SendPublicMessageResponse,
     SourceAction,
 } from "@smartservice/contracts";
 import type {
@@ -14,25 +20,38 @@ import type {
 
 export type SmartServiceBindings = Omit<
     Env,
-    "ENVIRONMENT" | "INGESTION_PROVIDER_MODE" | "INGEST_QUEUE" | "VERSION"
+    | "CHAT_PROVIDER_MODE"
+    | "ENVIRONMENT"
+    | "INGESTION_PROVIDER_MODE"
+    | "INGEST_QUEUE"
+    | "TURNSTILE_PROVIDER_MODE"
+    | "VERSION"
 > & {
     ALLOWED_ORIGINS?: string;
     CLOUDFLARE_ACCOUNT_ID?: string;
     CLOUDFLARE_BROWSER_RUN_API_TOKEN?: string;
+    CHAT_PROVIDER_MODE?: "live" | "mock";
+    CONVERSATION_TOKEN_SECRET?: string;
+    CONVERSATION_TOKEN_TTL_MINUTES?: string;
     ENVIRONMENT: string;
     INGESTION_PROVIDER_MODE?: "live" | "mock";
     INGEST_QUEUE: Queue<KnowledgeIngestMessage>;
     KNOWLEDGE_FILES: R2Bucket;
     LOCAL_UPLOAD_SIGNING_SECRET?: string;
     OPENAI_API_KEY?: string;
+    OPENAI_CHAT_MODEL?: string;
     OPENAI_EMBEDDING_DIMENSIONS?: string;
     OPENAI_EMBEDDING_MODEL?: string;
     R2_ACCESS_KEY_ID?: string;
     R2_BUCKET_NAME?: string;
     R2_S3_ENDPOINT?: string;
     R2_SECRET_ACCESS_KEY?: string;
+    RAG_MATCH_THRESHOLD?: string;
     SUPABASE_SERVICE_ROLE_KEY?: string;
     SUPABASE_URL?: string;
+    TURNSTILE_EXPECTED_HOSTNAME?: string;
+    TURNSTILE_PROVIDER_MODE?: "live" | "mock";
+    TURNSTILE_SECRET_KEY?: string;
     VERSION: string;
 };
 
@@ -150,9 +169,40 @@ export interface RuntimeServices
     dnsResolver: DnsResolver;
     embeddings: EmbeddingProvider;
     objects: KnowledgeObjectStore;
+    publicConversations: PublicConversationService;
     queue: Queue<KnowledgeIngestMessage>;
     repository: KnowledgeRepository;
     uploads: UploadIntentProvider;
+}
+
+export interface PublicConversationService
+{
+    create(
+        input: CreatePublicConversationRequest,
+        idempotencyKey: string,
+        remoteIp: string | null,
+        requestId: string,
+    ): Promise<CreatePublicConversationResponse>;
+    list(
+        request: Request,
+        conversationId: string,
+        after: string | null,
+        limit: number,
+    ): Promise<PublicMessageListResponse>;
+    requestHandoff(
+        request: Request,
+        conversationId: string,
+        idempotencyKey: string,
+        requestId: string,
+        remoteIp: string | null,
+    ): Promise<RequestPublicHandoffResponse>;
+    send(
+        request: Request,
+        conversationId: string,
+        input: SendPublicMessageRequest,
+        requestId: string,
+        remoteIp: string | null,
+    ): Promise<SendPublicMessageResponse>;
 }
 
 export type RuntimeServiceFactory = (bindings: SmartServiceBindings) => RuntimeServices;

@@ -131,6 +131,12 @@ function createTestServices(): RuntimeServices
                 },
             ),
         },
+        publicConversations: {
+            create: vi.fn(),
+            list: vi.fn(),
+            requestHandoff: vi.fn(),
+            send: vi.fn(),
+        },
         queue: {
             send: vi.fn().mockResolvedValue(undefined),
             sendBatch: vi.fn().mockResolvedValue(undefined),

@@ -30,6 +30,7 @@
     "test:e2e": "pnpm --filter @smartservice/web test:e2e",
     "typecheck": "pnpm -r --if-present typecheck",
     "verify:ingestion": "node tooling/local/verify-ingestion.mjs",
+    "verify:conversation": "node tooling/local/verify-conversation.mjs",
     "verify:local-access": "node tooling/local/verify-demo-access.mjs"
   },
   "devDependencies": {

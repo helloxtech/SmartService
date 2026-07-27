@@ -1,0 +1,4 @@
+.env.local
+apps/web/.env.local
+apps/api/.dev.vars
+apps/voice-agent/.env.local

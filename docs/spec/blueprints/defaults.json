@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "knowledge": {
+    "maxFileBytes": 20000000,
+    "maxPdfPages": 80,
+    "maxDocxStandardPages": 50,
+    "maxWebsitePages": 30,
+    "maxWebsiteDepth": 2,
+    "maxBatchStandardPages": 100,
+    "standardPage": {
+      "cjkCharacters": 800,
+      "englishWords": 500
+    },
+    "acceptanceFiveMinute": {
+      "websitePages": 10,
+      "pdfPages": 20,
+      "maxCharacters": 100000
+    }
+  },
+  "chunking": {
+    "targetTokensMin": 350,
+    "targetTokensMax": 700,
+    "overlapTokens": 70
+  },
+  "rag": {
+    "topK": 8,
+    "similarityThresholdInitial": 0.72,
+    "semanticWeight": 0.8,
+    "lexicalWeight": 0.2,
+    "maxCitations": 5,
+    "embeddingDimensions": 1024,
+    "note": "Threshold is a calibration starting point, not a guaranteed universal value."
+  },
+  "models": {
+    "chat": "gpt-5-mini",
+    "supervisor": "gpt-5-nano",
+    "embedding": "text-embedding-3-large",
+    "stt": "nova-3",
+    "sttLanguage": "zh-CN",
+    "tts": "eleven_flash_v2_5"
+  },
+  "voice": {
+    "interruptionMode": "adaptive",
+    "interruptionMinDurationMs": 500,
+    "falseInterruptionTimeoutMs": 2000,
+    "resumeFalseInterruption": true,
+    "preemptiveGeneration": true,
+    "preemptiveTts": false,
+    "targetP95TurnToAudioMs": 1500,
+    "targetP95InterruptionStopMs": 500,
+    "latencySampleMin": 40,
+    "latencySampleMinPerLanguage": 20,
+    "percentileMethod": "nearest-rank",
+    "maxSpokenSentences": 2
+  },
+  "timeoutsMs": {
+    "publicApi": 20000,
+    "openAiText": 15000,
+    "supervisor": 8000,
+    "crawlPoll": 120000,
+    "queueTask": 300000
+  },
+  "retry": {
+    "maxAttempts": 2,
+    "baseDelayMs": 500
+  },
+  "publicConversationTokenMinutes": 120
+}

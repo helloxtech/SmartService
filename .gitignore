@@ -1,0 +1,61 @@
+# Operating-system and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Dependencies and package-manager caches
+node_modules/
+.pnpm-store/
+
+# Build, test, and generated output
+dist/
+build/
+coverage/
+artifacts/
+playwright-report/
+test-results/
+*.tsbuildinfo
+*.log
+
+# Local provider and framework state
+.wrangler/
+.supabase/
+supabase/.branches/
+supabase/.temp/
+
+# Local environment and Wrangler secret files
+.env
+.env.*
+!.env.example
+*.local
+.dev.vars
+**/.dev.vars
+**/.dev.vars.*
+
+# Credentials, private keys, and certificates
+credentials/
+secrets/
+.credentials
+.credentials.*
+.secrets
+.secrets.*
+*.credentials.json
+*.secret
+*.secrets
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+
+# Audio recordings and local voice-test captures
+recordings/
+*.aac
+*.flac
+*.m4a
+*.mp3
+*.ogg
+*.opus
+*.wav
+*.webm

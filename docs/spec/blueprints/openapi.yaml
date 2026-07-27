@@ -1,0 +1,379 @@
+openapi: 3.1.0
+info:
+  title: SmartService API
+  version: 1.0.0
+  description: Demo API contract for P0, P1 and optional R11.
+servers:
+  - url: https://api.example.com
+paths:
+  /v1/public/conversations:
+    post:
+      operationId: createPublicConversation
+      summary: Create a public text or voice conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConversationRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateConversationResponse'
+  /v1/public/conversations/{conversationId}/messages:
+    get:
+      operationId: listPublicConversationMessages
+      summary: Poll customer-visible messages after a cursor
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - name: after
+          in: query
+          description: Opaque cursor returned by the previous response
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      security:
+        - conversationToken: []
+      responses:
+        '200':
+          description: Customer-visible AI, human, and system messages for this conversation only
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicMessageListResponse'
+    post:
+      operationId: sendPublicMessage
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      security:
+        - conversationToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '200':
+          description: AI or handoff response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendMessageResponse'
+  /v1/public/conversations/{conversationId}/request-handoff:
+    post:
+      operationId: requestPublicHandoff
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      security:
+        - conversationToken: []
+      responses:
+        '202':
+          description: Handoff requested
+  /v1/public/voice/token:
+    post:
+      operationId: createVoiceToken
+      security:
+        - conversationToken: []
+      responses:
+        '200':
+          description: Short-lived LiveKit token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, token, roomName, expiresAt]
+                properties:
+                  url: { type: string, format: uri }
+                  token: { type: string }
+                  roomName: { type: string }
+                  expiresAt: { type: string, format: date-time }
+  /v1/admin/knowledge/file-upload-intents:
+    post:
+      operationId: createFileUploadIntent
+      summary: Create a short-lived, single-object R2 signed PUT URL
+      security:
+        - supabaseJwt: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileUploadIntentRequest'
+      responses:
+        '201':
+          description: Signed upload intent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileUploadIntentResponse'
+  /v1/admin/knowledge/file-intakes:
+    post:
+      operationId: createFileKnowledgeIntake
+      security:
+        - supabaseJwt: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileIntakeRequest'
+      responses:
+        '202':
+          description: Ingestion queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntakeResponse'
+  /v1/admin/knowledge/url-intakes:
+    post:
+      operationId: createUrlKnowledgeIntake
+      security:
+        - supabaseJwt: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UrlIntakeRequest'
+      responses:
+        '202':
+          description: Crawl queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntakeResponse'
+  /v1/admin/knowledge/sources/{sourceId}:
+    get:
+      operationId: getKnowledgeSource
+      security:
+        - supabaseJwt: []
+      parameters:
+        - name: sourceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Source status
+  /v1/admin/knowledge-gaps/{gapId}/resolve:
+    post:
+      operationId: resolveKnowledgeGap
+      security:
+        - supabaseJwt: []
+      parameters:
+        - name: gapId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, answer]
+              properties:
+                title: { type: string, maxLength: 200 }
+                answer: { type: string, maxLength: 5000 }
+                sourceNote: { type: string, maxLength: 500 }
+      responses:
+        '202':
+          description: Manual knowledge queued for embedding
+  /v1/admin/conversations/{conversationId}/takeover:
+    post:
+      operationId: takeoverConversation
+      security:
+        - supabaseJwt: []
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: Conversation is active_human
+  /v1/admin/conversations/{conversationId}/messages:
+    post:
+      operationId: sendHumanMessage
+      security:
+        - supabaseJwt: []
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text, clientMessageId]
+              properties:
+                text: { type: string, minLength: 1, maxLength: 5000 }
+                clientMessageId: { type: string, format: uuid }
+      responses:
+        '200': { description: Message persisted }
+  /v1/admin/conversations/{conversationId}/close:
+    post:
+      operationId: closeConversation
+      security:
+        - supabaseJwt: []
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '202': { description: Closed and finalization queued }
+  /v1/admin/dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      security:
+        - supabaseJwt: []
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+      responses:
+        '200': { description: Dashboard metrics }
+  /v1/admin/tickets:
+    get:
+      operationId: listTickets
+      description: Optional R11 endpoint
+      security:
+        - supabaseJwt: []
+      responses:
+        '200': { description: Ticket list }
+components:
+  securitySchemes:
+    supabaseJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    conversationToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    CreateConversationRequest:
+      type: object
+      required: [publicKey, channel, turnstileToken]
+      properties:
+        publicKey: { type: string }
+        channel: { type: string, enum: [text, voice] }
+        customer:
+          type: object
+          properties:
+            name: { type: string, maxLength: 200 }
+            email: { type: string, format: email }
+            phone: { type: string, maxLength: 50 }
+            company: { type: string, maxLength: 200 }
+            language: { type: string, default: zh-CN }
+        turnstileToken: { type: string }
+    CreateConversationResponse:
+      type: object
+      required: [conversationId, conversationToken, expiresAt]
+      properties:
+        conversationId: { type: string, format: uuid }
+        conversationToken: { type: string }
+        expiresAt: { type: string, format: date-time }
+    SendMessageRequest:
+      type: object
+      required: [text, clientMessageId]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 5000 }
+        clientMessageId: { type: string, format: uuid }
+    Citation:
+      type: object
+      required: [citationId, label, sourceType]
+      properties:
+        citationId: { type: string, format: uuid }
+        label: { type: string }
+        sourceType: { type: string, enum: [pdf, docx, url, manual] }
+    SendMessageResponse:
+      type: object
+      required: [messageId, decision, answer, citations]
+      properties:
+        messageId: { type: string, format: uuid }
+        decision: { type: string, enum: [answer, clarify, handoff] }
+        answer: { type: string }
+        citations:
+          type: array
+          items: { $ref: '#/components/schemas/Citation' }
+        handoff:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+    PublicMessage:
+      type: object
+      required: [messageId, senderType, text, createdAt]
+      properties:
+        messageId: { type: string, format: uuid }
+        senderType: { type: string, enum: [ai, human, system] }
+        text: { type: string }
+        createdAt: { type: string, format: date-time }
+    PublicMessageListResponse:
+      type: object
+      required: [messages, nextCursor]
+      properties:
+        messages:
+          type: array
+          items: { $ref: '#/components/schemas/PublicMessage' }
+        nextCursor: { type: string }
+    FileUploadIntentRequest:
+      type: object
+      required: [kind, fileName, mimeType, sizeBytes, contentSha256]
+      properties:
+        kind: { type: string, enum: [original, extracted] }
+        fileName: { type: string, minLength: 1, maxLength: 255 }
+        mimeType:
+          type: string
+          enum:
+            - application/pdf
+            - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+            - application/json
+        sizeBytes: { type: integer, minimum: 1, maximum: 20000000 }
+        contentSha256: { type: string, pattern: '^[A-Fa-f0-9]{64}$' }
+    FileUploadIntentResponse:
+      type: object
+      required: [uploadUrl, objectKey, expiresAt, requiredHeaders]
+      properties:
+        uploadUrl: { type: string, format: uri }
+        objectKey: { type: string }
+        expiresAt: { type: string, format: date-time }
+        requiredHeaders:
+          type: object
+          additionalProperties: { type: string }
+    FileIntakeRequest:
+      type: object
+      required: [fileName, mimeType, sizeBytes, originalObjectKey, extractedObjectKey]
+      properties:
+        fileName: { type: string }
+        mimeType: { type: string, enum: [application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document] }
+        sizeBytes: { type: integer, minimum: 1, maximum: 20000000 }
+        pageCount: { type: integer, minimum: 1, maximum: 80 }
+        standardPageCount: { type: number, minimum: 0.01, maximum: 50 }
+        originalObjectKey: { type: string }
+        extractedObjectKey: { type: string }
+    UrlIntakeRequest:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string, format: uri }
+        maxPages: { type: integer, minimum: 1, maximum: 30, default: 10 }
+        maxDepth: { type: integer, minimum: 0, maximum: 2, default: 2 }
+    IntakeResponse:
+      type: object
+      required: [sourceId, jobId, status]
+      properties:
+        sourceId: { type: string, format: uuid }
+        jobId: { type: string, format: uuid }
+        status: { type: string, enum: [uploaded, extracting, chunking, embedding, ready, failed] }

@@ -2,9 +2,9 @@
 
 **Last updated:** July 27, 2026
 **Current gate:** Local P0 evidence complete; automatic P1 continuation authorized
-**Current phase:** Day 8 turn, interruption, and local latency evidence complete; full checkpoint and publication next
-**Active step:** Run and publish the separate Day 8 checkpoint, then implement Day 9 voice guardrail, handoff, and failure recovery
-**Overall state:** Days 1–7 are published and green locally; the fixed 40-turn Day 8 local/mock evaluation is green; hosted P0 and live voice-provider/device evidence remain unavailable without external credentials
+**Current phase:** Day 9 voice safety, handoff, and failure recovery complete locally; full checkpoint and publication next
+**Active step:** Run and publish the separate Day 9 checkpoint, then execute Day 10 integrated acceptance and UAT preparation
+**Overall state:** Days 1–8 are published and green locally; the focused Day 9 safety/recovery smoke is green; hosted P0 and live voice-provider/device evidence remain unavailable without external credentials
 
 ## Original goal
 
@@ -22,7 +22,7 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 |---|---|---|
 | Gate 0 | Approved July 26, 2026 | Baseline `b965aabd027c7c5b1d063f3ee0e5daaf711f0b45` published to `origin/main` |
 | P0 | Days 1–5 complete locally | Full composite checkpoint and three independent clean-reset demos passed; hosted deployment/provider evidence remains |
-| P1 | Days 6–8 complete locally | Voice session, grounded/TTS, semantic turn, adaptive interruption configuration, browser audio, and fixed local latency evidence are green; Days 9–10 and live provider/device evidence remain |
+| P1 | Days 6–9 complete locally | Voice session, grounded/TTS, semantic turn, interruption, local latency, handoff, reconnect, and failure paths are green; Day 10 and live provider/device evidence remain |
 | R11 | Deferred | Entry conditions not met |
 
 ## Completed steps
@@ -95,6 +95,11 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Attached the remote Agent audio track in the browser and added a Web Audio energy probe so production playback timestamps originate from browser-received audible samples rather than TTS first-byte events.
 - Added a fixed 40-turn local voice runner with 20 Chinese and 20 English turns, exact 28/8/4 simple/follow-up/missing-or-guardrail distribution, nearest-rank percentiles, full raw timestamps, and separate empty failure/warming/cold-start groups.
 - Recorded clean-checkpoint local/mock P50 `24.643 ms`, P95 `31.913 ms`, maximum `37.296 ms`, 40/40 successful submitted turns, and zero provider cost. This report is explicitly ineligible for G2 because it lacks real browser/provider/device/network clocks.
+- Added active-turn cancellation to the Agent's internal Worker call, a fixed bilingual safe provider-failure phrase, bounded service timeout, failed-session reporting, and post-playout shutdown for handoff or terminal provider failure.
+- Added LiveKit native reconnect visibility plus at most two application-level token-refresh reconnects after terminal disconnect; intentional shutdown, permission denial, and handoff never start a retry loop.
+- Made voice handoff terminal in the customer UI, denied token refresh once the conversation leaves AI control, and preserved the text fallback.
+- Corrected the human inbox contract from text-only to text-or-voice, then added voice provider/status/warmup/failure and nearest-rank server-assistant timing detail with an explicit warning that it is not browser turn-to-audio timing.
+- Passed a focused Day 9 smoke for delivery-commitment guardrail, missing knowledge, persisted handoff/session state, stopped AI, Agent-visible voice detail, denied post-handoff token refresh, redacted internal failure, reconnect coverage, and zero provider cost.
 
 ## Architecture findings
 
@@ -204,6 +209,9 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Day 8 focused Agent/web tests | Passed: semantic turn/interruption settings, preemptive TTS safety, remote audio attachment path, and browser playback-clock callback |
 | Local Day 8 40-turn evaluation | Passed: 20 Chinese + 20 English; 28 simple, 8 follow-up, 4 missing/guardrail; 40/40 successful submitted turns; nearest-rank P50 `24.643 ms`, P95 `31.913 ms`, max `37.296 ms`; local/mock only |
 | Full Day 8 composite checkpoint | Passed from a clean reset: format, lint, all workspace typechecks/tests/builds, 4/4 Playwright flows, 121/121 database assertions, database lint, fresh 3-source/20-chunk ingestion, Day 7 parity smoke, and the fixed Day 8 40-turn evaluation |
+| Day 9 focused tests | Passed: 7/7 Agent tests including obsolete-turn cancellation and fixed failure speech; 10/10 web unit tests including bounded token-refresh reconnect and terminal handoff; 39/39 API tests |
+| Local Day 9 smoke | Passed: delivery guardrail, missing knowledge, persisted voice handoff, AI stopped, Agent voice detail, post-handoff token refresh denied, redacted service failure, and zero provider cost |
+| Full Day 9 composite checkpoint | Passed from a clean reset: format, lint, all workspace typechecks/tests/builds, 4/4 Playwright flows, 121/121 database assertions, database lint, fresh ingestion, Day 7 parity, Day 8 40-turn evaluation, and Day 9 safety/recovery smoke |
 | Live provider smoke tests | Not run; external P0 provider credentials remain absent |
 | Cost-bearing provider calls | None |
 
@@ -220,13 +228,13 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 - Gate 0 defaults were approved by Forrest Zhang on July 26, 2026 and are recorded in `DEC-031`.
 - Automatic testing ownership and continuation through Day 10 were approved by Forrest Zhang on July 27, 2026 and are recorded in `DEC-053`.
 
-## Day 8 checkpoint scope
+## Day 9 checkpoint scope
 
-- LiveKit multilingual semantic turn detection with adaptive interruption, 500-millisecond minimum duration, false-interruption resume, and dynamic endpointing.
-- Native preemptive generation with preemptive TTS disabled, preserving the no-audio-before-guardrail boundary.
-- Browser remote-audio attachment and audible-sample playback-start detection; audio recording remains disabled.
-- Forty retained local/mock traces with the locked bilingual/scenario distribution and nearest-rank P50/P95/max/all-submitted reporting.
-- Checkpoint command: `pnpm checkpoint:day8`.
+- Shared server guardrails and missing-knowledge handoff remain authoritative; safe audio plays once, AI stops, and the customer enters human-waiting state.
+- Obsolete-turn abort, twelve-second service timeout, fixed safe provider-failure speech, failed-session reporting, and post-playout shutdown.
+- LiveKit native reconnect plus at most two room-token refresh reconnects; terminal states never loop.
+- Human inbox support for voice handoffs with runtime, warmup, failure code, and clearly labeled server-assistant latency detail.
+- Checkpoint command: `pnpm checkpoint:day9`.
 
 ## Cost to date
 
@@ -235,7 +243,7 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 
 ## Next step
 
-Run and publish the separate Day 8 slice, then implement and validate Day 9 voice guardrail, handoff, provider timeout/cancel/reconnect, token refresh, and failure UX. Preserve the local/mock versus hosted evidence boundary and keep R11 gated.
+Run and publish the separate Day 9 slice, then execute Day 10 full P0/P1 regression, three clean demos, evidence archival, deployment/UAT guide, release tag, TODO/debug cleanup, and final local UAT handoff. Preserve the local/mock versus hosted evidence boundary and keep R11 gated.
 
 ## Resume instruction
 

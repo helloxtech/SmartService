@@ -2,6 +2,7 @@ import {
     cleanup,
     render,
     screen,
+    waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -36,6 +37,7 @@ afterEach(() =>
  */
 function createFetchMock(
     includeAnswer = false,
+    conversationStatus = "active_ai",
 ): ReturnType<typeof vi.fn<typeof fetch>>
 {
     return vi.fn<typeof fetch>(async (input) =>
@@ -96,7 +98,7 @@ function createFetchMock(
                         text: "NF-500 的最大流量是每分钟 300 升。",
                     }],
                     nextCursor: "voice-answer-cursor",
-                    status: "active_ai",
+                    status: conversationStatus,
                 }), {
                     headers: {
                         "content-type": "application/json",
@@ -237,5 +239,78 @@ describe("VoiceExperience", () =>
 
         expect(await screen.findByText(/Microphone access was denied/u)).toBeInTheDocument();
         expect(screen.getByRole("link", { name: "Continue by text" })).toHaveAttribute("href", "/chat");
+    });
+
+    it("refreshes the room token once after an unrecoverable disconnect", async () =>
+    {
+        const fetchMock = createFetchMock();
+        const requestMicrophone = vi.fn(async () => undefined);
+        let forceDisconnect: (() => void) | null = null;
+        let connectCount = 0;
+        const connector: VoiceRoomConnector = {
+            /**
+             * connect
+             * ----------------
+             * Captures each connection so the test can force one terminal disconnect and observe bounded token refresh.
+             *
+             * July 27, 2026: Created by Forrest Zhang for SmartService Day 9 Voice Reconnection
+             */
+            async connect(_token, receivedCallbacks)
+            {
+                connectCount += 1;
+                forceDisconnect = receivedCallbacks.onDisconnected;
+                await receivedCallbacks.onReady();
+                return {
+                    /**
+                     * disconnect
+                     * ----------------
+                     * Completes the bounded reconnect fixture without provider media.
+                     *
+                     * July 27, 2026: Created by Forrest Zhang for SmartService Day 9 Voice Reconnection
+                     */
+                    async disconnect()
+                    {
+                        receivedCallbacks.onDisconnected();
+                    },
+                };
+            },
+        };
+        vi.stubGlobal("fetch", fetchMock);
+        const user = userEvent.setup();
+        render(
+            <VoiceExperience
+                connector={connector}
+                requestMicrophone={requestMicrophone}
+            />,
+        );
+
+        await user.click(screen.getByRole("button", { name: "Start voice" }));
+        expect(await screen.findByText(/Listening now/u)).toBeInTheDocument();
+        (forceDisconnect as (() => void) | null)?.();
+
+        await waitFor(() =>
+        {
+            expect(connectCount).toBe(2);
+        });
+        expect(fetchMock.mock.calls.filter(
+            ([input]) => String(input).endsWith("/api/v1/public/voice/token"),
+        )).toHaveLength(2);
+    });
+
+    it("enters terminal handoff UI when the shared voice guardrail stops AI", async () =>
+    {
+        const fetchMock = createFetchMock(true, "handoff_requested");
+        vi.stubGlobal("fetch", fetchMock);
+        const user = userEvent.setup();
+        render(
+            <VoiceExperience
+                requestMicrophone={vi.fn(async () => undefined)}
+            />,
+        );
+
+        await user.click(screen.getByRole("button", { name: "Start voice" }));
+
+        expect(await screen.findByText(/AI voice has stopped/u)).toBeInTheDocument();
+        expect(screen.getByText(/Voice AI will not reply again/u)).toBeInTheDocument();
     });
 });

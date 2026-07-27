@@ -37,6 +37,20 @@ export const VOICE_TURN_SETTINGS = {
 } as const;
 
 /**
+ * buildVoiceFailureSpeech
+ * ----------------
+ * Returns the fixed pre-approved provider-failure phrase that is safe to synthesize without reflecting errors or upstream content.
+ *
+ * July 27, 2026: Created by Forrest Zhang for SmartService Day 9 Voice Failure Handling
+ */
+export function buildVoiceFailureSpeech(language: "zh-CN" | "en"): string
+{
+    return language === "zh-CN"
+        ? "抱歉，语音服务暂时不可用。请稍后重试，或改用文字客服。"
+        : "Sorry, voice service is temporarily unavailable. Please retry or continue by text.";
+}
+
+/**
  * normalizeVoiceSpeech
  * ----------------
  * Expands product-model separators and common units before TTS while preserving the approved answer's meaning.
@@ -138,6 +152,8 @@ async function runVoiceJob(
                 }),
             },
         });
+        let activeTurnController: AbortController | null = null;
+        let activeSpeechHandle: ReturnType<voice.AgentSession["say"]> | null = null;
         const agent = voice.Agent.create({
             instructions: sessionConfiguration.language === "zh-CN"
                 ? "准确听取客户的中文问题，只朗读服务器批准的简短回答。"
@@ -158,19 +174,84 @@ async function runVoiceJob(
                     return;
                 }
 
-                const result = await api.completeTurn(
-                    voiceSessionId,
-                    crypto.randomUUID(),
-                    text,
-                    new Date().toISOString(),
-                );
-                yield normalizeVoiceSpeech(
-                    result.spokenText,
-                    sessionConfiguration.language,
-                );
+                activeTurnController?.abort();
+                const controller = new AbortController();
+                activeTurnController = controller;
+                const speechHandle = activeSpeechHandle;
+
+                try
+                {
+                    const result = await api.completeTurn(
+                        voiceSessionId,
+                        crypto.randomUUID(),
+                        text,
+                        new Date().toISOString(),
+                        controller.signal,
+                    );
+                    yield normalizeVoiceSpeech(
+                        result.spokenText,
+                        sessionConfiguration.language,
+                    );
+
+                    if (result.decision === "handoff" && speechHandle !== null)
+                    {
+                        void speechHandle.waitForPlayout().finally(() =>
+                        {
+                            context.shutdown("voice_handoff");
+                        });
+                    }
+                }
+                catch (error: unknown)
+                {
+                    if (controller.signal.aborted)
+                    {
+                        return;
+                    }
+
+                    try
+                    {
+                        await api.updateStatus(
+                            voiceSessionId,
+                            "failed",
+                            "VOICE_TURN_SERVICE_UNAVAILABLE",
+                        );
+                    }
+                    catch
+                    {
+                        // The fixed fallback below remains safe when status reporting is also unavailable.
+                    }
+
+                    console.error(JSON.stringify({
+                        errorCode: error instanceof DOMException && error.name === "TimeoutError"
+                            ? "VOICE_TURN_TIMEOUT"
+                            : "VOICE_TURN_SERVICE_UNAVAILABLE",
+                        event: "voice.turn.failed_closed",
+                        voiceSessionId,
+                    }));
+                    yield buildVoiceFailureSpeech(sessionConfiguration.language);
+
+                    if (speechHandle !== null)
+                    {
+                        void speechHandle.waitForPlayout().finally(() =>
+                        {
+                            context.shutdown("voice_service_failure");
+                        });
+                    }
+                }
+                finally
+                {
+                    if (activeTurnController === controller)
+                    {
+                        activeTurnController = null;
+                    }
+                }
             },
         });
 
+        session.on(voice.AgentSessionEventTypes.SpeechCreated, (event) =>
+        {
+            activeSpeechHandle = event.speechHandle;
+        });
         session.on(voice.AgentSessionEventTypes.AgentFalseInterruption, (event) =>
         {
             console.info(JSON.stringify({
@@ -203,6 +284,10 @@ async function runVoiceJob(
                 transcript: false,
             },
             room: context.room,
+        });
+        context.addShutdownCallback(async () =>
+        {
+            activeTurnController?.abort();
         });
         await api.updateStatus(voiceSessionId, "ready");
     }

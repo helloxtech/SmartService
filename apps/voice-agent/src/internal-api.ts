@@ -41,6 +41,7 @@ export class VoiceInternalApiClient
         clientMessageId: string,
         text: string,
         transcribedAt: string,
+        signal?: AbortSignal,
     ): Promise<CompleteVoiceTurnResponse>
     {
         return completeVoiceTurnResponseSchema.parse(
@@ -54,6 +55,8 @@ export class VoiceInternalApiClient
                     }),
                     method: "POST",
                 },
+                true,
+                signal,
             ),
         );
     }
@@ -140,6 +143,7 @@ export class VoiceInternalApiClient
         path: string,
         init: RequestInit,
         expectJson = true,
+        signal?: AbortSignal,
     ): Promise<unknown>
     {
         const url = new URL(path, this.configuration.VOICE_INTERNAL_API_BASE_URL);
@@ -152,7 +156,12 @@ export class VoiceInternalApiClient
                     authorization: `Bearer ${this.configuration.VOICE_INTERNAL_SERVICE_TOKEN}`,
                     "content-type": "application/json",
                 },
-                signal: AbortSignal.timeout(12_000),
+                signal: signal === undefined
+                    ? AbortSignal.timeout(12_000)
+                    : AbortSignal.any([
+                        signal,
+                        AbortSignal.timeout(12_000),
+                    ]),
             });
 
             if (response.ok)

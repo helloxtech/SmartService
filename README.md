@@ -43,6 +43,7 @@ pnpm checkpoint:day5
 pnpm checkpoint:day6
 pnpm checkpoint:day7
 pnpm checkpoint:day8
+pnpm checkpoint:day9
 ```
 
 `pnpm db:start` and `pnpm db:status` deliberately suppress generated local credentials. The fictional demo login values are generated into the ignored mode-`0600` `.env.local`; never paste or commit that file.
@@ -62,6 +63,8 @@ After ingestion succeeds, `pnpm verify:conversation` exercises all 12 fixed in-s
 `pnpm checkpoint:day7` adds a fresh ingestion run and ten fixed bilingual voice RAG cases. It proves exact text/voice answer and public-citation parity, screen-only citations, safe missing-knowledge handoff, one-to-two-sentence speech text, and the ElevenLabs Flash v2.5 Agent adapter without making live provider calls.
 
 `pnpm checkpoint:day8` adds LiveKit multilingual semantic turn detection, adaptive interruption and false-resume settings, preemptive generation with preemptive TTS off, browser-received audio playback timing, and a fixed 40-turn local report. The report retains 20 Chinese and 20 English traces with the 28/8/4 scenario split and nearest-rank P50/P95/max; it is explicitly not live G2 evidence.
+
+`pnpm checkpoint:day9` adds terminal voice guardrail/handoff behavior, obsolete-turn cancellation, bounded provider failure, fixed safe fallback speech, native and token-refresh reconnect, post-handoff token denial, and Agent-visible voice session/server-latency detail. Local failure tests do not substitute for live provider and network evidence.
 
 Local ingestion, chat, and Turnstile use explicit deterministic providers and make no paid calls. Hosted R2, Queue, Browser Run, Turnstile, Supabase, and OpenAI evidence is still required before G1; production refuses any mock provider mode.
 

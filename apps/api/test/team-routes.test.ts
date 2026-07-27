@@ -75,6 +75,7 @@ const detail: TeamConversationDetail = {
         triggerReason: "guardrail",
     },
     summaryRecord: null,
+    voiceSession: null,
 };
 
 /**

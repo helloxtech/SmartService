@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { readVoiceAgentConfiguration } from "./config";
 import {
+    buildVoiceFailureSpeech,
     normalizeVoiceSpeech,
     VOICE_TURN_SETTINGS,
 } from "./agent";
@@ -70,6 +71,49 @@ describe("voice agent foundation", () =>
                 preemptiveTts: false,
             },
         });
+    });
+
+    it("uses fixed bilingual provider-failure speech without upstream error content", () =>
+    {
+        expect(buildVoiceFailureSpeech("zh-CN")).toContain("文字客服");
+        expect(buildVoiceFailureSpeech("en")).toContain("continue by text");
+        expect(buildVoiceFailureSpeech("en")).not.toContain("stack");
+    });
+
+    it("cancels an obsolete internal turn request when a newer voice turn interrupts it", async () =>
+    {
+        const fetcher = vi.fn<typeof fetch>(async (_input, init) =>
+        {
+            await new Promise((_resolve, reject) =>
+            {
+                init?.signal?.addEventListener("abort", () =>
+                {
+                    reject(init.signal?.reason);
+                }, {
+                    once: true,
+                });
+            });
+
+            throw new Error("The aborted request unexpectedly continued.");
+        });
+        const client = new VoiceInternalApiClient({
+            VOICE_INTERNAL_API_BASE_URL: "https://api.example.test",
+            VOICE_INTERNAL_SERVICE_TOKEN: "v".repeat(32),
+        }, fetcher);
+        const controller = new AbortController();
+        const pending = client.completeTurn(
+            voiceSessionId,
+            "44444444-4444-4444-8444-444444444444",
+            "Please continue.",
+            "2026-07-27T08:00:00.000Z",
+            controller.signal,
+        );
+        controller.abort();
+
+        await expect(pending).rejects.toMatchObject({
+            name: "AbortError",
+        });
+        expect(fetcher).toHaveBeenCalledOnce();
     });
 
     it("authenticates configuration and transcript calls without logging content", async () =>

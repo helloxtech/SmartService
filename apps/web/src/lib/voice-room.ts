@@ -13,6 +13,8 @@ export interface VoiceRoomCallbacks
 {
     onAudioPlaybackStarted(startedAt: string): void;
     onDisconnected(): void;
+    onReconnected(): void;
+    onReconnecting(): void;
     onReady(): Promise<boolean>;
     onTranscript(text: string, final: boolean): void;
 }
@@ -282,6 +284,8 @@ export class LiveKitVoiceRoomConnector implements VoiceRoomConnector
             probe.start();
             playbackProbes.push(probe);
         });
+        room.on(RoomEvent.Reconnecting, callbacks.onReconnecting);
+        room.on(RoomEvent.Reconnected, callbacks.onReconnected);
         room.on(RoomEvent.Disconnected, callbacks.onDisconnected);
         await room.connect(token.url, token.token, {
             autoSubscribe: true,

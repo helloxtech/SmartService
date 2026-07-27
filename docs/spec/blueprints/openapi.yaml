@@ -1178,7 +1178,7 @@ components:
             - type: string
               maxLength: 200
         language: { type: string, enum: [zh-CN, en] }
-        channel: { type: string, enum: [text] }
+        channel: { type: string, enum: [text, voice] }
     HandoffSummary:
       type: object
       required:
@@ -1328,7 +1328,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/TeamInboxItem'
         - type: object
-          required: [messages, guardrailEvents, summaryRecord]
+          required: [messages, guardrailEvents, summaryRecord, voiceSession]
           properties:
             messages:
               type: array
@@ -1342,6 +1342,81 @@ components:
               oneOf:
                 - type: 'null'
                 - $ref: '#/components/schemas/ConversationSummary'
+            voiceSession:
+              oneOf:
+                - type: 'null'
+                - $ref: '#/components/schemas/TeamVoiceSession'
+    VoiceServerLatency:
+      type: object
+      required: [sampleSize, p50Ms, p95Ms, maxMs]
+      properties:
+        sampleSize: { type: integer, minimum: 0 }
+        p50Ms:
+          oneOf:
+            - type: 'null'
+            - type: integer
+              minimum: 0
+        p95Ms:
+          oneOf:
+            - type: 'null'
+            - type: integer
+              minimum: 0
+        maxMs:
+          oneOf:
+            - type: 'null'
+            - type: integer
+              minimum: 0
+    TeamVoiceSession:
+      type: object
+      required:
+        [
+          voiceSessionId,
+          provider,
+          status,
+          errorCode,
+          createdAt,
+          readyAt,
+          startedAt,
+          endedAt,
+          warmupMs,
+          serverAssistantLatency,
+        ]
+      properties:
+        voiceSessionId: { type: string, format: uuid }
+        provider: { type: string, enum: [livekit, mock] }
+        status:
+          {
+            type: string,
+            enum: [warming, ready, active, handoff, closed, failed],
+          }
+        errorCode:
+          oneOf:
+            - type: 'null'
+            - type: string
+              maxLength: 120
+        createdAt: { type: string, format: date-time }
+        readyAt:
+          oneOf:
+            - type: 'null'
+            - type: string
+              format: date-time
+        startedAt:
+          oneOf:
+            - type: 'null'
+            - type: string
+              format: date-time
+        endedAt:
+          oneOf:
+            - type: 'null'
+            - type: string
+              format: date-time
+        warmupMs:
+          oneOf:
+            - type: 'null'
+            - type: integer
+              minimum: 0
+        serverAssistantLatency:
+          $ref: '#/components/schemas/VoiceServerLatency'
     ClaimConversationResponse:
       type: object
       required: [conversationId, acceptedBy, acceptedAt, status]

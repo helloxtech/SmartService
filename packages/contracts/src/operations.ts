@@ -138,12 +138,32 @@ export const guardrailCandidateResponseSchema = z.object({
 });
 
 export const customerCardSchema = z.object({
-    channel: z.literal("text"),
+    channel: z.enum(["text", "voice"]),
     company: z.string().max(200).nullable(),
     email: z.string().max(320).nullable(),
     language: conversationLanguageSchema,
     name: z.string().max(160).nullable(),
     phone: z.string().max(80).nullable(),
+});
+
+export const voiceServerLatencySchema = z.object({
+    maxMs: z.number().int().nonnegative().nullable(),
+    p50Ms: z.number().int().nonnegative().nullable(),
+    p95Ms: z.number().int().nonnegative().nullable(),
+    sampleSize: z.number().int().nonnegative(),
+});
+
+export const teamVoiceSessionSchema = z.object({
+    createdAt: z.iso.datetime({ offset: true }),
+    endedAt: z.iso.datetime({ offset: true }).nullable(),
+    errorCode: z.string().max(120).nullable(),
+    provider: z.enum(["livekit", "mock"]),
+    readyAt: z.iso.datetime({ offset: true }).nullable(),
+    serverAssistantLatency: voiceServerLatencySchema,
+    startedAt: z.iso.datetime({ offset: true }).nullable(),
+    status: z.enum(["warming", "ready", "active", "handoff", "closed", "failed"]),
+    voiceSessionId: z.uuid(),
+    warmupMs: z.number().int().nonnegative().nullable(),
 });
 
 export const handoffSummarySchema = z.object({
@@ -227,6 +247,7 @@ export const teamConversationDetailSchema = teamInboxItemSchema.extend({
     })).max(200),
     messages: z.array(teamMessageSchema).max(500),
     summaryRecord: conversationSummarySchema.nullable(),
+    voiceSession: teamVoiceSessionSchema.nullable(),
 });
 
 export const claimConversationResponseSchema = z.object({

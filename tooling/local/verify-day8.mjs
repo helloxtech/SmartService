@@ -1,5 +1,10 @@
 import { spawn } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import {
+    access,
+    mkdir,
+    readFile,
+    writeFile,
+} from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { z } from "zod";
@@ -539,14 +544,36 @@ async function main()
             warmingTurns: [],
         };
         const evidenceDirectory = resolve("docs/evidence");
+        const evidencePath = resolve(
+            evidenceDirectory,
+            "day8-local-voice-report.json",
+        );
         await mkdir(evidenceDirectory, {
             recursive: true,
         });
-        await writeFile(
-            resolve(evidenceDirectory, "day8-local-voice-report.json"),
-            `${JSON.stringify(report, null, 2)}\n`,
-            "utf8",
-        );
+        let evidenceExists = true;
+
+        try
+        {
+            await access(evidencePath);
+        }
+        catch
+        {
+            evidenceExists = false;
+        }
+
+        if (
+            !evidenceExists
+            || process.env.SMARTSERVICE_WRITE_DAY8_EVIDENCE === "1"
+        )
+        {
+            await writeFile(
+                evidencePath,
+                `${JSON.stringify(report, null, 2)}\n`,
+                "utf8",
+            );
+        }
+
         process.stdout.write(
             `Day 8 local evaluation passed: 40/40 submitted turns, 20 Chinese + 20 English, 28/8/4 scenario split, nearest-rank P50 ${report.successfulTurns.p50Ms}ms, P95 ${report.successfulTurns.p95Ms}ms, max ${report.successfulTurns.maxMs}ms; local/mock only, no provider cost, live G2 remains pending.\n`,
         );

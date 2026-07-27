@@ -531,6 +531,51 @@ export function AgentWorkspace({
                                     </dl>
                                 </section>
 
+                                {detail.voiceSession === null
+                                    ? null
+                                    : (
+                                        <section className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+                                            <h3 className="flex items-center gap-2 text-sm font-bold text-violet-950">
+                                                <Headphones aria-hidden="true" className="size-4" />
+                                                Voice session
+                                            </h3>
+                                            <dl className="mt-3 grid grid-cols-2 gap-3 text-xs text-violet-950">
+                                                <div>
+                                                    <dt className="font-bold">Runtime</dt>
+                                                    <dd>{detail.voiceSession.provider} · {detail.voiceSession.status}</dd>
+                                                </div>
+                                                <div>
+                                                    <dt className="font-bold">Warmup</dt>
+                                                    <dd>{detail.voiceSession.warmupMs === null
+                                                        ? "Not completed"
+                                                        : `${detail.voiceSession.warmupMs} ms`}</dd>
+                                                </div>
+                                                <div>
+                                                    <dt className="font-bold">Server P50</dt>
+                                                    <dd>{detail.voiceSession.serverAssistantLatency.p50Ms === null
+                                                        ? "No samples"
+                                                        : `${detail.voiceSession.serverAssistantLatency.p50Ms} ms`}</dd>
+                                                </div>
+                                                <div>
+                                                    <dt className="font-bold">Server P95 / max</dt>
+                                                    <dd>{detail.voiceSession.serverAssistantLatency.p95Ms === null
+                                                        ? "No samples"
+                                                        : `${detail.voiceSession.serverAssistantLatency.p95Ms} / ${detail.voiceSession.serverAssistantLatency.maxMs} ms`}</dd>
+                                                </div>
+                                            </dl>
+                                            <p className="mt-3 text-[11px] text-violet-800">
+                                                Server assistant timing only; browser turn-to-audio evidence is reported separately.
+                                            </p>
+                                            {detail.voiceSession.errorCode === null
+                                                ? null
+                                                : (
+                                                    <p className="mt-2 text-[11px] font-semibold text-rose-700">
+                                                        Failure code: {detail.voiceSession.errorCode}
+                                                    </p>
+                                                )}
+                                        </section>
+                                    )}
+
                                 <section className="rounded-xl bg-sky-50 p-4">
                                     <h3 className="flex items-center gap-2 text-sm font-bold text-sky-950">
                                         <MessageSquareText aria-hidden="true" className="size-4" />

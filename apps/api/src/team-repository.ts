@@ -49,7 +49,7 @@ const handoffRowSchema = z.object({
 });
 
 const teamConversationRowSchema = z.object({
-    channel: z.literal("text"),
+    channel: z.enum(["text", "voice"]),
     customer_company: z.string().nullable(),
     customer_email: z.string().nullable(),
     customer_name: z.string().nullable(),
@@ -67,6 +67,39 @@ const teamConversationRowSchema = z.object({
         "closed",
     ]),
 });
+
+const teamVoiceSessionRowSchema = z.object({
+    created_at: z.string(),
+    ended_at: z.string().nullable(),
+    error_code: z.string().nullable(),
+    id: z.uuid(),
+    provider: z.enum(["livekit", "mock"]),
+    ready_at: z.string().nullable(),
+    started_at: z.string().nullable(),
+    status: z.enum(["warming", "ready", "active", "handoff", "closed", "failed"]),
+});
+
+const aiLatencyRowSchema = z.object({
+    latency_ms: z.number().int().nonnegative(),
+});
+
+/**
+ * nearestRankLatency
+ * ----------------
+ * Calculates one integer server-latency percentile using the same nearest-rank method as the voice acceptance report.
+ *
+ * July 27, 2026: Created by Forrest Zhang for SmartService Day 9 Voice Session Detail
+ */
+function nearestRankLatency(values: readonly number[], percentile: number): number | null
+{
+    if (values.length === 0)
+    {
+        return null;
+    }
+
+    const sorted = [...values].sort((left, right) => left - right);
+    return sorted[Math.max(0, Math.ceil(percentile * sorted.length) - 1)] ?? null;
+}
 
 const guardrailEventRowSchema = z.object({
     blocked_candidate: z.string().nullable().optional(),
@@ -628,12 +661,73 @@ export class SupabaseTeamRepository
                     summary: row.summary,
                 });
             })();
+        const { data: voiceSessionData, error: voiceSessionError } = await client
+            .from("voice_sessions")
+            .select("id, provider, status, error_code, ready_at, started_at, ended_at, created_at")
+            .eq("organization_id", organizationId)
+            .eq("conversation_id", conversationId)
+            .maybeSingle();
+
+        if (voiceSessionError !== null)
+        {
+            throw new ApiError(503, "CONVERSATION_UNAVAILABLE", "The voice session detail could not be loaded.");
+        }
+
+        const { data: latencyData, error: latencyError } = await client
+            .from("ai_runs")
+            .select("latency_ms")
+            .eq("organization_id", organizationId)
+            .eq("conversation_id", conversationId)
+            .eq("task_type", "rag_answer")
+            .eq("status", "succeeded")
+            .order("created_at")
+            .limit(500);
+
+        if (latencyError !== null)
+        {
+            throw new ApiError(503, "CONVERSATION_UNAVAILABLE", "The voice latency detail could not be loaded.");
+        }
+
+        const serverLatencies = (latencyData ?? []).map(
+            (row: unknown) => aiLatencyRowSchema.parse(row).latency_ms,
+        );
+        const voiceSession = voiceSessionData === null
+            ? null
+            : (() =>
+            {
+                const row = teamVoiceSessionRowSchema.parse(voiceSessionData);
+                return {
+                    createdAt: row.created_at,
+                    endedAt: row.ended_at,
+                    errorCode: row.error_code,
+                    provider: row.provider,
+                    readyAt: row.ready_at,
+                    serverAssistantLatency: {
+                        maxMs: serverLatencies.length === 0
+                            ? null
+                            : Math.max(...serverLatencies),
+                        p50Ms: nearestRankLatency(serverLatencies, 0.5),
+                        p95Ms: nearestRankLatency(serverLatencies, 0.95),
+                        sampleSize: serverLatencies.length,
+                    },
+                    startedAt: row.started_at,
+                    status: row.status,
+                    voiceSessionId: row.id,
+                    warmupMs: row.ready_at === null
+                        ? null
+                        : Math.max(
+                            0,
+                            Date.parse(row.ready_at) - Date.parse(row.created_at),
+                        ),
+                };
+            })();
 
         return teamConversationDetailSchema.parse({
             ...base,
             guardrailEvents,
             messages,
             summaryRecord,
+            voiceSession,
         });
     }
 

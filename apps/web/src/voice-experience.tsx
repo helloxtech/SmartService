@@ -33,6 +33,8 @@ type VoiceUiState =
     | "warming"
     | "ready"
     | "listening"
+    | "reconnecting"
+    | "handoff"
     | "denied"
     | "failed"
     | "ended";
@@ -80,9 +82,11 @@ function describeVoiceState(state: VoiceUiState): string
         denied: "Microphone access was denied. You can continue securely by text.",
         ended: "Voice session ended. No audio recording was stored.",
         failed: "Voice could not start. Please use text chat or try again.",
+        handoff: "AI voice has stopped. Your handoff package is ready for a human agent.",
         idle: "Click Start voice to create a private session. Nothing connects before your click.",
         listening: "Listening now. Ask your question in Chinese or English.",
         ready: "Agent Ready. Requesting microphone access…",
+        reconnecting: "Connection interrupted. Refreshing the secure token and reconnecting…",
         warming: "Warming the voice agent…",
     };
 
@@ -110,7 +114,17 @@ export function VoiceExperience({
         conversationId: string;
         conversationToken: string;
     } | null>(null);
+    const voiceConversationRef = useRef<{
+        conversationId: string;
+        conversationToken: string;
+    } | null>(null);
     const connection = useRef<VoiceRoomConnection | null>(null);
+    const activeConnector = useRef<VoiceRoomConnector | null>(null);
+    const reconnectAttempts = useRef(0);
+    const reconnectInFlight = useRef(false);
+    const reconnectTimer = useRef<number | null>(null);
+    const intentionalShutdown = useRef(false);
+    const handoffActive = useRef(false);
     const cursor = useRef<string | null>(null);
     const etag = useRef<string | null>(null);
     const publicKey = import.meta.env.VITE_DEMO_PUBLIC_KEY ?? "novaflow-public-demo";
@@ -121,7 +135,13 @@ export function VoiceExperience({
         {
             if (connection.current !== null)
             {
+                intentionalShutdown.current = true;
                 void connection.current.disconnect();
+            }
+
+            if (reconnectTimer.current !== null)
+            {
+                window.clearTimeout(reconnectTimer.current);
             }
         };
     }, []);
@@ -162,6 +182,16 @@ export function VoiceExperience({
                 const response = result.response;
                 etag.current = result.etag;
                 cursor.current = response.nextCursor;
+
+                if (
+                    response.status === "handoff_requested"
+                    || response.status === "active_human"
+                )
+                {
+                    handoffActive.current = true;
+                    setState("handoff");
+                }
+
                 setMessages((current) =>
                 {
                     const known = new Set(current.map((message) => message.messageId));
@@ -193,6 +223,175 @@ export function VoiceExperience({
     }, [voiceConversation]);
 
     /**
+     * recoverVoiceConnection
+     * ----------------
+     * Refreshes the short-lived room token and reconnects at most twice after an unrecoverable room disconnect.
+     *
+     * July 27, 2026: Created by Forrest Zhang for SmartService Day 9 Voice Reconnection
+     */
+    async function recoverVoiceConnection(): Promise<void>
+    {
+        const currentConversation = voiceConversationRef.current;
+        const currentConnector = activeConnector.current;
+
+        if (
+            intentionalShutdown.current
+            || handoffActive.current
+            || reconnectInFlight.current
+            || currentConversation === null
+            || currentConnector === null
+        )
+        {
+            return;
+        }
+
+        if (reconnectAttempts.current >= 2)
+        {
+            setState("failed");
+            return;
+        }
+
+        reconnectInFlight.current = true;
+        reconnectAttempts.current += 1;
+        setState("reconnecting");
+
+        try
+        {
+            const refreshedToken = await createVoiceToken(
+                currentConversation.conversationId,
+                currentConversation.conversationToken,
+            );
+            connection.current = await currentConnector.connect(
+                refreshedToken,
+                createRoomCallbacks(),
+            );
+        }
+        catch
+        {
+            if (reconnectAttempts.current >= 2)
+            {
+                setState("failed");
+            }
+            else
+            {
+                reconnectTimer.current = window.setTimeout(() =>
+                {
+                    void recoverVoiceConnection();
+                }, 750);
+            }
+        }
+        finally
+        {
+            reconnectInFlight.current = false;
+        }
+    }
+
+    /**
+     * createRoomCallbacks
+     * ----------------
+     * Creates one bounded callback set for initial connection, native reconnect, token refresh, playback timing, and microphone safety.
+     *
+     * July 27, 2026: Created by Forrest Zhang for SmartService Day 9 Voice Reconnection
+     */
+    function createRoomCallbacks(): Parameters<VoiceRoomConnector["connect"]>[1]
+    {
+        return {
+            /**
+             * onAudioPlaybackStarted
+             * ----------------
+             * Stores the browser-observed start of each audible Agent speech burst for honest latency evidence.
+             *
+             * July 27, 2026: Created by Forrest Zhang for SmartService Day 8 Browser Playback Timing
+             */
+            onAudioPlaybackStarted(startedAt): void
+            {
+                setLastPlaybackStartedAt(startedAt);
+            },
+            /**
+             * onDisconnected
+             * ----------------
+             * Keeps intentional and handoff shutdown terminal, otherwise starts one bounded secure-token recovery sequence.
+             *
+             * July 27, 2026: Updated by Forrest Zhang for SmartService Day 9 Voice Reconnection
+             */
+            onDisconnected(): void
+            {
+                if (intentionalShutdown.current)
+                {
+                    setState("ended");
+                }
+                else if (handoffActive.current)
+                {
+                    setState("handoff");
+                }
+                else
+                {
+                    void recoverVoiceConnection();
+                }
+            },
+            /**
+             * onReconnected
+             * ----------------
+             * Restores the listening state after LiveKit completes its native reconnect.
+             *
+             * July 27, 2026: Created by Forrest Zhang for SmartService Day 9 Voice Reconnection
+             */
+            onReconnected(): void
+            {
+                reconnectAttempts.current = 0;
+                setState("listening");
+            },
+            /**
+             * onReconnecting
+             * ----------------
+             * Makes a transient LiveKit network recovery visible without starting an application-level retry loop.
+             *
+             * July 27, 2026: Created by Forrest Zhang for SmartService Day 9 Voice Reconnection
+             */
+            onReconnecting(): void
+            {
+                setState("reconnecting");
+            },
+            /**
+             * onReady
+             * ----------------
+             * Requests microphone permission only after the Agent is ready and exposes a friendly denial fallback.
+             *
+             * July 27, 2026: Updated by Forrest Zhang for SmartService Day 9 Voice Reconnection
+             */
+            async onReady(): Promise<boolean>
+            {
+                setState("ready");
+
+                try
+                {
+                    await requestMicrophone();
+                    reconnectAttempts.current = 0;
+                    setState("listening");
+                    return true;
+                }
+                catch
+                {
+                    intentionalShutdown.current = true;
+                    setState("denied");
+                    return false;
+                }
+            },
+            /**
+             * onTranscript
+             * ----------------
+             * Displays the latest bounded interim or final provider transcript without storing browser audio.
+             *
+             * July 27, 2026: Created by Forrest Zhang for SmartService Day 6 Voice Foundation
+             */
+            onTranscript(text: string): void
+            {
+                setTranscript(text.slice(0, 5000));
+            },
+        };
+    }
+
+    /**
      * startVoice
      * ----------------
      * Creates conversation and room credentials only after the button click, waits for Ready, then handles microphone permission safely.
@@ -206,8 +405,13 @@ export function VoiceExperience({
         setLastPlaybackStartedAt(null);
         setMessages([]);
         setVoiceConversation(null);
+        voiceConversationRef.current = null;
         cursor.current = null;
         etag.current = null;
+        intentionalShutdown.current = false;
+        handoffActive.current = false;
+        reconnectAttempts.current = 0;
+        reconnectInFlight.current = false;
 
         try
         {
@@ -225,68 +429,19 @@ export function VoiceExperience({
                 conversationId: conversation.conversationId,
                 conversationToken: conversation.conversationToken,
             });
+            voiceConversationRef.current = {
+                conversationId: conversation.conversationId,
+                conversationToken: conversation.conversationToken,
+            };
             const selectedConnector = connector
                 ?? (token.provider === "mock"
                     ? new MockVoiceRoomConnector()
                     : new LiveKitVoiceRoomConnector());
-            connection.current = await selectedConnector.connect(token, {
-                /**
-                 * onAudioPlaybackStarted
-                 * ----------------
-                 * Stores the browser-observed start of each audible Agent speech burst for honest latency evidence.
-                 *
-                 * July 27, 2026: Created by Forrest Zhang for SmartService Day 8 Browser Playback Timing
-                 */
-                onAudioPlaybackStarted(startedAt): void
-                {
-                    setLastPlaybackStartedAt(startedAt);
-                },
-                /**
-                 * onDisconnected
-                 * ----------------
-                 * Reflects provider or customer room shutdown in the visible lifecycle.
-                 *
-                 * July 27, 2026: Created by Forrest Zhang for SmartService Day 6 Voice Foundation
-                 */
-                onDisconnected(): void
-                {
-                    setState("ended");
-                },
-                /**
-                 * onReady
-                 * ----------------
-                 * Requests microphone permission only after the Agent is ready and exposes a friendly denial fallback.
-                 *
-                 * July 27, 2026: Created by Forrest Zhang for SmartService Day 6 Voice Foundation
-                 */
-                async onReady(): Promise<boolean>
-                {
-                    setState("ready");
-
-                    try
-                    {
-                        await requestMicrophone();
-                        setState("listening");
-                        return true;
-                    }
-                    catch
-                    {
-                        setState("denied");
-                        return false;
-                    }
-                },
-                /**
-                 * onTranscript
-                 * ----------------
-                 * Displays the latest bounded interim or final provider transcript without storing browser audio.
-                 *
-                 * July 27, 2026: Created by Forrest Zhang for SmartService Day 6 Voice Foundation
-                 */
-                onTranscript(text: string): void
-                {
-                    setTranscript(text.slice(0, 5000));
-                },
-            });
+            activeConnector.current = selectedConnector;
+            connection.current = await selectedConnector.connect(
+                token,
+                createRoomCallbacks(),
+            );
         }
         catch
         {
@@ -303,8 +458,18 @@ export function VoiceExperience({
      */
     async function endVoice(): Promise<void>
     {
+        intentionalShutdown.current = true;
+
+        if (reconnectTimer.current !== null)
+        {
+            window.clearTimeout(reconnectTimer.current);
+            reconnectTimer.current = null;
+        }
+
         await connection.current?.disconnect();
         connection.current = null;
+        activeConnector.current = null;
+        voiceConversationRef.current = null;
         setState("ended");
     }
 
@@ -360,6 +525,14 @@ export function VoiceExperience({
                         {transcript || "Your transcript will appear here after you speak."}
                     </p>
                 </div>
+
+                {state === "handoff"
+                    ? (
+                        <div className="mt-5 rounded-2xl border border-amber-300/30 bg-amber-950/40 p-5 text-amber-100" role="status">
+                            A human agent can now review the transcript and handoff package. Voice AI will not reply again.
+                        </div>
+                    )
+                    : null}
 
                 {messages.length > 0
                     ? (

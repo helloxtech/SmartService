@@ -1,6 +1,8 @@
 export {
     createVoiceAgent,
+    findLatestUserText,
     normalizeVoiceSpeech,
+    VOICE_TURN_SETTINGS,
 } from "./agent";
 export {
     loadLocalEnvironment,

@@ -4,7 +4,7 @@ SmartService is a reusable, tenant-isolated AI customer-service demonstration. P
 
 ## Current state
 
-Gate 0 is approved, Days 1–5 are fully validated locally, and Days 6–7 add the browser/Worker/LiveKit Agent voice path. The public `/chat` path includes grounded bilingual answers, guardrails, handoff, polling, and finalization; `/voice` implements explicit-click warming, Ready-gated microphone access, Chinese/English sessions, transcript and citation display, shared grounded answers, streaming ElevenLabs TTS configuration, and text fallback. The complete Day 5–7 local checkpoints and three consecutive P0 demos passed; hosted-provider evidence remains pending. See [the live project status](docs/STATUS.md) for exact evidence and blockers.
+Gate 0 is approved, Days 1–5 are fully validated locally, and Days 6–8 add the browser/Worker/LiveKit Agent voice path. The public `/chat` path includes grounded bilingual answers, guardrails, handoff, polling, and finalization; `/voice` implements explicit-click warming, Ready-gated microphone access, Chinese/English sessions, transcript and citation display, shared grounded answers, streaming ElevenLabs TTS, multilingual semantic turns, adaptive interruption, attached browser audio, and text fallback. The complete Day 5–7 checkpoints, focused 40-turn Day 8 evaluation, and three consecutive P0 demos passed; hosted-provider evidence remains pending. See [the live project status](docs/STATUS.md) for exact evidence and blockers.
 
 ## Locked delivery
 
@@ -42,6 +42,7 @@ pnpm checkpoint:day4
 pnpm checkpoint:day5
 pnpm checkpoint:day6
 pnpm checkpoint:day7
+pnpm checkpoint:day8
 ```
 
 `pnpm db:start` and `pnpm db:status` deliberately suppress generated local credentials. The fictional demo login values are generated into the ignored mode-`0600` `.env.local`; never paste or commit that file.
@@ -59,6 +60,8 @@ After ingestion succeeds, `pnpm verify:conversation` exercises all 12 fixed in-s
 `pnpm checkpoint:day6` validates the voice schema, short-lived token and internal Agent boundaries, browser warming/Ready/microphone-denial states, Nova-3 Agent configuration, final transcript persistence, and idempotent replay. The local path uses the explicit mock provider and makes no paid calls; live STT/WebRTC quality remains credential- and device-gated.
 
 `pnpm checkpoint:day7` adds a fresh ingestion run and ten fixed bilingual voice RAG cases. It proves exact text/voice answer and public-citation parity, screen-only citations, safe missing-knowledge handoff, one-to-two-sentence speech text, and the ElevenLabs Flash v2.5 Agent adapter without making live provider calls.
+
+`pnpm checkpoint:day8` adds LiveKit multilingual semantic turn detection, adaptive interruption and false-resume settings, preemptive generation with preemptive TTS off, browser-received audio playback timing, and a fixed 40-turn local report. The report retains 20 Chinese and 20 English traces with the 28/8/4 scenario split and nearest-rank P50/P95/max; it is explicitly not live G2 evidence.
 
 Local ingestion, chat, and Turnstile use explicit deterministic providers and make no paid calls. Hosted R2, Queue, Browser Run, Turnstile, Supabase, and OpenAI evidence is still required before G1; production refuses any mock provider mode.
 

@@ -156,6 +156,7 @@ describe("VoiceExperience", () =>
             {
                 expect(requestMicrophone).not.toHaveBeenCalled();
                 await callbacks.onReady();
+                callbacks.onAudioPlaybackStarted("2026-07-27T08:00:01.000Z");
                 callbacks.onTranscript("请问 NF-500 的最大流量是多少？", true);
                 return {
                     /**
@@ -187,6 +188,9 @@ describe("VoiceExperience", () =>
         expect(await screen.findByText(/Listening now/u)).toBeInTheDocument();
         expect(requestMicrophone).toHaveBeenCalledOnce();
         expect(screen.getByText("请问 NF-500 的最大流量是多少？")).toBeInTheDocument();
+        expect(screen.getByTestId("voice-playback-clock")).toHaveTextContent(
+            "2026-07-27T08:00:01.000Z",
+        );
     });
 
     it("shows a friendly text fallback when microphone access is denied", async () =>

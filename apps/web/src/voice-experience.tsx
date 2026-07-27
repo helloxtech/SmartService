@@ -104,6 +104,7 @@ export function VoiceExperience({
     const [language, setLanguage] = useState<ConversationLanguage>("zh-CN");
     const [state, setState] = useState<VoiceUiState>("idle");
     const [transcript, setTranscript] = useState("");
+    const [lastPlaybackStartedAt, setLastPlaybackStartedAt] = useState<string | null>(null);
     const [messages, setMessages] = useState<PublicMessage[]>([]);
     const [voiceConversation, setVoiceConversation] = useState<{
         conversationId: string;
@@ -202,6 +203,7 @@ export function VoiceExperience({
     {
         setState("warming");
         setTranscript("");
+        setLastPlaybackStartedAt(null);
         setMessages([]);
         setVoiceConversation(null);
         cursor.current = null;
@@ -228,6 +230,17 @@ export function VoiceExperience({
                     ? new MockVoiceRoomConnector()
                     : new LiveKitVoiceRoomConnector());
             connection.current = await selectedConnector.connect(token, {
+                /**
+                 * onAudioPlaybackStarted
+                 * ----------------
+                 * Stores the browser-observed start of each audible Agent speech burst for honest latency evidence.
+                 *
+                 * July 27, 2026: Created by Forrest Zhang for SmartService Day 8 Browser Playback Timing
+                 */
+                onAudioPlaybackStarted(startedAt): void
+                {
+                    setLastPlaybackStartedAt(startedAt);
+                },
                 /**
                  * onDisconnected
                  * ----------------
@@ -378,6 +391,9 @@ export function VoiceExperience({
                 <p className="mt-5 flex items-center gap-2 text-sm text-slate-400">
                     <ShieldCheck aria-hidden="true" className="size-4" />
                     Browser microphone only. Audio recording is off by default.
+                </p>
+                <p className="sr-only" data-testid="voice-playback-clock">
+                    {lastPlaybackStartedAt ?? "No browser playback observed"}
                 </p>
             </section>
         </main>

@@ -1,5 +1,6 @@
 import {
     defineAgent,
+    inference,
     voice,
     type AgentDefinition,
     type JobContext,
@@ -10,6 +11,30 @@ import * as elevenlabs from "@livekit/agents-plugin-elevenlabs";
 import type { VoiceAgentConfiguration } from "./config";
 import { VoiceInternalApiClient } from "./internal-api";
 import { readVoiceSessionId } from "./metadata";
+
+export const VOICE_TURN_SETTINGS = {
+    endpointing: {
+        maxDelay: 1_500,
+        minDelay: 300,
+        mode: "dynamic",
+    },
+    interruption: {
+        backchannelBoundary: [1_000, 1_000] as [number, number],
+        discardAudioIfUninterruptible: true,
+        enabled: true,
+        falseInterruptionTimeout: 2_000,
+        minDuration: 500,
+        minWords: 0,
+        mode: "adaptive",
+        resumeFalseInterruption: true,
+    },
+    preemptiveGeneration: {
+        enabled: true,
+        maxRetries: 3,
+        maxSpeechDuration: 10_000,
+        preemptiveTts: false,
+    },
+} as const;
 
 /**
  * normalizeVoiceSpeech
@@ -35,40 +60,32 @@ export function normalizeVoiceSpeech(
 }
 
 /**
- * completeAndSpeak
+ * findLatestUserText
  * ----------------
- * Sends one final non-empty transcript through shared server guardrails, then speaks only the approved bounded text.
+ * Reads the most recent non-empty user message from a LiveKit chat context without accepting assistant or tool content.
  *
- * July 27, 2026: Created by Forrest Zhang for SmartService Day 7 Voice RAG and TTS
+ * July 27, 2026: Created by Forrest Zhang for SmartService Day 8 Turn and Interruption
  */
-async function completeAndSpeak(
-    api: VoiceInternalApiClient,
-    session: voice.AgentSession,
-    voiceSessionId: string,
-    language: "zh-CN" | "en",
-    transcript: string,
-): Promise<void>
+export function findLatestUserText(
+    chatContext: Parameters<NonNullable<Parameters<typeof voice.Agent.create>[0]["llmNode"]>>[1],
+): string | null
 {
-    const text = transcript.trim();
-
-    if (text.length === 0)
+    for (let index = chatContext.items.length - 1; index >= 0; index -= 1)
     {
-        return;
+        const item = chatContext.items[index];
+
+        if (item?.type === "message" && item.role === "user")
+        {
+            const text = item.textContent?.trim();
+
+            if (text !== undefined && text.length > 0)
+            {
+                return text;
+            }
+        }
     }
 
-    const result = await api.completeTurn(
-        voiceSessionId,
-        crypto.randomUUID(),
-        text,
-        new Date().toISOString(),
-    );
-    session.say(
-        normalizeVoiceSpeech(result.spokenText, language),
-        {
-            addToChatCtx: true,
-            allowInterruptions: true,
-        },
-    );
+    return null;
 }
 
 /**
@@ -115,29 +132,68 @@ async function runVoiceJob(
             stt,
             tts,
             turnHandling: {
-                turnDetection: "manual",
+                ...VOICE_TURN_SETTINGS,
+                turnDetection: new inference.TurnDetector({
+                    version: "v1-mini",
+                }),
             },
         });
-        const agent = new voice.Agent({
+        const agent = voice.Agent.create({
             instructions: sessionConfiguration.language === "zh-CN"
-                ? "准确听取客户的中文问题。此阶段只转录，不生成答案。"
-                : "Listen accurately to the customer's English question. Transcribe only at this stage.",
+                ? "准确听取客户的中文问题，只朗读服务器批准的简短回答。"
+                : "Listen accurately and speak only the short server-approved answer.",
+            /**
+             * llmNode
+             * ----------------
+             * Uses LiveKit's turn lifecycle for preemptive generation and cancellation while delegating all answer, citation, and guardrail decisions to the shared server pipeline.
+             *
+             * July 27, 2026: Created by Forrest Zhang for SmartService Day 8 Turn and Interruption
+             */
+            async *llmNode(_agentContext, chatContext)
+            {
+                const text = findLatestUserText(chatContext);
+
+                if (text === null)
+                {
+                    return;
+                }
+
+                const result = await api.completeTurn(
+                    voiceSessionId,
+                    crypto.randomUUID(),
+                    text,
+                    new Date().toISOString(),
+                );
+                yield normalizeVoiceSpeech(
+                    result.spokenText,
+                    sessionConfiguration.language,
+                );
+            },
         });
 
-        session.on(voice.AgentSessionEventTypes.UserInputTranscribed, (event) =>
+        session.on(voice.AgentSessionEventTypes.AgentFalseInterruption, (event) =>
         {
-            if (event.isFinal)
+            console.info(JSON.stringify({
+                event: "voice.false_interruption",
+                resumed: event.resumed,
+                voiceSessionId,
+            }));
+        });
+        session.on(voice.AgentSessionEventTypes.MetricsCollected, (event) =>
+        {
+            if (
+                event.metrics.type === "eot_inference_metrics"
+                || event.metrics.type === "interruption_metrics"
+                || event.metrics.type === "tts_metrics"
+            )
             {
-                void completeAndSpeak(
-                    api,
-                    session,
+                console.info(JSON.stringify({
+                    event: "voice.runtime_metric",
+                    metric: event.metrics.type,
                     voiceSessionId,
-                    sessionConfiguration.language,
-                    event.transcript,
-                );
+                }));
             }
         });
-
         await session.start({
             agent,
             record: {

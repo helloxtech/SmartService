@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { readVoiceAgentConfiguration } from "./config";
-import { normalizeVoiceSpeech } from "./agent";
+import {
+    normalizeVoiceSpeech,
+    VOICE_TURN_SETTINGS,
+} from "./agent";
 import { VoiceInternalApiClient } from "./internal-api";
 import { readVoiceSessionId } from "./metadata";
 
@@ -46,6 +49,27 @@ describe("voice agent foundation", () =>
             "NF-500 supports 300 L/min at 20°C.",
             "en",
         )).toBe("N F 500 supports 300 litres per minute at 20 degrees Celsius.");
+    });
+
+    it("locks multilingual adaptive interruption and guardrail-safe preemptive generation", () =>
+    {
+        expect(VOICE_TURN_SETTINGS).toMatchObject({
+            endpointing: {
+                maxDelay: 1_500,
+                minDelay: 300,
+                mode: "dynamic",
+            },
+            interruption: {
+                falseInterruptionTimeout: 2_000,
+                minDuration: 500,
+                mode: "adaptive",
+                resumeFalseInterruption: true,
+            },
+            preemptiveGeneration: {
+                enabled: true,
+                preemptiveTts: false,
+            },
+        });
     });
 
     it("authenticates configuration and transcript calls without logging content", async () =>

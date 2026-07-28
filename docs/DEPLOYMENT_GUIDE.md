@@ -49,7 +49,7 @@ The correct browser-created online Supabase project, Cloudflare DEV R2/Queue res
    pnpm --filter @smartservice/api exec wrangler deploy
    ```
 
-7. Configure Cloudflare native Workers Builds or equivalent Git CI/CD so `helloxtech/SmartService.git` pushes deploy the same `apps/api/wrangler.jsonc` Worker. The Worker name in Cloudflare must remain `smartservice-dev`, matching the Wrangler configuration. DEV is connected to `helloxtech/SmartService` on `main`; verify the first Git-triggered build after pushing the next commit.
+7. Configure Cloudflare native Workers Builds or equivalent Git CI/CD so `helloxtech/SmartService.git` pushes deploy the same `apps/api/wrangler.jsonc` Worker. The Worker name in Cloudflare must remain `smartservice-dev`, matching the Wrangler configuration. DEV is connected to `helloxtech/SmartService` on `main`, and the Git-triggered deployment path has been verified.
 8. Configure the Agent's server-only LiveKit, Deepgram, ElevenLabs, and internal Worker values in its provider secret store.
 9. Start or deploy the named Agent:
 
@@ -68,11 +68,10 @@ Completed:
 - Cloudflare R2 buckets exist: `smartservice-knowledge-dev` and `smartservice-knowledge-preview`.
 - Cloudflare Queues exist: `smartservice-ingest-dev`, `smartservice-finalize-dev`, `smartservice-ingest-dlq-dev`, and `smartservice-finalize-dlq-dev`.
 - `smartservice-dev` is deployed at `https://smartservice-dev.hurryupgo-b2d.workers.dev`; `/health`, hosted Admin login, public conversation creation, and public message smoke passed in DEV/mock-provider mode.
-- Cloudflare native Workers Builds is connected to `helloxtech/SmartService` with production branch `main`.
+- Cloudflare native Workers Builds is connected to `helloxtech/SmartService` with production branch `main`; commit `d5f9d1c` triggered an active Git-based deployment.
 
 Still required:
 
-- Verify the first Cloudflare Git-triggered build/deploy from a pushed `main` commit.
 - Add Browser Run, R2 signer, and live Turnstile credentials before switching provider modes to live and claiming hosted G1.
 - Hosted live G1 smoke evidence with live provider modes.
 

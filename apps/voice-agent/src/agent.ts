@@ -279,8 +279,8 @@ async function runVoiceJob(
             agent,
             record: {
                 audio: false,
-                logs: true,
-                traces: true,
+                logs: false,
+                traces: false,
                 transcript: false,
             },
             room: context.room,

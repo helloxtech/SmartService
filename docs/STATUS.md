@@ -111,6 +111,11 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Re-ran `pnpm verify:day10` and `pnpm demo:full:three`; all three fresh local demo chains passed again and regenerated `docs/evidence/day10-local-demo-runs.json`.
 - Created a least-privilege ElevenLabs development API key with Text to Speech, Voices Read, and Models access; stored it only in ignored mode-`0600` `.env.local`.
 - Selected and stored an ElevenLabs voice ID, then passed one bounded Chinese MP3 synthesis smoke with `eleven_flash_v2_5`.
+- Fixed the local LiveKit Agent worker entrypoint so the Cloud worker loader imports a pure Agent definition instead of the CLI launcher.
+- Passed a live local `/voice` browser join smoke: public voice conversation and room token returned `provider=live`, LiveKit Cloud dispatched `smartservice-voice-agent`, the Agent fetched server configuration, and the Worker recorded Ready before microphone publication.
+- Confirmed automated browser microphone access was denied in Playwright, leaving real microphone/STT/TTS/audio-playback UAT for the final demo device.
+- Disabled LiveKit session log/trace recording export in the Agent because project data recording is disabled; app-owned bounded console metrics remain available and audio recording stays off.
+- Confirmed from official ElevenLabs commercial-use guidance and the account UI that the current Free plan is not sufficient for a commercial/private sales demo; paid-plan approval remains required before final G2/commercial demo claims.
 
 ## Architecture findings
 

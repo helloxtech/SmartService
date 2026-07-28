@@ -123,15 +123,15 @@ These may be provisioned during P0, but must be ready before Day 6 and live-veri
 | LiveKit Cloud project | READY | Development project with Agent deployment permission; Build plan is acceptable | Development project exists; API authentication passed without logging credentials |
 | LiveKit CLI | MISSING | Install/authenticate `lk` before Agent deployment; not required for P0 | Version/auth status without token output |
 | LiveKit API key/secret | READY | Server/Agent-only credentials | Exposed development key was revoked; replacement key was stored locally; authenticated room list and short-lived token generation passed |
-| LiveKit Agent deployment | MISSING | Permission to deploy `smartservice-voice-agent` | Health check, warming state, Ready event, and room join |
+| LiveKit Agent deployment | VERIFY | Local worker registered with LiveKit Cloud and handled a browser-dispatched room join; deployed Agent hosting is still missing | Local `/voice` join reached Agent config and Ready; deploy-hosted worker health remains required before hosted G2 |
 | LiveKit budget/minute boundary | READY | Approved development Agent/WebRTC minutes remain inside the aggregate USD 50 cap and free allowance target | Usage dashboard check still required after real Agent/WebRTC tests |
 | Deepgram account/API key | READY | Nova-3 streaming access; use explicit `zh-CN` or `en` sessions because current `multi` does not include Chinese | Short English and Chinese transcription passed without logging the key/audio |
 | Deepgram budget/minute boundary | READY | Approved live STT usage remains inside the aggregate USD 50 cap; account has available credit | Provider usage check still required after longer live voice tests |
 | ElevenLabs account/API key | READY | Flash v2.5 streaming access | Least-privilege development key generated and stored locally; one short Chinese synthesis passed |
 | ElevenLabs voice ID | READY | Select a Chinese-capable demo voice; the ID is configuration, not a secret | Voice ID stored locally and used for Chinese TTS smoke |
-| ElevenLabs usage/licence approval | VERIFY | Confirm plan permits the intended private sales demo | Least-privilege key intentionally lacks `user_read`; confirm from account plan/UI before final G2 claim |
+| ElevenLabs usage/licence approval | MISSING | Current account UI shows Free; official ElevenLabs guidance says Free output is not commercially licensed, so approve a paid plan before a commercial/private sales demo | Upgrade/plan confirmation before final G2 or any sales-facing UAT |
 | ElevenLabs budget boundary | READY | Approved character usage remains inside the aggregate USD 50 cap and proposed USD 15 TTS allowance | Provider usage check still required after longer live voice tests |
-| Final demo browser/device | MISSING | Identify Chrome or Edge version, macOS device, microphone/headset, and network | Interactive WebRTC/microphone test |
+| Final demo browser/device | MISSING | Identify Chrome or Edge version, macOS device, microphone/headset, and network | Automated browser reached Ready but denied microphone; run interactive WebRTC/microphone/STT/TTS/audio-playback test |
 | Audio utility | OPTIONAL | `ffmpeg`/`ffprobe` is useful for bounded prerecorded fixtures and is not required for browser live audio | Version only |
 | HTTPS voice URL | MISSING | An approved non-production `workers.dev` URL is acceptable; microphone APIs require HTTPS outside localhost, and access control is separate | Permission prompt, token, room, and audio playback check |
 | Final demo region alignment | VERIFY | Browser, Supabase, LiveKit Agent, STT, and TTS should use the closest practical North American regions | Record region and latency-stage evidence |

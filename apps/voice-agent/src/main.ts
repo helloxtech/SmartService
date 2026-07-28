@@ -4,7 +4,6 @@ import {
 } from "@livekit/agents";
 import { fileURLToPath } from "node:url";
 
-import { createVoiceAgent } from "./agent";
 import {
     loadLocalEnvironment,
     readVoiceAgentConfiguration,
@@ -23,11 +22,9 @@ function main(): void
     const configuration = readVoiceAgentConfiguration();
 
     cli.runApp(new ServerOptions({
-        agent: fileURLToPath(import.meta.url),
+        agent: fileURLToPath(new URL("./agent-entry.ts", import.meta.url)),
         agentName: configuration.LIVEKIT_AGENT_NAME,
     }));
 }
 
 main();
-
-export default createVoiceAgent;

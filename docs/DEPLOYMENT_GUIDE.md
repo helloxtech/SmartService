@@ -2,7 +2,7 @@
 
 ## Release boundary
 
-Release `0.10.0` is a two-week demonstrable prototype. Local deterministic deployment is complete and tested. No hosted or production deployment was performed because the required external credentials and final live-provider evidence are not available. Production data, production traffic, paid upgrades, and a public URL remain outside the current authorization.
+Release `0.10.0` is a two-week demonstrable prototype. Local deterministic deployment is complete and tested. Hosted DEV provisioning has started, but a public hosted UAT URL is not ready until the dedicated Supabase service-role key is stored in ignored/provider secret storage and the remaining hosted checks pass. Production data, production traffic, paid upgrades, and a public production URL remain outside the current authorization.
 
 ## Runtime topology
 
@@ -35,11 +35,11 @@ Local voice uses the explicit mock room provider and does not synthesize real pr
 
 ## Hosted development deployment
 
-Do not continue until the user provides the missing account access and authorizes the exact development deployment.
+The dedicated online Supabase project and Cloudflare DEV R2/Queue resources now exist, but hosted deployment must still complete the server-secret and Git-trigger setup before it can count as G1 evidence.
 
-1. Create or select the dedicated development Supabase project in the approved North American west region.
-2. Apply all ordered migrations with the Supabase CLI and run `pnpm db:test` plus `pnpm db:lint`.
-3. Create the approved R2 bucket, ingestion/finalization Queues, and dead-letter Queues using the names in `apps/api/wrangler.jsonc`.
+1. Store the dedicated Supabase project URL, browser publishable key, service-role key, and database migration credential only in ignored local/provider secret storage.
+2. Apply all ordered migrations to the dedicated project and run `pnpm db:test` plus `pnpm db:lint` against that hosted schema. Connector-applied migrations are useful progress, but the final evidence still needs a repeatable migration status.
+3. Confirm the approved R2 buckets, ingestion/finalization Queues, and dead-letter Queues using the names in `apps/api/wrangler.jsonc`.
 4. Configure Worker secrets by name from `.env.example`; use `wrangler secret put` or the Cloudflare dashboard. Never place values in tracked Wrangler variables.
 5. Set `INGESTION_PROVIDER_MODE`, `CHAT_PROVIDER_MODE`, `AUXILIARY_PROVIDER_MODE`, `TURNSTILE_PROVIDER_MODE`, and `VOICE_PROVIDER_MODE` to `live` only after every corresponding binding is valid.
 6. Build and deploy the Worker:
@@ -49,14 +49,31 @@ Do not continue until the user provides the missing account access and authorize
    pnpm --filter @smartservice/api exec wrangler deploy
    ```
 
-7. Configure the Agent's server-only LiveKit, Deepgram, ElevenLabs, and internal Worker values in its provider secret store.
-8. Start or deploy the named Agent:
+7. Configure Cloudflare native Workers Builds or equivalent Git CI/CD so `helloxtech/SmartService.git` pushes deploy the same `apps/api/wrangler.jsonc` Worker. The Worker name in Cloudflare must remain `smartservice-dev`, matching the Wrangler configuration.
+8. Configure the Agent's server-only LiveKit, Deepgram, ElevenLabs, and internal Worker values in its provider secret store.
+9. Start or deploy the named Agent:
 
    ```bash
    pnpm --filter @smartservice/voice-agent start
    ```
 
-9. Run the hosted P0 smoke, then the live P1 device/network matrix. Do not reuse local/mock results as hosted evidence.
+10. Run the hosted P0 smoke, then the live P1 device/network matrix. Do not reuse local/mock results as hosted evidence.
+
+## Hosted DEV provisioning checkpoint
+
+Completed:
+
+- Dedicated online Supabase `SmartService` project exists in `us-west-1` and is healthy.
+- Cloudflare R2 buckets exist: `smartservice-knowledge-dev` and `smartservice-knowledge-preview`.
+- Cloudflare Queues exist: `smartservice-ingest-dev`, `smartservice-finalize-dev`, `smartservice-ingest-dlq-dev`, and `smartservice-finalize-dlq-dev`.
+- `wrangler deploy --dry-run` resolves Static Assets, R2, Queue, and Worker bindings.
+
+Still required:
+
+- Dedicated Supabase service-role key in `.env.local` and Cloudflare Worker secrets.
+- Remaining online migrations and hosted tenant-isolation checks.
+- Cloudflare native Git integration or repository CI/CD secrets for deployment on push.
+- Hosted Worker deployment, URL capture, and G1 smoke evidence.
 
 ## Live verification gates
 

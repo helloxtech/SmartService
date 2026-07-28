@@ -53,6 +53,11 @@ interface ChatMessage
     text: string;
 }
 
+type HumanSupportOfferReason =
+    | "customer_frustration"
+    | "repeated_clarification"
+    | "request_error";
+
 const sessionStorageKey = "smartservice.publicConversation.v1";
 
 /**
@@ -112,6 +117,19 @@ function storeSession(session: StoredSession): void
 function detectQuestionLanguage(question: string): ConversationLanguage
 {
     return /\p{Script=Han}/u.test(question) ? "zh-CN" : "en";
+}
+
+/**
+ * indicatesCustomerFrustration
+ * ----------------
+ * Detects a narrow set of explicit dissatisfaction phrases so the UI can offer human help without changing the server-owned handoff decision.
+ *
+ * July 27, 2026: Created by Forrest Zhang for SmartService Conditional Human Support
+ */
+function indicatesCustomerFrustration(question: string): boolean
+{
+    return /(?:没解决|还是没回答|一直没解决|很生气|不满意|太差了|没有帮助|not helpful|still not (?:answered|resolved)|frustrat(?:ed|ing)|very angry|terrible service|not satisfied)/iu
+        .test(question);
 }
 
 /**
@@ -219,9 +237,9 @@ function CitationPanel({
 /**
  * PublicChat
  * ----------------
- * Renders the responsive bilingual customer chat with grounded citations, scoped polling, and explicit human handoff.
+ * Renders the responsive bilingual customer chat with grounded citations, scoped polling, automatic escalation, and contextual human support.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Customer Chat
+ * July 27, 2026: Updated by Forrest Zhang for SmartService Conditional Human Support
  */
 export function PublicChat(): JSX.Element
 {
@@ -240,6 +258,9 @@ export function PublicChat(): JSX.Element
     const [status, setStatus] = useState<ConversationStatus>("active_ai");
     const [turnstileToken, setTurnstileToken] = useState("");
     const [selectedCitation, setSelectedCitation] = useState<PublicCitation | null>(null);
+    const [humanSupportOfferReason, setHumanSupportOfferReason] =
+        useState<HumanSupportOfferReason | null>(null);
+    const consecutiveClarifications = useRef(0);
     const cursorRef = useRef<string | null>(null);
     const etagRef = useRef<string | null>(null);
     const seenMessageIds = useRef(new Set<string>());
@@ -386,9 +407,9 @@ export function PublicChat(): JSX.Element
     /**
      * handleSubmit
      * ----------------
-     * Sends one optimistic retry-safe customer turn and appends only the validated persisted AI response.
+     * Sends one optimistic retry-safe customer turn, appends the validated response, and exposes human help only after a contextual signal.
      *
-     * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Customer Chat
+     * July 27, 2026: Updated by Forrest Zhang for SmartService Conditional Human Support
      */
     async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void>
     {
@@ -402,6 +423,12 @@ export function PublicChat(): JSX.Element
 
         setBusy(true);
         setError(null);
+        const customerAppearsFrustrated = indicatesCustomerFrustration(question);
+
+        if (customerAppearsFrustrated)
+        {
+            setHumanSupportOfferReason("customer_frustration");
+        }
 
         try
         {
@@ -441,6 +468,26 @@ export function PublicChat(): JSX.Element
             if (response.handoff !== null)
             {
                 setStatus(response.handoff.status);
+                consecutiveClarifications.current = 0;
+                setHumanSupportOfferReason(null);
+            }
+            else if (response.decision === "clarify")
+            {
+                consecutiveClarifications.current += 1;
+
+                if (consecutiveClarifications.current >= 2)
+                {
+                    setHumanSupportOfferReason("repeated_clarification");
+                }
+            }
+            else
+            {
+                consecutiveClarifications.current = 0;
+
+                if (!customerAppearsFrustrated)
+                {
+                    setHumanSupportOfferReason(null);
+                }
             }
 
             retryMessage.current = null;
@@ -451,6 +498,7 @@ export function PublicChat(): JSX.Element
             setError(caught instanceof Error
                 ? caught.message
                 : "The message could not be sent.");
+            setHumanSupportOfferReason("request_error");
         }
         finally
         {
@@ -461,9 +509,9 @@ export function PublicChat(): JSX.Element
     /**
      * handleHandoff
      * ----------------
-     * Starts a conversation if needed, then requests human support once through the scoped Worker endpoint.
+     * Starts a conversation if needed, then accepts the contextual human-support offer through the scoped Worker endpoint.
      *
-     * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Customer Chat
+     * July 27, 2026: Updated by Forrest Zhang for SmartService Conditional Human Support
      */
     async function handleHandoff(): Promise<void>
     {
@@ -484,6 +532,7 @@ export function PublicChat(): JSX.Element
             );
             seenMessageIds.current.add(response.messageId);
             setStatus(response.handoff.status);
+            setHumanSupportOfferReason(null);
             setMessages((current) => [...current, {
                 citations: [],
                 id: response.messageId,
@@ -496,6 +545,7 @@ export function PublicChat(): JSX.Element
             setError(caught instanceof Error
                 ? caught.message
                 : "Human support could not be requested.");
+            setHumanSupportOfferReason("request_error");
         }
         finally
         {
@@ -673,15 +723,25 @@ export function PublicChat(): JSX.Element
                             <p className="text-xs text-slate-500">
                                 Enter to send · Shift + Enter for a new line
                             </p>
-                            <button
-                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-sky-800 disabled:cursor-not-allowed disabled:text-slate-400"
-                                disabled={busy || status !== "active_ai"}
-                                onClick={() => void handleHandoff()}
-                                type="button"
-                            >
-                                <LifeBuoy aria-hidden="true" className="size-3.5" />
-                                Talk to a person · 转人工
-                            </button>
+                            {status === "active_ai" && humanSupportOfferReason !== null
+                                ? (
+                                    <button
+                                        className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:border-amber-400 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                        disabled={busy}
+                                        onClick={() => void handleHandoff()}
+                                        type="button"
+                                    >
+                                        <LifeBuoy aria-hidden="true" className="size-3.5" />
+                                        Need human help? · 需要人工帮助？
+                                    </button>
+                                )
+                                : status === "active_ai"
+                                    ? null
+                                    : (
+                                        <p className="text-right text-xs font-semibold text-amber-800">
+                                            Human support has the conversation · 人工客服已收到会话
+                                        </p>
+                                    )}
                         </div>
                     </div>
                 </section>

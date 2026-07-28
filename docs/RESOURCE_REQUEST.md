@@ -86,19 +86,19 @@ Provision these before a live P0 integration can pass G1. If a missing item is e
 
 | Provider/resource | Status | Required account, plan, permission, or asset | Safe verification |
 |---|---:|---|---|
-| Supabase development project | MISSING | Dedicated non-production project in the approved region; Free is acceptable for the demo | Confirm project ref and health endpoint; never display keys |
-| Supabase browser configuration | MISSING | Project URL and browser publishable/anon key | Initialize the browser client and perform an RLS-constrained anonymous check |
-| Supabase server configuration | MISSING | Service-role key and database URL/password | Apply migrations to the dedicated dev project and run a minimal server query |
-| Supabase CLI authentication | MISSING | Interactive CLI login or a tooling-only access token stored in native/ignored local storage | Link the project and read migration status without printing credentials |
-| Supabase project permissions | MISSING | Permission to manage Auth settings, extensions, migrations, and RLS | Enable/check `vector` and `pg_trgm`; run cross-tenant negative tests |
+| Supabase development project | READY | Dedicated non-production project `SmartService` in `us-west-1`; project ref recorded only as non-secret deployment identity | Confirmed `ACTIVE_HEALTHY` through the Supabase connector; never display keys |
+| Supabase browser configuration | VERIFY | Project URL and browser publishable/anon key for the dedicated project | Publishable keys are available through the Supabase connector; browser account currently shows a different Supabase organization, so RLS browser smoke is still pending |
+| Supabase server configuration | MISSING | Service-role key and database URL/password for the dedicated project | Service-role key is still required before Worker secrets, hosted P0, and hosted G1 can pass |
+| Supabase CLI authentication | MISSING | Interactive CLI login or a tooling-only access token stored in native/ignored local storage | CLI still requires `supabase login` or `SUPABASE_ACCESS_TOKEN`; connector migrations may proceed but do not replace CLI migration evidence |
+| Supabase project permissions | VERIFY | Permission to manage Auth settings, extensions, migrations, and RLS | First four ordered migrations were applied online; remaining migrations and cross-tenant negative tests are pending the final hosted setup path |
 | Demo identities and tenant-isolation seed | READY | Fictional admin and agent in tenant A plus a fictional admin in tenant B; local test passwords only | All three local Auth logins passed; 78 database tenant/role/privacy/ingestion/conversation/guardrail/handoff assertions passed |
-| Cloudflare account | MISSING | Account ID with Workers, Queues, R2, Browser Run, and Turnstile access | `wrangler whoami` and non-destructive resource lists |
-| Cloudflare deployment token | MISSING | Least-privilege token for development Worker, Queue, and R2 management | Authenticated dry run/resource listing; do not print token |
+| Cloudflare account | READY | Account ID with Workers, Queues, R2, Browser Run, and Turnstile access | `wrangler whoami`, R2 list, Queue list, and Worker dry run passed under the signed-in Cloudflare account |
+| Cloudflare deployment token | VERIFY | Least-privilege token for development Worker, Queue, and R2 management | Wrangler OAuth works locally; Git-triggered deployment still needs Cloudflare native Git integration or repository deploy secrets |
 | Browser Run token | MISSING | Separate least-privilege token with `Browser Rendering - Edit` | One bounded Markdown crawl against an approved fixture site |
-| Worker/static preview | MISSING | Permission to create the single-origin `smartservice-dev` Worker with Static Assets under `workers.dev` | `wrangler deploy --dry-run` first; live preview only after approved deployment authority |
-| R2 bucket and upload CORS | MISSING | `smartservice-knowledge-dev` or an approved existing equivalent; exact local/preview origins for short-lived signed PUT uploads | List bucket, verify CORS, then one temporary signed object round trip during P0 |
+| Worker/static preview | VERIFY | Permission to create the single-origin `smartservice-dev` Worker with Static Assets under `workers.dev` | Static Assets/Worker packaging dry run passed; live deploy is held until Supabase server secret is available so the preview is not knowingly broken |
+| R2 bucket and upload CORS | READY | `smartservice-knowledge-dev` and `smartservice-knowledge-preview` | Both buckets were created and listed; CORS/signed object round trip still belongs to hosted P0 smoke |
 | R2 signed-URL credentials | MISSING | Bucket-scoped R2 S3 Access Key ID/Secret Access Key for the Worker signer; distinct from the Cloudflare deployment token | Generate a short-expiry single-object PUT URL, upload/HEAD/delete a fictional object, and never print the URL/query or credentials |
-| Queues | MISSING | `smartservice-ingest-dev` and `smartservice-finalize-dev` or approved equivalents | List queues; integration test with ID-only payloads |
+| Queues | READY | `smartservice-ingest-dev`, `smartservice-finalize-dev`, `smartservice-ingest-dlq-dev`, and `smartservice-finalize-dlq-dev` | All four Queues were created and listed in Cloudflare |
 | Cloudflare Browser Run `/crawl` access | MISSING | Workers Free is sufficient for the bounded demo; verify account entitlement and quotas | One job with same-origin/page/depth bounds and redirect checks |
 | OpenAI project/account | READY | API project with billing/credit and a project-scoped server key | Minimal authenticated Responses API call passed without logging the key |
 | `gpt-5-mini` access | READY | Configurable alias, no dated snapshot | Tiny Responses call returned `gpt-5-mini-2025-08-07` |

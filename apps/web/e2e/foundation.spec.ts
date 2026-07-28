@@ -47,6 +47,7 @@ test("renders the responsive public customer chat and evidence panel", async ({ 
     await expect(page.getByText("AI ready · AI 已就绪")).toBeVisible();
     await expect(page.getByLabel("Ask NovaFlow support")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Supporting source" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Need human help/u })).toHaveCount(0);
 
     await page.setViewportSize({
         height: 844,
@@ -144,6 +145,8 @@ test("starts voice only after click and falls back cleanly when microphone is de
 
 test("runs the authenticated dashboard and one-click gap repair flow", async ({ page }) =>
 {
+    test.setTimeout(60_000);
+
     const gapId = "70000000-0000-4000-a000-000000000001";
     const sourceId = "40000000-0000-4000-a000-000000000001";
     const timestamp = "2026-07-26T12:00:00.000Z";

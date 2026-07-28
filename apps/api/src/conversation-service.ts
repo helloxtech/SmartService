@@ -165,11 +165,11 @@ function decodeCursor(value: string | null): MessageCursorPosition | null
  * ----------------
  * Detects narrow direct requests for a person without treating ordinary mentions of support or sales as takeover requests.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Public Handoff
+ * July 27, 2026: Updated by Forrest Zhang for SmartService Conditional Human Support
  */
-function isExplicitHandoffRequest(question: string): boolean
+export function isExplicitHandoffRequest(question: string): boolean
 {
-    return /(?:转(?:接)?人工|人工客服|真人客服|找个人|speak (?:to|with) (?:a )?(?:human|person|agent|representative)|talk (?:to|with) (?:a )?(?:human|person|agent|representative)|human agent)/iu
+    return /(?:转(?:接)?人工|(?:我要|我想要|我需要|需要|联系)(?:一位|一个)?(?:人工|人工客服|真人|真人客服)|人工客服|真人客服|找个人|(?:speak|talk|connect|transfer) (?:me )?(?:to|with) (?:a )?(?:human|person|agent|representative)|i (?:want|need|would like) (?:a )?(?:human|person|agent|representative)|human agent|real person|customer service (?:agent|representative))/iu
         .test(question);
 }
 

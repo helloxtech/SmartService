@@ -1,4 +1,5 @@
 import {
+    cleanup,
     render,
     screen,
 } from "@testing-library/react";
@@ -26,6 +27,7 @@ beforeEach(() =>
 
 afterEach(() =>
 {
+    cleanup();
     vi.unstubAllGlobals();
 });
 
@@ -95,6 +97,8 @@ describe("PublicChat", () =>
         render(<PublicChat />);
 
         await screen.findByText("Local demo verification is ready.");
+        expect(screen.queryByRole("button", { name: /Need human help/u }))
+            .not.toBeInTheDocument();
         await user.type(
             screen.getByLabelText("Ask NovaFlow support"),
             "NF-500 的保修期多久？",
@@ -109,5 +113,98 @@ describe("PublicChat", () =>
             "NF-500 limited warranty: 36 months from shipment date.",
         )).toBeInTheDocument();
         expect(JSON.stringify(fetchMock.mock.calls)).not.toContain("chunkId");
+    });
+
+    it("offers human help only after repeated clarification and completes the requested handoff", async () =>
+    {
+        let clarificationCount = 0;
+        const fetchMock = vi.fn(async (
+            input: RequestInfo | URL,
+            init?: RequestInit,
+        ): Promise<Response> =>
+        {
+            const url = String(input);
+
+            if (url.endsWith("/api/v1/public/conversations"))
+            {
+                return new Response(JSON.stringify({
+                    conversationId,
+                    conversationToken: "x".repeat(32),
+                    displayName: "NovaFlow",
+                    expiresAt: "2099-07-26T22:00:00.000Z",
+                    welcomeMessage: "您好，欢迎联系 NovaFlow。",
+                }), {
+                    headers: {
+                        "content-type": "application/json",
+                    },
+                    status: 201,
+                });
+            }
+
+            if (url.endsWith("/request-handoff"))
+            {
+                return new Response(JSON.stringify({
+                    handoff: {
+                        reason: "customer_requested",
+                        status: "handoff_requested",
+                    },
+                    messageId: "30000000-0000-4000-a000-000000000099",
+                }), {
+                    headers: {
+                        "content-type": "application/json",
+                    },
+                    status: 202,
+                });
+            }
+
+            if (url.includes(`/conversations/${conversationId}/messages`) && init?.method === "POST")
+            {
+                clarificationCount += 1;
+                return new Response(JSON.stringify({
+                    answer: `Clarification ${clarificationCount}`,
+                    citations: [],
+                    decision: "clarify",
+                    handoff: null,
+                    messageId: `30000000-0000-4000-a000-${String(clarificationCount).padStart(12, "0")}`,
+                }), {
+                    headers: {
+                        "content-type": "application/json",
+                    },
+                    status: 200,
+                });
+            }
+
+            if (url.includes(`/conversations/${conversationId}/messages`))
+            {
+                return new Response(null, {
+                    headers: {
+                        etag: 'W/"fixture"',
+                    },
+                    status: 304,
+                });
+            }
+
+            throw new Error(`Unexpected fixture request: ${url}`);
+        });
+        vi.stubGlobal("fetch", fetchMock);
+        const user = userEvent.setup();
+        render(<PublicChat />);
+
+        await screen.findByText("Local demo verification is ready.");
+        await user.type(screen.getByLabelText("Ask NovaFlow support"), "First unclear question");
+        await user.click(screen.getByRole("button", { name: "Send message" }));
+        await screen.findByText("Clarification 1");
+        expect(screen.queryByRole("button", { name: /Need human help/u }))
+            .not.toBeInTheDocument();
+
+        await user.type(screen.getByLabelText("Ask NovaFlow support"), "Second unclear question");
+        await user.click(screen.getByRole("button", { name: "Send message" }));
+        await screen.findByText("Clarification 2");
+
+        await user.click(screen.getByRole("button", { name: /Need human help/u }));
+        expect(await screen.findByText("已收到您的请求，人工客服将接手此会话。"))
+            .toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /Need human help/u }))
+            .not.toBeInTheDocument();
     });
 });

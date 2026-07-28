@@ -1,10 +1,10 @@
 # SmartService Project Status
 
 **Last updated:** July 27, 2026 PDT
-**Current gate:** Local P0/P1 UAT evidence complete; local live-provider smoke complete
-**Current phase:** Day 10 integrated local acceptance and UAT bundle complete; live provider setup remains evidence-gated
-**Active step:** Run the hosted/live G1/G2 checks only after the missing deployed resources and final demo device are ready
-**Overall state:** Days 1–10 are green locally; fresh three-run full P0/P1 local demos passed; OpenAI, LiveKit, Deepgram, and ElevenLabs local live smokes passed; hosted Supabase/Cloudflare, deployed Agent, final device evidence, and ElevenLabs commercial-use confirmation remain pending
+**Current gate:** Local P0/P1 UAT evidence complete; hosted DEV setup in progress
+**Current phase:** Day 10 integrated local acceptance and UAT bundle complete; online Supabase/Cloudflare provisioning is partially complete
+**Active step:** Obtain the dedicated Supabase service-role key without exposing it, finish online migrations/secrets, then enable hosted Worker/Git deployment and run hosted G1 checks
+**Overall state:** Days 1–10 are green locally; fresh three-run full P0/P1 local demos passed; OpenAI, LiveKit, Deepgram, and ElevenLabs local live smokes passed; dedicated Supabase project and Cloudflare DEV R2/Queues now exist; hosted Worker deploy, Git-triggered deploy, deployed Agent, final device evidence, and ElevenLabs commercial-use confirmation remain pending
 
 ## Original goal
 
@@ -116,6 +116,11 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Confirmed automated browser microphone access was denied in Playwright, leaving real microphone/STT/TTS/audio-playback UAT for the final demo device.
 - Disabled LiveKit session log/trace recording export in the Agent because project data recording is disabled; app-owned bounded console metrics remain available and audio recording stays off.
 - Confirmed from official ElevenLabs commercial-use guidance and the account UI that the current Free plan is not sufficient for a commercial/private sales demo; paid-plan approval remains required before final G2/commercial demo claims.
+- Created the dedicated online Supabase `SmartService` development project in `us-west-1` through the Supabase connector and confirmed it is `ACTIVE_HEALTHY`; first four ordered migrations are applied, while hosted server credentials and remaining hosted migration evidence are still pending.
+- Confirmed the in-app Supabase browser session is signed into a different organization that shows only the existing `HelloX Delivery Hub` project; to avoid unrelated-data risk, no existing Supabase browser project was modified for SmartService.
+- Created the Cloudflare DEV storage and queue resources required by `apps/api/wrangler.jsonc`: `smartservice-knowledge-dev`, `smartservice-knowledge-preview`, `smartservice-ingest-dev`, `smartservice-finalize-dev`, `smartservice-ingest-dlq-dev`, and `smartservice-finalize-dlq-dev`.
+- Confirmed Cloudflare Wrangler OAuth under the signed-in account can list resources, and the SmartService Worker/Static Assets package passes `wrangler deploy --dry-run`; live Worker deployment is held until Supabase server secret configuration is complete.
+- Narrowed public human support UX so the customer does not see a standing transfer button on first load; the UI offers human help only after customer frustration, repeated clarification, or request failure, while explicit handoff requests remain server-owned.
 
 ## Architecture findings
 
@@ -190,6 +195,12 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Foreign-key index audit | Passed: every public foreign key has an exact leading-column index, including tenant-qualified composite keys |
 | Local Auth verification | Passed: NovaFlow Admin, NovaFlow Agent, and isolation-tenant Admin; each sees exactly one tenant |
 | Worker Static Assets dry run | Passed with Static Assets, Queue, and R2 bindings; no deployment performed |
+| Cloudflare hosted resource creation | Passed: two SmartService R2 buckets and four SmartService Queues created and listed |
+| SmartService Worker packaging dry run | Passed: `wrangler deploy --dry-run` read 16 Static Assets files and resolved Queue/R2/Assets bindings |
+| Online Supabase project creation | Passed: dedicated `SmartService` project is `ACTIVE_HEALTHY` in `us-west-1`; service-role retrieval remains pending |
+| Targeted public-chat tests after conditional human-support UX change | Passed: 11 DOM tests plus 5 browser tests |
+| Targeted API conversation-service tests after handoff detector change | Passed: 8/8 tests |
+| Targeted API health test after broad-suite timeout | Passed: 2/2 tests; the earlier broad wrapper timeout did not reproduce in the focused run |
 | Dependency audit | Passed: no known production vulnerability at `high` or above |
 | Day 1 secret-pattern scan | Passed; no key/JWT/private-key pattern in candidate commit files |
 | Local secret handling | Passed; `.env.local` is ignored with mode `0600` and no values were printed |

@@ -1,6 +1,6 @@
 # SmartService Gate 0 Resource Request
 
-**Last audited:** July 26, 2026
+**Last audited:** July 27, 2026 PDT
 **Secret values stored here:** None
 **Current decision:** Gate 0 was approved by Forrest Zhang on July 26, 2026. Product implementation may proceed within the approved scope and budget boundaries below.
 
@@ -52,9 +52,9 @@ Priority values:
 | macOS | BLOCKING-NOW | READY | macOS `26.5.1`, Apple silicon |
 | Supported browsers | BLOCKING-P1 | READY | Chrome, Edge, and Safari are installed |
 | Microphone/headset and browser permission | BLOCKING-P1 | VERIFY | Must be tested interactively on the final demo device |
-| Local secret file | BLOCKING-NOW | READY | Ignored mode-`0600` `.env.local` and generated app-local Wrangler variables contain only local Supabase/demo/signing values; external provider values remain unset |
-| Product/provider code | BLOCKING-NOW | READY | Days 1–5 are implemented; the full Day 5 checkpoint and three clean-reset P0 demo runs passed locally at zero provider cost |
-| Cost-bearing project provider calls | BLOCKING-NOW | READY | None made; recorded project cost is USD 0 |
+| Local secret file | BLOCKING-NOW | READY | Ignored mode-`0600` `.env.local` contains local Supabase/demo/signing values plus locally verified OpenAI, LiveKit, and Deepgram credentials; values were not displayed |
+| Product/provider code | BLOCKING-NOW | READY | Days 1–10 are implemented; fresh three-run Day 10 local demos passed at zero local provider cost |
+| Cost-bearing project provider calls | BLOCKING-NOW | READY | Bounded OpenAI and Deepgram live smokes were made under the approved USD 50 cap; no paid upgrade or subscription change |
 
 ## BLOCKING-NOW
 
@@ -100,10 +100,10 @@ Provision these before a live P0 integration can pass G1. If a missing item is e
 | R2 signed-URL credentials | MISSING | Bucket-scoped R2 S3 Access Key ID/Secret Access Key for the Worker signer; distinct from the Cloudflare deployment token | Generate a short-expiry single-object PUT URL, upload/HEAD/delete a fictional object, and never print the URL/query or credentials |
 | Queues | MISSING | `smartservice-ingest-dev` and `smartservice-finalize-dev` or approved equivalents | List queues; integration test with ID-only payloads |
 | Cloudflare Browser Run `/crawl` access | MISSING | Workers Free is sufficient for the bounded demo; verify account entitlement and quotas | One job with same-origin/page/depth bounds and redirect checks |
-| OpenAI project/account | MISSING | API project with billing/credit and a project-scoped server key | Minimal authenticated Responses API call |
-| `gpt-5-mini` access | MISSING | Configurable alias, no dated snapshot | Tiny Structured Output request validated against schema |
-| `gpt-5-nano` access | MISSING | Configurable supervisor alias | Tiny classification request validated against schema |
-| `text-embedding-3-large` access | MISSING | 1024-dimension output enabled | One embedding; verify length equals 1024 without logging vector contents |
+| OpenAI project/account | READY | API project with billing/credit and a project-scoped server key | Minimal authenticated Responses API call passed without logging the key |
+| `gpt-5-mini` access | READY | Configurable alias, no dated snapshot | Tiny Responses call returned `gpt-5-mini-2025-08-07` |
+| `gpt-5-nano` access | READY | Configurable supervisor alias | Tiny Responses call returned `gpt-5-nano-2025-08-07` |
+| `text-embedding-3-large` access | READY | 1024-dimension output enabled | One embedding returned length `1024`; vector contents were not logged |
 | Conversation signing secret (local) | READY | High-entropy value is generated into the ignored Worker development secret file | Sign/verify, expiry, scope, organization, and URL-subject tests passed without printing the value |
 | Conversation signing secret (preview) | MISSING | Provision a distinct high-entropy value with `wrangler secret put` before an externally reachable preview | Sign/verify one short-lived preview token without printing the value |
 | Voice-to-API internal token placeholder | READY LOCAL | A high-entropy local value is generated into ignored storage; preview/deployed Agent provisioning remains missing | Authorized and unauthorized local Agent service calls passed without displaying the value |
@@ -120,13 +120,13 @@ These may be provisioned during P0, but must be ready before Day 6 and live-veri
 
 | Provider/resource | Status | Required account, plan, permission, or asset | Safe verification |
 |---|---:|---|---|
-| LiveKit Cloud project | MISSING | Development project with Agent deployment permission; Build plan is acceptable | Project URL reachability and account/project identity |
+| LiveKit Cloud project | READY | Development project with Agent deployment permission; Build plan is acceptable | Development project exists; API authentication passed without logging credentials |
 | LiveKit CLI | MISSING | Install/authenticate `lk` before Agent deployment; not required for P0 | Version/auth status without token output |
-| LiveKit API key/secret | MISSING | Server/Agent-only credentials | Generate and validate one short-lived room token |
+| LiveKit API key/secret | READY | Server/Agent-only credentials | Exposed development key was revoked; replacement key was stored locally; authenticated room list and short-lived token generation passed |
 | LiveKit Agent deployment | MISSING | Permission to deploy `smartservice-voice-agent` | Health check, warming state, Ready event, and room join |
-| LiveKit budget/minute boundary | MISSING | Approve maximum development Agent/WebRTC minutes; proposed cap: 300 minutes within the free allowance | Usage dashboard check after smoke tests |
-| Deepgram account/API key | MISSING | Nova-3 streaming access; use explicit `zh-CN` or `en` sessions because current `multi` does not include Chinese | Short Chinese and English transcription without logging the key/audio |
-| Deepgram budget/minute boundary | MISSING | Approve maximum live STT minutes; proposed cap: 300 minutes within available credit | Provider usage check |
+| LiveKit budget/minute boundary | READY | Approved development Agent/WebRTC minutes remain inside the aggregate USD 50 cap and free allowance target | Usage dashboard check still required after real Agent/WebRTC tests |
+| Deepgram account/API key | READY | Nova-3 streaming access; use explicit `zh-CN` or `en` sessions because current `multi` does not include Chinese | Short English and Chinese transcription passed without logging the key/audio |
+| Deepgram budget/minute boundary | READY | Approved live STT usage remains inside the aggregate USD 50 cap; account has available credit | Provider usage check still required after longer live voice tests |
 | ElevenLabs account/API key | MISSING | Flash v2.5 streaming access | Generate one short Chinese sentence |
 | ElevenLabs voice ID | MISSING | Select a Chinese-capable demo voice; the ID is configuration, not a secret | Short Chinese/English pronunciation test |
 | ElevenLabs usage/licence approval | MISSING | Confirm plan permits the intended private sales demo | Account-plan and usage check |
@@ -262,6 +262,6 @@ Current official free tiers are sufficient for most infrastructure, but only the
 - Approved Supabase region: Closest available North American west region to Vancouver
 - Approved 30-day retention: Yes
 - Monthly subscriptions inside/outside cap: Inside the aggregate cap; every paid upgrade still requires separate approval
-- P0 credential groups present: Local Supabase and fictional demo identities are ready; hosted Supabase, Cloudflare, Browser Run, R2, Queue, and OpenAI groups remain unset, so G1 live integration remains blocked
-- P1 credential groups present or deferred: External credentials remain absent; Day 6–10 local/mock implementation is authorized, while live voice evidence remains blocked until credentials are provisioned
-- Remaining exceptions: Only generated local Supabase/demo values are stored in the ignored local file; external provider credentials remain absent. Production deployment, production data, destructive production actions, and paid upgrades remain outside this approval.
+- P0 credential groups present: Local Supabase and fictional demo identities are ready; OpenAI is locally verified; hosted Supabase, Cloudflare, Browser Run, R2, Queue, Turnstile, and preview secret placement remain missing, so G1 live integration remains blocked
+- P1 credential groups present or deferred: LiveKit and Deepgram are locally verified; ElevenLabs API key/voice and deployed Agent/device evidence remain missing, so live G2 remains blocked
+- Remaining exceptions: Local/provider credentials are stored only in ignored local files or provider stores. Production deployment, production data, destructive production actions, and paid upgrades remain outside this approval.

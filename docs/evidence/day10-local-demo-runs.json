@@ -1,35 +1,35 @@
 {
   "environment": "local_deterministic",
-  "generatedAt": "2026-07-27T08:43:49.301Z",
+  "generatedAt": "2026-07-28T01:20:38.573Z",
   "providerCalls": 0,
   "releaseVersion": "0.10.0",
   "runs": [
     {
       "case": "diagnostic",
-      "completedAt": "2026-07-27T08:41:13.501Z",
-      "durationMs": 77650,
+      "completedAt": "2026-07-28T01:17:29.025Z",
+      "durationMs": 97037,
       "freshDatabase": true,
       "result": "passed",
       "run": 1,
-      "startedAt": "2026-07-27T08:39:55.847Z"
+      "startedAt": "2026-07-28T01:15:51.987Z"
     },
     {
       "case": "calibration",
-      "completedAt": "2026-07-27T08:42:30.814Z",
-      "durationMs": 77311,
+      "completedAt": "2026-07-28T01:18:55.833Z",
+      "durationMs": 86807,
       "freshDatabase": true,
       "result": "passed",
       "run": 2,
-      "startedAt": "2026-07-27T08:41:13.502Z"
+      "startedAt": "2026-07-28T01:17:29.027Z"
     },
     {
       "case": "replacement",
-      "completedAt": "2026-07-27T08:43:49.301Z",
-      "durationMs": 78486,
+      "completedAt": "2026-07-28T01:20:38.572Z",
+      "durationMs": 102738,
       "freshDatabase": true,
       "result": "passed",
       "run": 3,
-      "startedAt": "2026-07-27T08:42:30.815Z"
+      "startedAt": "2026-07-28T01:18:55.834Z"
     }
   ]
 }

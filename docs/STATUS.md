@@ -1,10 +1,10 @@
 # SmartService Project Status
 
-**Last updated:** July 27, 2026
-**Current gate:** Local P0 evidence complete; automatic P1 continuation authorized
-**Current phase:** Day 10 integrated local acceptance and UAT bundle complete; final composite checkpoint and publication next
-**Active step:** Run the Day 10 release audit and full checkpoint, publish release `0.10.0`, create the verified Git tag, and hand off for UAT
-**Overall state:** Days 1–9 are published and green locally; three independent clean-reset full P0/P1 demos passed; hosted P0 and live voice-provider/device evidence remain unavailable without external credentials
+**Last updated:** July 27, 2026 PDT
+**Current gate:** Local P0/P1 UAT evidence complete; live-provider smoke partially complete
+**Current phase:** Day 10 integrated local acceptance and UAT bundle complete; live provider setup remains evidence-gated
+**Active step:** Complete the remaining ElevenLabs credential/voice smoke, then run the hosted/live G1/G2 checks only after the missing deployed resources are ready
+**Overall state:** Days 1–10 are green locally; fresh three-run full P0/P1 local demos passed; OpenAI, LiveKit, and Deepgram live smokes passed; ElevenLabs, hosted Supabase/Cloudflare, deployed Agent, and final device evidence remain pending
 
 ## Original goal
 
@@ -106,6 +106,9 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Archived the three-run timestamps/durations and zero-cost result in `docs/evidence/day10-local-demo-runs.json`; the stable 40-turn voice snapshot remains in `docs/evidence/day8-local-voice-report.json`.
 - Audited tracked implementation/operator files for unresolved work markers and executable debugger statements.
 - Declined R11 entry because live G2 acceptance is absent. R11 remains disabled and no ticket migration or UI exists.
+- Replaced the previously exposed LiveKit development key, verified the exposed key row was removed in LiveKit Cloud, and stored the replacement only in ignored mode-`0600` `.env.local`.
+- Ran bounded live smokes without printing credentials: OpenAI Responses chat, OpenAI auxiliary/supervisor Responses, OpenAI 1024-dimension embeddings, LiveKit authenticated room listing plus short-lived token generation, and Deepgram Nova-3 English and Chinese transcription.
+- Re-ran `pnpm verify:day10` and `pnpm demo:full:three`; all three fresh local demo chains passed again and regenerated `docs/evidence/day10-local-demo-runs.json`.
 
 ## Architecture findings
 
@@ -218,15 +221,16 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Day 9 focused tests | Passed: 7/7 Agent tests including obsolete-turn cancellation and fixed failure speech; 10/10 web unit tests including bounded token-refresh reconnect and terminal handoff; 39/39 API tests |
 | Local Day 9 smoke | Passed: delivery guardrail, missing knowledge, persisted voice handoff, AI stopped, Agent voice detail, post-handoff token refresh denied, redacted service failure, and zero provider cost |
 | Full Day 9 composite checkpoint | Passed from a clean reset: format, lint, all workspace typechecks/tests/builds, 4/4 Playwright flows, 121/121 database assertions, database lint, fresh ingestion, Day 7 parity, Day 8 40-turn evaluation, and Day 9 safety/recovery smoke |
-| Three consecutive Day 10 full demos | Passed: diagnostic `77.650 s`, calibration `77.311 s`, replacement `78.486 s`; fresh reset each; complete P0/P1 local chain; zero provider cost |
+| Three consecutive Day 10 full demos | Passed again on July 28, 2026 UTC: diagnostic `97.037 s`, calibration `86.807 s`, replacement `102.738 s`; fresh reset each; complete P0/P1 local chain; zero provider cost |
 | Full Day 10 composite checkpoint | Passed from a clean reset after adding a bounded local Auth-readiness wait: format, lint, all workspace typechecks/tests/builds, 4/4 Playwright flows, 121/121 database assertions, database lint with no errors, P0/guardrail evaluations, local access, Days 2–10 smokes, and release audit |
-| Live provider smoke tests | Not run; external P0 provider credentials remain absent |
-| Cost-bearing provider calls | None |
+| `pnpm verify:day10` | Passed on July 27, 2026 PDT: release audit confirmed version `0.10.0`, three clean full demos, 40 retained voice traces, UAT/deployment bundle, no unresolved debug debt, R11 closed, and no provider cost |
+| Live provider smoke tests | Partially passed: OpenAI chat/supervisor/embeddings, LiveKit authenticated API/token generation, and Deepgram English/Chinese STT. ElevenLabs TTS is blocked by missing local API key/sign-in |
+| Cost-bearing provider calls | Bounded live smokes only: three OpenAI Responses/Embeddings calls and two Deepgram STT calls; LiveKit authentication/token check; no ElevenLabs call |
 
 ## Current blockers
 
-- P0 provider credentials and a dedicated development project remain unset; hosted P0 integration and a live G1 claim remain blocked until those groups are provisioned.
-- P1 provider credentials, commercial-use confirmation, voice ID, and final microphone/device/network verification remain absent. Local/mock Day 6–10 work proceeds under `DEC-053`, but live voice quality/latency cannot be claimed without them.
+- Hosted P0 remains blocked on dedicated Supabase and Cloudflare resources, including Browser Run, R2, Queues, Turnstile, preview deployment, and hosted secret placement.
+- P1 live acceptance remains blocked on ElevenLabs API key, Chinese-capable voice ID, commercial-use confirmation, deployed LiveKit Agent configuration, and final microphone/device/network verification. OpenAI, LiveKit, and Deepgram credentials are locally verified but do not by themselves satisfy live G2.
 
 See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact non-secret actions.
 
@@ -245,12 +249,12 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 
 ## Cost to date
 
-- Project provider cost recorded: **USD 0**.
-- No live project provider calls or paid resource actions were made.
+- Project provider cost recorded before live smoke: **USD 0**.
+- Bounded live smoke calls have now been made under the approved USD 50 cap; no paid upgrade or subscription change was performed, and exact provider-side dollar cost has not been computed.
 
 ## Next step
 
-Publish release `0.10.0`, create and verify tag `v0.10.0`, then hand the local/mock UAT bundle to Forrest Zhang. Hosted G1/G2 work waits for the resources in `docs/RESOURCE_REQUEST.md`.
+Sign in to ElevenLabs, create/store the development API key, select a Chinese-capable voice, and run one bounded TTS smoke. Hosted G1/G2 work still waits for the remaining resources in `docs/RESOURCE_REQUEST.md`.
 
 ## Resume instruction
 

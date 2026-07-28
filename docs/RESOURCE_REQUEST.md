@@ -52,7 +52,7 @@ Priority values:
 | macOS | BLOCKING-NOW | READY | macOS `26.5.1`, Apple silicon |
 | Supported browsers | BLOCKING-P1 | READY | Chrome, Edge, and Safari are installed |
 | Microphone/headset and browser permission | BLOCKING-P1 | VERIFY | Must be tested interactively on the final demo device |
-| Local secret file | BLOCKING-NOW | READY | Ignored mode-`0600` `.env.local` contains local Supabase/demo/signing values plus locally verified OpenAI, LiveKit, and Deepgram credentials; values were not displayed |
+| Local secret file | BLOCKING-NOW | READY | Ignored mode-`0600` `.env.local` contains local Supabase/demo/signing values plus locally verified OpenAI, LiveKit, Deepgram, and ElevenLabs credentials; values were not displayed |
 | Product/provider code | BLOCKING-NOW | READY | Days 1–10 are implemented; fresh three-run Day 10 local demos passed at zero local provider cost |
 | Cost-bearing project provider calls | BLOCKING-NOW | READY | Bounded OpenAI and Deepgram live smokes were made under the approved USD 50 cap; no paid upgrade or subscription change |
 
@@ -127,10 +127,10 @@ These may be provisioned during P0, but must be ready before Day 6 and live-veri
 | LiveKit budget/minute boundary | READY | Approved development Agent/WebRTC minutes remain inside the aggregate USD 50 cap and free allowance target | Usage dashboard check still required after real Agent/WebRTC tests |
 | Deepgram account/API key | READY | Nova-3 streaming access; use explicit `zh-CN` or `en` sessions because current `multi` does not include Chinese | Short English and Chinese transcription passed without logging the key/audio |
 | Deepgram budget/minute boundary | READY | Approved live STT usage remains inside the aggregate USD 50 cap; account has available credit | Provider usage check still required after longer live voice tests |
-| ElevenLabs account/API key | MISSING | Flash v2.5 streaming access | Generate one short Chinese sentence |
-| ElevenLabs voice ID | MISSING | Select a Chinese-capable demo voice; the ID is configuration, not a secret | Short Chinese/English pronunciation test |
-| ElevenLabs usage/licence approval | MISSING | Confirm plan permits the intended private sales demo | Account-plan and usage check |
-| ElevenLabs budget boundary | MISSING | Approve maximum characters or spend; proposed additional cash cap: USD 15 | Provider usage check |
+| ElevenLabs account/API key | READY | Flash v2.5 streaming access | Least-privilege development key generated and stored locally; one short Chinese synthesis passed |
+| ElevenLabs voice ID | READY | Select a Chinese-capable demo voice; the ID is configuration, not a secret | Voice ID stored locally and used for Chinese TTS smoke |
+| ElevenLabs usage/licence approval | VERIFY | Confirm plan permits the intended private sales demo | Least-privilege key intentionally lacks `user_read`; confirm from account plan/UI before final G2 claim |
+| ElevenLabs budget boundary | READY | Approved character usage remains inside the aggregate USD 50 cap and proposed USD 15 TTS allowance | Provider usage check still required after longer live voice tests |
 | Final demo browser/device | MISSING | Identify Chrome or Edge version, macOS device, microphone/headset, and network | Interactive WebRTC/microphone test |
 | Audio utility | OPTIONAL | `ffmpeg`/`ffprobe` is useful for bounded prerecorded fixtures and is not required for browser live audio | Version only |
 | HTTPS voice URL | MISSING | An approved non-production `workers.dev` URL is acceptable; microphone APIs require HTTPS outside localhost, and access control is separate | Permission prompt, token, room, and audio playback check |
@@ -263,5 +263,5 @@ Current official free tiers are sufficient for most infrastructure, but only the
 - Approved 30-day retention: Yes
 - Monthly subscriptions inside/outside cap: Inside the aggregate cap; every paid upgrade still requires separate approval
 - P0 credential groups present: Local Supabase and fictional demo identities are ready; OpenAI is locally verified; hosted Supabase, Cloudflare, Browser Run, R2, Queue, Turnstile, and preview secret placement remain missing, so G1 live integration remains blocked
-- P1 credential groups present or deferred: LiveKit and Deepgram are locally verified; ElevenLabs API key/voice and deployed Agent/device evidence remain missing, so live G2 remains blocked
+- P1 credential groups present or deferred: LiveKit, Deepgram, and ElevenLabs are locally verified; deployed Agent/device evidence and ElevenLabs commercial-use confirmation remain missing, so live G2 remains blocked
 - Remaining exceptions: Local/provider credentials are stored only in ignored local files or provider stores. Production deployment, production data, destructive production actions, and paid upgrades remain outside this approval.

@@ -35,7 +35,7 @@ Local voice uses the explicit mock room provider and does not synthesize real pr
 
 ## Hosted development deployment
 
-The correct browser-created online Supabase project and Cloudflare DEV R2/Queue resources now exist, but hosted deployment must still complete Cloudflare secret placement and Git-trigger setup before it can count as G1 evidence.
+The correct browser-created online Supabase project, Cloudflare DEV R2/Queue resources, and `smartservice-dev` Worker now exist. The hosted DEV preview is usable for smoke testing in mock-provider mode, but live G1 still requires live Turnstile, R2 signer, Browser Run, and live chat/ingestion provider configuration.
 
 1. Store the dedicated Supabase project URL, browser publishable key, service-role key, and database migration credential only in ignored local/provider secret storage.
 2. Apply all ordered migrations to the dedicated project and run `pnpm db:test` plus `pnpm db:lint` against that hosted schema. Connector-applied migrations are useful progress, but the final evidence still needs a repeatable migration status.
@@ -49,7 +49,7 @@ The correct browser-created online Supabase project and Cloudflare DEV R2/Queue 
    pnpm --filter @smartservice/api exec wrangler deploy
    ```
 
-7. Configure Cloudflare native Workers Builds or equivalent Git CI/CD so `helloxtech/SmartService.git` pushes deploy the same `apps/api/wrangler.jsonc` Worker. The Worker name in Cloudflare must remain `smartservice-dev`, matching the Wrangler configuration.
+7. Configure Cloudflare native Workers Builds or equivalent Git CI/CD so `helloxtech/SmartService.git` pushes deploy the same `apps/api/wrangler.jsonc` Worker. The Worker name in Cloudflare must remain `smartservice-dev`, matching the Wrangler configuration. DEV is connected to `helloxtech/SmartService` on `main`; verify the first Git-triggered build after pushing the next commit.
 8. Configure the Agent's server-only LiveKit, Deepgram, ElevenLabs, and internal Worker values in its provider secret store.
 9. Start or deploy the named Agent:
 
@@ -67,13 +67,14 @@ Completed:
 - Correct browser-created Supabase `SmartService` project `ibuvpregltbvxsxhivrg` exists in `us-west-2`, is healthy, has all 10 migrations applied, is seeded, and has hosted demo identities verified.
 - Cloudflare R2 buckets exist: `smartservice-knowledge-dev` and `smartservice-knowledge-preview`.
 - Cloudflare Queues exist: `smartservice-ingest-dev`, `smartservice-finalize-dev`, `smartservice-ingest-dlq-dev`, and `smartservice-finalize-dlq-dev`.
-- `wrangler deploy --dry-run` resolves Static Assets, R2, Queue, and Worker bindings.
+- `smartservice-dev` is deployed at `https://smartservice-dev.hurryupgo-b2d.workers.dev`; `/health`, hosted Admin login, public conversation creation, and public message smoke passed in DEV/mock-provider mode.
+- Cloudflare native Workers Builds is connected to `helloxtech/SmartService` with production branch `main`.
 
 Still required:
 
-- Hosted Supabase/server/provider values in Cloudflare Worker secrets.
-- Cloudflare native Git integration or repository CI/CD secrets for deployment on push.
-- Hosted Worker deployment, URL capture, and G1 smoke evidence.
+- Verify the first Cloudflare Git-triggered build/deploy from a pushed `main` commit.
+- Add Browser Run, R2 signer, and live Turnstile credentials before switching provider modes to live and claiming hosted G1.
+- Hosted live G1 smoke evidence with live provider modes.
 
 ## Live verification gates
 

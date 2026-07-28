@@ -120,7 +120,8 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Created the correct browser-owned Supabase `SmartService` organization and project `ibuvpregltbvxsxhivrg` in `us-west-2`; stored project URL, publishable key, secret server key, database URL, and database password only in ignored `.env.local`.
 - Applied all 10 ordered migrations to the correct hosted Supabase project, applied `supabase/seed.sql`, created/refreshed the three fictional hosted Auth users, and verified demo access plus cross-tenant organization isolation.
 - Created the Cloudflare DEV storage and queue resources required by `apps/api/wrangler.jsonc`: `smartservice-knowledge-dev`, `smartservice-knowledge-preview`, `smartservice-ingest-dev`, `smartservice-finalize-dev`, `smartservice-ingest-dlq-dev`, and `smartservice-finalize-dlq-dev`.
-- Confirmed Cloudflare Wrangler OAuth under the signed-in account can list resources, and the SmartService Worker/Static Assets package passes `wrangler deploy --dry-run`; live Worker deployment is held until Supabase server secret configuration is complete.
+- Deployed the `smartservice-dev` Cloudflare Worker/Static Assets preview at `https://smartservice-dev.hurryupgo-b2d.workers.dev`, set the currently available Worker secrets without printing values, and verified `/health`, hosted Admin login, public conversation creation, and one public message smoke in DEV/mock-provider mode.
+- Connected Cloudflare native Workers Builds for `smartservice-dev` to `helloxtech/SmartService` on production branch `main`; the next pushed commit should trigger the first Git-based Cloudflare build/deploy.
 - Narrowed public human support UX so the customer does not see a standing transfer button on first load; the UI offers human help only after customer frustration, repeated clarification, or request failure, while explicit handoff requests remain server-owned.
 
 ## Architecture findings
@@ -245,12 +246,13 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Three consecutive Day 10 full demos | Passed again on July 28, 2026 UTC: diagnostic `97.037 s`, calibration `86.807 s`, replacement `102.738 s`; fresh reset each; complete P0/P1 local chain; zero provider cost |
 | Full Day 10 composite checkpoint | Passed from a clean reset after adding a bounded local Auth-readiness wait: format, lint, all workspace typechecks/tests/builds, 4/4 Playwright flows, 121/121 database assertions, database lint with no errors, P0/guardrail evaluations, local access, Days 2–10 smokes, and release audit |
 | `pnpm verify:day10` | Passed on July 27, 2026 PDT: release audit confirmed version `0.10.0`, three clean full demos, 40 retained voice traces, UAT/deployment bundle, no unresolved debug debt, R11 closed, and no provider cost |
-| Live provider smoke tests | Passed locally: OpenAI chat/supervisor/embeddings, LiveKit authenticated API/token generation, Deepgram English/Chinese STT, and ElevenLabs Chinese TTS. Hosted/deployed G1/G2 evidence remains pending |
+| Live provider smoke tests | Passed locally: OpenAI chat/supervisor/embeddings, LiveKit authenticated API/token generation, Deepgram English/Chinese STT, and ElevenLabs Chinese TTS. Hosted DEV health/admin/public-chat smoke passed with mock provider modes; hosted/deployed live G1/G2 evidence remains pending |
+| Hosted DEV Worker smoke | Passed: `smartservice-dev` `/health` returned `200`, hosted Admin login passed, public conversation creation returned `201`, and public message send returned `200` |
 | Cost-bearing provider calls | Bounded live smokes only: three OpenAI Responses/Embeddings calls, two Deepgram STT calls, one ElevenLabs TTS call, and a LiveKit authentication/token check |
 
 ## Current blockers
 
-- Hosted P0 remains blocked on Cloudflare Worker secret placement, Browser Run token/access verification, Turnstile live keys, R2 signer credentials, preview deployment, and hosted G1 smoke evidence. Supabase hosted schema, seed, keys, and demo identities are ready locally.
+- Hosted P0 no longer blocks on basic Supabase schema, demo identities, Cloudflare Worker deployment, core Worker secrets, or DEV smoke. It still blocks on Browser Run token/access verification, live Turnstile hostname keys, R2 signer credentials, and switching ingestion/chat/auxiliary/Turnstile provider modes from mock to live for G1 evidence.
 - P1 live acceptance remains blocked on ElevenLabs commercial-use confirmation, deployed LiveKit Agent configuration, and final microphone/device/network verification. Provider credentials and local smokes are verified, but they do not by themselves satisfy live G2.
 
 See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact non-secret actions.
@@ -275,7 +277,7 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 
 ## Next step
 
-Place hosted secrets into Cloudflare, deploy `smartservice-dev`, configure Git-triggered deployment, run hosted G1, then configure the deployed LiveKit Agent path and final browser/device G2 acceptance. R11 remains gated.
+Verify the first Git-triggered Cloudflare build from `main`, then provision the remaining Browser Run, R2 signer, and live Turnstile credentials before running hosted G1. After G1, configure the deployed LiveKit Agent path and final browser/device G2 acceptance. R11 remains gated.
 
 ## Resume instruction
 

@@ -2,9 +2,9 @@
 
 **Last updated:** July 27, 2026 PDT
 **Current gate:** Local P0/P1 UAT evidence complete; hosted DEV setup in progress
-**Current phase:** Day 10 integrated local acceptance and UAT bundle complete; online Supabase/Cloudflare provisioning is partially complete
-**Active step:** Obtain the dedicated Supabase service-role key without exposing it, finish online migrations/secrets, then enable hosted Worker/Git deployment and run hosted G1 checks
-**Overall state:** Days 1–10 are green locally; fresh three-run full P0/P1 local demos passed; OpenAI, LiveKit, Deepgram, and ElevenLabs local live smokes passed; dedicated Supabase project and Cloudflare DEV R2/Queues now exist; hosted Worker deploy, Git-triggered deploy, deployed Agent, final device evidence, and ElevenLabs commercial-use confirmation remain pending
+**Current phase:** Day 10 integrated local acceptance and UAT bundle complete; hosted Supabase is ready and Cloudflare provisioning is partially complete
+**Active step:** Place the hosted Supabase/server/provider secrets into Cloudflare Worker secrets, enable hosted Worker/Git deployment, then run hosted G1 checks
+**Overall state:** Days 1–10 are green locally; fresh three-run full P0/P1 local demos passed; OpenAI, LiveKit, Deepgram, and ElevenLabs local live smokes passed; correct browser-created Supabase project is migrated, seeded, and verified; Cloudflare DEV R2/Queues exist; hosted Worker deploy, Git-triggered deploy, deployed Agent, final device evidence, and ElevenLabs commercial-use confirmation remain pending
 
 ## Original goal
 
@@ -116,8 +116,9 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Confirmed automated browser microphone access was denied in Playwright, leaving real microphone/STT/TTS/audio-playback UAT for the final demo device.
 - Disabled LiveKit session log/trace recording export in the Agent because project data recording is disabled; app-owned bounded console metrics remain available and audio recording stays off.
 - Confirmed from official ElevenLabs commercial-use guidance and the account UI that the current Free plan is not sufficient for a commercial/private sales demo; paid-plan approval remains required before final G2/commercial demo claims.
-- Created the dedicated online Supabase `SmartService` development project in `us-west-1` through the Supabase connector and confirmed it is `ACTIVE_HEALTHY`; first four ordered migrations are applied, while hosted server credentials and remaining hosted migration evidence are still pending.
-- Confirmed the in-app Supabase browser session is signed into a different organization that shows only the existing `HelloX Delivery Hub` project; to avoid unrelated-data risk, no existing Supabase browser project was modified for SmartService.
+- Paused the wrongly created connector-owned Supabase `SmartService` project `wfkheempcfislbaonkiz`; CLI deletion remains blocked because no access token is available for that hidden connector account.
+- Created the correct browser-owned Supabase `SmartService` organization and project `ibuvpregltbvxsxhivrg` in `us-west-2`; stored project URL, publishable key, secret server key, database URL, and database password only in ignored `.env.local`.
+- Applied all 10 ordered migrations to the correct hosted Supabase project, applied `supabase/seed.sql`, created/refreshed the three fictional hosted Auth users, and verified demo access plus cross-tenant organization isolation.
 - Created the Cloudflare DEV storage and queue resources required by `apps/api/wrangler.jsonc`: `smartservice-knowledge-dev`, `smartservice-knowledge-preview`, `smartservice-ingest-dev`, `smartservice-finalize-dev`, `smartservice-ingest-dlq-dev`, and `smartservice-finalize-dlq-dev`.
 - Confirmed Cloudflare Wrangler OAuth under the signed-in account can list resources, and the SmartService Worker/Static Assets package passes `wrangler deploy --dry-run`; live Worker deployment is held until Supabase server secret configuration is complete.
 - Narrowed public human support UX so the customer does not see a standing transfer button on first load; the UI offers human help only after customer frustration, repeated clarification, or request failure, while explicit handoff requests remain server-owned.
@@ -197,7 +198,9 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Worker Static Assets dry run | Passed with Static Assets, Queue, and R2 bindings; no deployment performed |
 | Cloudflare hosted resource creation | Passed: two SmartService R2 buckets and four SmartService Queues created and listed |
 | SmartService Worker packaging dry run | Passed: `wrangler deploy --dry-run` read 16 Static Assets files and resolved Queue/R2/Assets bindings |
-| Online Supabase project creation | Passed: dedicated `SmartService` project is `ACTIVE_HEALTHY` in `us-west-1`; service-role retrieval remains pending |
+| Wrong Supabase project deactivation | Passed: connector-created `wfkheempcfislbaonkiz` is inactive; true deletion remains blocked without that account's CLI/API token |
+| Correct hosted Supabase project creation | Passed: browser-created `SmartService` project `ibuvpregltbvxsxhivrg` is healthy in `us-west-2` |
+| Correct hosted Supabase migration/seed | Passed: remote dry run is up to date; verification found 10 migrations, 19 public tables, and 19 forced-RLS tables; hosted seed and three fictional Auth identities are ready |
 | Targeted public-chat tests after conditional human-support UX change | Passed: 11 DOM tests plus 5 browser tests |
 | Targeted API conversation-service tests after handoff detector change | Passed: 8/8 tests |
 | Targeted API health test after broad-suite timeout | Passed: 2/2 tests; the earlier broad wrapper timeout did not reproduce in the focused run |
@@ -247,7 +250,7 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 
 ## Current blockers
 
-- Hosted P0 remains blocked on dedicated Supabase and Cloudflare resources, including Browser Run, R2, Queues, Turnstile, preview deployment, and hosted secret placement.
+- Hosted P0 remains blocked on Cloudflare Worker secret placement, Browser Run token/access verification, Turnstile live keys, R2 signer credentials, preview deployment, and hosted G1 smoke evidence. Supabase hosted schema, seed, keys, and demo identities are ready locally.
 - P1 live acceptance remains blocked on ElevenLabs commercial-use confirmation, deployed LiveKit Agent configuration, and final microphone/device/network verification. Provider credentials and local smokes are verified, but they do not by themselves satisfy live G2.
 
 See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact non-secret actions.
@@ -272,7 +275,7 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 
 ## Next step
 
-Provision the hosted Supabase/Cloudflare resources and deployed LiveKit Agent path, confirm ElevenLabs commercial demo rights from the account plan, then run final browser/device G1/G2 acceptance. R11 remains gated.
+Place hosted secrets into Cloudflare, deploy `smartservice-dev`, configure Git-triggered deployment, run hosted G1, then configure the deployed LiveKit Agent path and final browser/device G2 acceptance. R11 remains gated.
 
 ## Resume instruction
 

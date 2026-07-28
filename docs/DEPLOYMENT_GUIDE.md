@@ -2,7 +2,7 @@
 
 ## Release boundary
 
-Release `0.10.0` is a two-week demonstrable prototype. Local deterministic deployment is complete and tested. Hosted DEV provisioning has started, but a public hosted UAT URL is not ready until the dedicated Supabase service-role key is stored in ignored/provider secret storage and the remaining hosted checks pass. Production data, production traffic, paid upgrades, and a public production URL remain outside the current authorization.
+Release `0.10.0` is a two-week demonstrable prototype. Local deterministic deployment is complete and tested. Hosted DEV provisioning has started, but a public hosted UAT URL is not ready until Cloudflare Worker secrets/deployment and the remaining hosted checks pass. Production data, production traffic, paid upgrades, and a public production URL remain outside the current authorization.
 
 ## Runtime topology
 
@@ -35,7 +35,7 @@ Local voice uses the explicit mock room provider and does not synthesize real pr
 
 ## Hosted development deployment
 
-The dedicated online Supabase project and Cloudflare DEV R2/Queue resources now exist, but hosted deployment must still complete the server-secret and Git-trigger setup before it can count as G1 evidence.
+The correct browser-created online Supabase project and Cloudflare DEV R2/Queue resources now exist, but hosted deployment must still complete Cloudflare secret placement and Git-trigger setup before it can count as G1 evidence.
 
 1. Store the dedicated Supabase project URL, browser publishable key, service-role key, and database migration credential only in ignored local/provider secret storage.
 2. Apply all ordered migrations to the dedicated project and run `pnpm db:test` plus `pnpm db:lint` against that hosted schema. Connector-applied migrations are useful progress, but the final evidence still needs a repeatable migration status.
@@ -63,15 +63,15 @@ The dedicated online Supabase project and Cloudflare DEV R2/Queue resources now 
 
 Completed:
 
-- Dedicated online Supabase `SmartService` project exists in `us-west-1` and is healthy.
+- Wrong connector-created Supabase project `wfkheempcfislbaonkiz` is inactive; true deletion requires that account's CLI/API token.
+- Correct browser-created Supabase `SmartService` project `ibuvpregltbvxsxhivrg` exists in `us-west-2`, is healthy, has all 10 migrations applied, is seeded, and has hosted demo identities verified.
 - Cloudflare R2 buckets exist: `smartservice-knowledge-dev` and `smartservice-knowledge-preview`.
 - Cloudflare Queues exist: `smartservice-ingest-dev`, `smartservice-finalize-dev`, `smartservice-ingest-dlq-dev`, and `smartservice-finalize-dlq-dev`.
 - `wrangler deploy --dry-run` resolves Static Assets, R2, Queue, and Worker bindings.
 
 Still required:
 
-- Dedicated Supabase service-role key in `.env.local` and Cloudflare Worker secrets.
-- Remaining online migrations and hosted tenant-isolation checks.
+- Hosted Supabase/server/provider values in Cloudflare Worker secrets.
 - Cloudflare native Git integration or repository CI/CD secrets for deployment on push.
 - Hosted Worker deployment, URL capture, and G1 smoke evidence.
 

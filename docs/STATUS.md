@@ -126,7 +126,7 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Seeded hosted DEV with 3 Ready fictional sources and 23 embedded chunks; hosted public text smoke now returns cited answers for the UAT guide's sample in-scope questions and safe handoff for missing warehouse-stock knowledge.
 - Narrowed public human support UX so the customer does not see a standing transfer button on first load; the UI offers human help only after customer frustration, repeated clarification, or request failure, while explicit handoff requests remain server-owned.
 - Verified the user-signed browser can access the correct Supabase project `SmartService` / `ibuvpregltbvxsxhivrg`; the Supabase connector remains attached to the wrong hidden organization and must not be used for this hosted DEV project.
-- Pushed commit `1243ce9` to `helloxtech/SmartService` `main`; Git is clean and aligned with `origin/main`, and Cloudflare activated post-push Worker version `6c502627-b5b6-4745-82af-9c7a4ba08504`.
+- Pushed the hosted handoff updates to `helloxtech/SmartService` `main`; Git is clean and aligned with `origin/main`, and the Cloudflare dashboard/CLI showed a new post-push Worker deployment. Because documentation commits also trigger Worker builds, verify the current version ID with `wrangler deployments list` instead of treating any recorded version ID as durable.
 
 ## Architecture findings
 

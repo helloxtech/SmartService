@@ -1,8 +1,8 @@
 # SmartService Project Status
 
 **Last updated:** July 27, 2026 PDT
-**Current gate:** Local P0/P1 UAT evidence complete; hosted DEV setup in progress
-**Current phase:** Day 10 integrated local acceptance and UAT bundle complete; hosted Supabase is ready and Cloudflare provisioning is partially complete
+**Current gate:** Local P0/P1 UAT evidence complete; hosted DEV mock-provider text smoke complete
+**Current phase:** Day 10 integrated local acceptance and UAT bundle complete; hosted Supabase, Cloudflare Git deployment, and hosted fictional knowledge smoke are ready
 **Active step:** Place the hosted Supabase/server/provider secrets into Cloudflare Worker secrets, enable hosted Worker/Git deployment, then run hosted G1 checks
 **Overall state:** Days 1–10 are green locally; fresh three-run full P0/P1 local demos passed; OpenAI, LiveKit, Deepgram, and ElevenLabs local live smokes passed; correct browser-created Supabase project is migrated, seeded, and verified; Cloudflare DEV R2/Queues exist; hosted Worker deploy, Git-triggered deploy, deployed Agent, final device evidence, and ElevenLabs commercial-use confirmation remain pending
 
@@ -122,6 +122,8 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Created the Cloudflare DEV storage and queue resources required by `apps/api/wrangler.jsonc`: `smartservice-knowledge-dev`, `smartservice-knowledge-preview`, `smartservice-ingest-dev`, `smartservice-finalize-dev`, `smartservice-ingest-dlq-dev`, and `smartservice-finalize-dlq-dev`.
 - Deployed the `smartservice-dev` Cloudflare Worker/Static Assets preview at `https://smartservice-dev.hurryupgo-b2d.workers.dev`, set the currently available Worker secrets without printing values, and verified `/health`, hosted Admin login, public conversation creation, and one public message smoke in DEV/mock-provider mode.
 - Connected Cloudflare native Workers Builds for `smartservice-dev` to `helloxtech/SmartService` on production branch `main`; commit `d5f9d1c` triggered the first Git-based Cloudflare build/deploy and activated version `d90cf5c8`.
+- Added repeatable hosted DEV tooling: `pnpm hosted:seed-demo-knowledge` seeds the fictional NovaFlow PDF/DOCX/URL fixtures through the shared deterministic ingestion pipeline, and `pnpm verify:hosted-dev` checks routes, health, ready knowledge, cited answers, and missing-knowledge handoff.
+- Seeded hosted DEV with 3 Ready fictional sources and 23 embedded chunks; hosted public text smoke now returns cited answers for the UAT guide's sample in-scope questions and safe handoff for missing warehouse-stock knowledge.
 - Narrowed public human support UX so the customer does not see a standing transfer button on first load; the UI offers human help only after customer frustration, repeated clarification, or request failure, while explicit handoff requests remain server-owned.
 
 ## Architecture findings
@@ -248,6 +250,7 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | `pnpm verify:day10` | Passed on July 27, 2026 PDT: release audit confirmed version `0.10.0`, three clean full demos, 40 retained voice traces, UAT/deployment bundle, no unresolved debug debt, R11 closed, and no provider cost |
 | Live provider smoke tests | Passed locally: OpenAI chat/supervisor/embeddings, LiveKit authenticated API/token generation, Deepgram English/Chinese STT, and ElevenLabs Chinese TTS. Hosted DEV health/admin/public-chat smoke passed with mock provider modes; hosted/deployed live G1/G2 evidence remains pending |
 | Hosted DEV Worker smoke | Passed after Git deploy: `smartservice-dev` `/health` returned `200`, hosted Admin login passed, public conversation creation returned `201`, and public message send returned `200` |
+| Hosted DEV text UAT smoke | Passed after fixture seed: 3 Ready fictional sources, 23 embedded chunks, 2/2 cited answers, and 1/1 safe missing-knowledge handoff |
 | Cost-bearing provider calls | Bounded live smokes only: three OpenAI Responses/Embeddings calls, two Deepgram STT calls, one ElevenLabs TTS call, and a LiveKit authentication/token check |
 
 ## Current blockers

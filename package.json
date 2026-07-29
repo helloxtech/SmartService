@@ -40,6 +40,8 @@
     "test:e2e": "pnpm --filter @smartservice/web test:e2e",
     "typecheck": "pnpm -r --if-present typecheck",
     "uat:prepare": "pnpm db:reset && pnpm bootstrap:local && pnpm check && pnpm verify:ingestion",
+    "hosted:seed-demo-knowledge": "tsx tooling/hosted/seed-demo-knowledge.ts",
+    "verify:hosted-dev": "tsx tooling/hosted/verify-hosted-dev.ts",
     "verify:ingestion": "node tooling/local/verify-ingestion.mjs",
     "verify:conversation": "node tooling/local/verify-conversation.mjs",
     "verify:day4": "node tooling/local/verify-day4.mjs",

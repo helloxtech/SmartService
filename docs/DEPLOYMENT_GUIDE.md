@@ -2,7 +2,7 @@
 
 ## Release boundary
 
-Release `0.10.0` is a two-week demonstrable prototype. Local deterministic deployment is complete and tested. Hosted DEV provisioning has started, but a public hosted UAT URL is not ready until Cloudflare Worker secrets/deployment and the remaining hosted checks pass. Production data, production traffic, paid upgrades, and a public production URL remain outside the current authorization.
+Release `0.10.0` is a two-week demonstrable prototype. Local deterministic deployment is complete and tested. Hosted DEV is available at `https://smartservice-dev.hurryupgo-b2d.workers.dev` for mock-provider smoke testing. Production data, production traffic, paid upgrades, live G1/G2 acceptance, and a public production URL remain outside the current authorization until their gates are explicitly cleared.
 
 ## Runtime topology
 
@@ -35,7 +35,7 @@ Local voice uses the explicit mock room provider and does not synthesize real pr
 
 ## Hosted development deployment
 
-The correct browser-created online Supabase project, Cloudflare DEV R2/Queue resources, and `smartservice-dev` Worker now exist. The hosted DEV preview is usable for smoke testing in mock-provider mode, but live G1 still requires live Turnstile, R2 signer, Browser Run, and live chat/ingestion provider configuration.
+The correct browser-created online Supabase project, Cloudflare DEV R2/Queue resources, and `smartservice-dev` Worker now exist. The hosted DEV preview is usable for smoke testing in mock-provider mode, with fictional fixture knowledge seeded by `pnpm hosted:seed-demo-knowledge`. Live G1 still requires live Turnstile, R2 signer, Browser Run, and live chat/ingestion provider configuration.
 
 1. Store the dedicated Supabase project URL, browser publishable key, service-role key, and database migration credential only in ignored local/provider secret storage.
 2. Apply all ordered migrations to the dedicated project and run `pnpm db:test` plus `pnpm db:lint` against that hosted schema. Connector-applied migrations are useful progress, but the final evidence still needs a repeatable migration status.
@@ -69,6 +69,8 @@ Completed:
 - Cloudflare Queues exist: `smartservice-ingest-dev`, `smartservice-finalize-dev`, `smartservice-ingest-dlq-dev`, and `smartservice-finalize-dlq-dev`.
 - `smartservice-dev` is deployed at `https://smartservice-dev.hurryupgo-b2d.workers.dev`; `/health`, hosted Admin login, public conversation creation, and public message smoke passed in DEV/mock-provider mode.
 - Cloudflare native Workers Builds is connected to `helloxtech/SmartService` with production branch `main`; commit `d5f9d1c` triggered an active Git-based deployment.
+- Hosted fictional NovaFlow knowledge was seeded through the shared deterministic ingestion pipeline: 3 Ready sources and 23 embedded chunks.
+- `pnpm verify:hosted-dev` passed hosted routes, health, ready knowledge, 2/2 cited answers, and 1/1 safe handoff.
 
 Still required:
 

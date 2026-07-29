@@ -2,7 +2,7 @@
 
 ## UAT status
 
-Release `0.10.0` is ready for local/mock UAT. Text, ingestion, guardrails, human handoff, finalization, dashboard, knowledge-gap repair, and voice orchestration are testable end to end. Live P1 microphone/STT/TTS quality and latency UAT remains pending the external LiveKit, Deepgram, and ElevenLabs resources.
+Release `0.10.0` is ready for local/mock UAT. Hosted DEV is also available for mock-provider text smoke at `https://smartservice-dev.hurryupgo-b2d.workers.dev`. Text, ingestion, guardrails, human handoff, finalization, dashboard, knowledge-gap repair, and voice orchestration are testable end to end locally; hosted DEV text smoke is ready with fictional fixture knowledge. Live G1 and live P1 microphone/STT/TTS quality and latency UAT remain pending the remaining external provider configuration.
 
 ## Prepare a clean UAT environment
 
@@ -13,6 +13,26 @@ pnpm dev:api
 ```
 
 Keep that terminal running, then use a normal browser profile for the customer and a separate private profile for the team user. The ignored `.env.local` contains the fictional `DEMO_ADMIN_*` and `DEMO_AGENT_*` credentials.
+
+## Hosted DEV smoke
+
+Use this path when you want to test the browser-hosted demo without running the local Worker:
+
+```bash
+pnpm hosted:seed-demo-knowledge
+pnpm verify:hosted-dev
+```
+
+Open:
+
+- Hosted customer text: `https://smartservice-dev.hurryupgo-b2d.workers.dev/chat`
+- Hosted team workspace: `https://smartservice-dev.hurryupgo-b2d.workers.dev/app/inbox`
+- Hosted dashboard: `https://smartservice-dev.hurryupgo-b2d.workers.dev/app/dashboard`
+- Hosted knowledge: `https://smartservice-dev.hurryupgo-b2d.workers.dev/app/knowledge`
+
+Use the fictional demo identities stored only in ignored `.env.local`. Do not paste passwords into chat or commit them.
+
+Hosted DEV currently uses mock provider modes for text answering, ingestion, auxiliary guardrails, Turnstile, and voice. It is valid for product smoke and user flow review, but not live G1/G2 acceptance.
 
 ## Core acceptance script
 

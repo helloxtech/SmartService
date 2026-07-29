@@ -1,10 +1,10 @@
 # SmartService Project Status
 
-**Last updated:** July 27, 2026 PDT
+**Last updated:** July 29, 2026 PDT
 **Current gate:** Local P0/P1 UAT evidence complete; hosted DEV mock-provider text smoke complete
-**Current phase:** Day 10 integrated local acceptance and UAT bundle complete; hosted Supabase, Cloudflare Git deployment, and hosted fictional knowledge smoke are ready
-**Active step:** Place the hosted Supabase/server/provider secrets into Cloudflare Worker secrets, enable hosted Worker/Git deployment, then run hosted G1 checks
-**Overall state:** Days 1–10 are green locally; fresh three-run full P0/P1 local demos passed; OpenAI, LiveKit, Deepgram, and ElevenLabs local live smokes passed; correct browser-created Supabase project is migrated, seeded, and verified; Cloudflare DEV R2/Queues exist; hosted Worker deploy, Git-triggered deploy, deployed Agent, final device evidence, and ElevenLabs commercial-use confirmation remain pending
+**Current phase:** Day 10 integrated local acceptance and UAT bundle complete; hosted Supabase, Cloudflare Worker/Git deployment, and hosted fictional knowledge smoke are ready
+**Active step:** Run Forrest's hosted DEV product UAT, collect feedback, and provision the remaining live G1/G2 provider resources only when approved
+**Overall state:** Days 1–10 are green locally; fresh three-run full P0/P1 local demos passed; OpenAI, LiveKit, Deepgram, and ElevenLabs local live smokes passed; correct browser-created Supabase project is migrated, seeded, browser-visible, and verified; Cloudflare DEV R2/Queues exist; hosted Worker deploy and Git-triggered deploy are active; deployed Agent, final device evidence, and ElevenLabs commercial-use confirmation remain pending
 
 ## Original goal
 
@@ -125,6 +125,8 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Added repeatable hosted DEV tooling: `pnpm hosted:seed-demo-knowledge` seeds the fictional NovaFlow PDF/DOCX/URL fixtures through the shared deterministic ingestion pipeline, and `pnpm verify:hosted-dev` checks routes, health, ready knowledge, cited answers, and missing-knowledge handoff.
 - Seeded hosted DEV with 3 Ready fictional sources and 23 embedded chunks; hosted public text smoke now returns cited answers for the UAT guide's sample in-scope questions and safe handoff for missing warehouse-stock knowledge.
 - Narrowed public human support UX so the customer does not see a standing transfer button on first load; the UI offers human help only after customer frustration, repeated clarification, or request failure, while explicit handoff requests remain server-owned.
+- Verified the user-signed browser can access the correct Supabase project `SmartService` / `ibuvpregltbvxsxhivrg`; the Supabase connector remains attached to the wrong hidden organization and must not be used for this hosted DEV project.
+- Pushed commit `1243ce9` to `helloxtech/SmartService` `main`; Git is clean and aligned with `origin/main`, and Cloudflare activated post-push Worker version `6c502627-b5b6-4745-82af-9c7a4ba08504`.
 
 ## Architecture findings
 

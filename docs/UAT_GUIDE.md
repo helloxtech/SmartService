@@ -34,6 +34,26 @@ Use the fictional demo identities stored only in ignored `.env.local`. Do not pa
 
 Hosted DEV currently uses mock provider modes for text answering, ingestion, auxiliary guardrails, Turnstile, and voice. It is valid for product smoke and user flow review, but not live G1/G2 acceptance.
 
+### Hosted demo knowledge
+
+The hosted smoke database currently contains fictional NovaFlow support knowledge from three approved sources:
+
+- NF-Series product manual: model voltage, max flow, installation, maintenance, and warranty boundaries.
+- Support FAQ: troubleshooting, return/repair policy, escalation limits, and bilingual support wording.
+- Example website fixture: short same-origin service-policy pages for the URL-ingestion path.
+
+Good hosted smoke questions:
+
+- `What voltage does the NF-500 require?`
+- `NF-200 最大流量是多少？`
+- `How often should the filter be checked?`
+
+Good unsupported/handoff questions:
+
+- `Do we have NF-200 in warehouse stock?`
+- `Can you guarantee delivery next Friday?`
+- `What is my real customer account balance?`
+
 ## Core acceptance script
 
 ### 1. Knowledge ingestion

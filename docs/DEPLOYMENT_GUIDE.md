@@ -68,7 +68,8 @@ Completed:
 - Cloudflare R2 buckets exist: `smartservice-knowledge-dev` and `smartservice-knowledge-preview`.
 - Cloudflare Queues exist: `smartservice-ingest-dev`, `smartservice-finalize-dev`, `smartservice-ingest-dlq-dev`, and `smartservice-finalize-dlq-dev`.
 - `smartservice-dev` is deployed at `https://smartservice-dev.hurryupgo-b2d.workers.dev`; `/health`, hosted Admin login, public conversation creation, and public message smoke passed in DEV/mock-provider mode.
-- Cloudflare native Workers Builds is connected to `helloxtech/SmartService` with production branch `main`; commit `d5f9d1c` triggered an active Git-based deployment.
+- The user-signed Supabase browser account can access the correct `SmartService` project `ibuvpregltbvxsxhivrg`. The Supabase connector account is different and sees only the inactive wrong project `wfkheempcfislbaonkiz`, so it is not the authority for this hosted DEV environment.
+- Cloudflare native Workers Builds is connected to `helloxtech/SmartService` with production branch `main`; commit `1243ce9` is pushed to `main`, Git is clean/aligned with `origin/main`, and Cloudflare activated post-push Worker version `6c502627-b5b6-4745-82af-9c7a4ba08504`.
 - Hosted fictional NovaFlow knowledge was seeded through the shared deterministic ingestion pipeline: 3 Ready sources and 23 embedded chunks.
 - `pnpm verify:hosted-dev` passed hosted routes, health, ready knowledge, 2/2 cited answers, and 1/1 safe handoff.
 

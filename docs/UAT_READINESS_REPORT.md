@@ -2,7 +2,7 @@
 
 **Release candidate:** `0.10.0`
 
-**Snapshot:** July 28, 2026
+**Snapshot:** July 29, 2026
 
 **Local status:** Local/mock UAT-ready
 
@@ -41,6 +41,7 @@ Live G1 and live P1 microphone, STT, TTS, interruption, and latency cannot be ac
 - Raw local voice traces and summary: `docs/evidence/day8-local-voice-report.json`.
 - Three-run record: `docs/evidence/day10-local-demo-runs.json`.
 - Hosted DEV smoke: `pnpm hosted:seed-demo-knowledge` prepared 3 fictional Ready sources and 23 embedded chunks; `pnpm verify:hosted-dev` passed routes, health, ready knowledge, 2/2 cited answers, and 1/1 safe handoff.
+- The correct Supabase project is browser-visible to the user account as `SmartService` / `ibuvpregltbvxsxhivrg`; Cloudflare activated post-push Worker version `6c502627-b5b6-4745-82af-9c7a4ba08504` from the aligned `main` branch.
 - Bounded live-provider smokes have been run for OpenAI, LiveKit, Deepgram, and ElevenLabs; no paid upgrade or production deployment was performed.
 
 ## Known limitations

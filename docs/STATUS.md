@@ -127,6 +127,7 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Narrowed public human support UX so the customer does not see a standing transfer button on first load; the UI offers human help only after customer frustration, repeated clarification, or request failure, while explicit handoff requests remain server-owned.
 - Verified the user-signed browser can access the correct Supabase project `SmartService` / `ibuvpregltbvxsxhivrg`; the Supabase connector remains attached to the wrong hidden organization and must not be used for this hosted DEV project.
 - Pushed the hosted handoff updates to `helloxtech/SmartService` `main`; Git is clean and aligned with `origin/main`, and the Cloudflare dashboard/CLI showed a new post-push Worker deployment. Because documentation commits also trigger Worker builds, verify the current version ID with `wrangler deployments list` instead of treating any recorded version ID as durable.
+- Diagnosed the hosted sign-in warning on `smartservice.ca` as a Cloudflare Git Build environment issue: the static asset was compiled without local `VITE_SUPABASE_*` values. Added `/api/public-config`, runtime Supabase browser-client initialization, a Cloudflare `SUPABASE_ANON_KEY` secret, and hosted verification coverage for runtime Supabase Admin sign-in.
 
 ## Architecture findings
 

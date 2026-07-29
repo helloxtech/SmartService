@@ -13,6 +13,8 @@ const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDirectory, "../..");
 
 const environmentSchema = z.object({
+    DEMO_ADMIN_EMAIL: z.email(),
+    DEMO_ADMIN_PASSWORD: z.string().min(1),
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
     SUPABASE_URL: z.url(),
 });
@@ -43,8 +45,15 @@ const sendResponseSchema = z.object({
     messageId: z.uuid(),
 });
 
+const publicConfigurationResponseSchema = z.object({
+    supabaseAnonKey: z.string().min(1).nullable(),
+    supabaseUrl: z.url().nullable(),
+});
+
 interface Environment
 {
+    DEMO_ADMIN_EMAIL: string;
+    DEMO_ADMIN_PASSWORD: string;
     SUPABASE_SERVICE_ROLE_KEY: string;
     SUPABASE_URL: string;
 }
@@ -115,6 +124,68 @@ async function verifyRoutes(): Promise<void>
     if (!health.ok || !healthText.includes("\"status\":\"ok\""))
     {
         throw new Error("Hosted health check did not return ok.");
+    }
+}
+
+/**
+ * verifyRuntimePublicConfiguration
+ * ----------------
+ * Confirms the deployed Worker supplies browser-safe Supabase configuration and that the anon-key path can sign in.
+ *
+ * July 29, 2026: Created by Forrest Zhang for hosted DEV Supabase sign-in regression coverage
+ */
+async function verifyRuntimePublicConfiguration(environment: Environment): Promise<void>
+{
+    const response = await fetch(`${baseUrl}/api/public-config`);
+
+    if (!response.ok)
+    {
+        throw new Error("Hosted runtime public configuration endpoint did not return ok.");
+    }
+
+    const configuration = publicConfigurationResponseSchema.parse(await response.json());
+
+    if (
+        configuration.supabaseUrl !== environment.SUPABASE_URL
+        || configuration.supabaseAnonKey === null
+    )
+    {
+        throw new Error("Hosted runtime public configuration is missing Supabase browser settings.");
+    }
+
+    const client = createClient(configuration.supabaseUrl, configuration.supabaseAnonKey, {
+        auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+        },
+    });
+    const { data: authData, error: authError } = await client.auth.signInWithPassword({
+        email: environment.DEMO_ADMIN_EMAIL,
+        password: environment.DEMO_ADMIN_PASSWORD,
+    });
+
+    if (authError !== null || authData.user === null)
+    {
+        throw new Error("Hosted runtime Supabase browser configuration could not sign in the demo Admin.");
+    }
+
+    const { data: membership, error: membershipError } = await client
+        .from("organization_members")
+        .select("organization_id, role")
+        .eq("user_id", authData.user.id)
+        .eq("is_active", true)
+        .single();
+
+    await client.auth.signOut();
+
+    if (
+        membershipError !== null
+        || membership === null
+        || membership.organization_id !== organizationId
+        || membership.role !== "admin"
+    )
+    {
+        throw new Error("Hosted runtime Supabase browser configuration did not load the expected Admin membership.");
     }
 }
 
@@ -282,6 +353,7 @@ async function main(): Promise<void>
     ];
 
     await verifyRoutes();
+    await verifyRuntimePublicConfiguration(environment);
     await verifyKnowledgeState(environment);
 
     for (const testCase of cases)
@@ -290,7 +362,7 @@ async function main(): Promise<void>
     }
 
     process.stdout.write(
-        "Hosted DEV smoke passed: routes, health, ready fictional knowledge, 2/2 cited answers, and 1/1 safe handoff.\n",
+        "Hosted DEV smoke passed: routes, health, runtime Supabase sign-in, ready fictional knowledge, 2/2 cited answers, and 1/1 safe handoff.\n",
     );
 }
 

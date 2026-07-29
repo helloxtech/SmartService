@@ -101,10 +101,8 @@ async function loadMembership(client: SupabaseClient, session: Session): Promise
  */
 function WorkspaceApp(): JSX.Element
 {
-    const client = getSupabaseClient();
-    const [authentication, setAuthentication] = useState<AuthenticationState>(
-        client === null ? { kind: "signed-out" } : { kind: "loading" },
-    );
+    const [client, setClient] = useState<SupabaseClient | null | undefined>(undefined);
+    const [authentication, setAuthentication] = useState<AuthenticationState>({ kind: "loading" });
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [message, setMessage] = useState<string | null>(null);
@@ -112,7 +110,44 @@ function WorkspaceApp(): JSX.Element
 
     useEffect(() =>
     {
+        let mounted = true;
+
+        getSupabaseClient()
+            .then((configuredClient) =>
+            {
+                if (mounted)
+                {
+                    setClient(configuredClient);
+                    if (configuredClient === null)
+                    {
+                        setAuthentication({ kind: "signed-out" });
+                    }
+                }
+            })
+            .catch((error: unknown) =>
+            {
+                if (mounted)
+                {
+                    setClient(null);
+                    setMessage(describeError(error));
+                    setAuthentication({ kind: "signed-out" });
+                }
+            });
+
+        return () =>
+        {
+            mounted = false;
+        };
+    }, []);
+
+    useEffect(() =>
+    {
         if (client === null)
+        {
+            return;
+        }
+
+        if (client === undefined)
         {
             return;
         }
@@ -180,9 +215,9 @@ function WorkspaceApp(): JSX.Element
         event.preventDefault();
         setMessage(null);
 
-        if (client === null)
+        if (client === null || client === undefined)
         {
-            setMessage("Local Supabase configuration is required before sign-in.");
+            setMessage("Supabase configuration is required before sign-in.");
             return;
         }
 
@@ -227,7 +262,7 @@ function WorkspaceApp(): JSX.Element
      */
     async function handleSignOut(): Promise<void>
     {
-        if (client !== null)
+        if (client !== null && client !== undefined)
         {
             await client.auth.signOut();
         }
@@ -359,10 +394,18 @@ function WorkspaceApp(): JSX.Element
                                         value={password}
                                     />
 
+                                    {client === undefined
+                                        ? (
+                                            <p className="rounded-lg bg-sky-50 p-3 text-sm text-sky-900" role="status">
+                                                Loading hosted Supabase configuration…
+                                            </p>
+                                        )
+                                        : null}
+
                                     {client === null
                                         ? (
                                             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900" role="status">
-                                                Local Supabase configuration is not present yet. The shell is ready; sign-in unlocks after the local project starts.
+                                                Supabase configuration is not present yet. The shell is ready; sign-in unlocks after hosted or local configuration is available.
                                             </p>
                                         )
                                         : null}
@@ -375,7 +418,7 @@ function WorkspaceApp(): JSX.Element
                                             </p>
                                         )}
 
-                                    <Button className="w-full" disabled={submitting} size="lg" type="submit">
+                                    <Button className="w-full" disabled={submitting || client === undefined} size="lg" type="submit">
                                         {submitting ? "Signing in…" : "Sign in"}
                                     </Button>
                                 </form>

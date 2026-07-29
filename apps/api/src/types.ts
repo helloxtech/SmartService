@@ -81,6 +81,7 @@ export type SmartServiceBindings = Omit<
     R2_S3_ENDPOINT?: string;
     R2_SECRET_ACCESS_KEY?: string;
     RAG_MATCH_THRESHOLD?: string;
+    SUPABASE_ANON_KEY?: string;
     SUPABASE_SERVICE_ROLE_KEY?: string;
     SUPABASE_URL?: string;
     TURNSTILE_EXPECTED_HOSTNAME?: string;

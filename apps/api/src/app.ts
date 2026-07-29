@@ -15,6 +15,35 @@ import type {
 } from "./types";
 
 /**
+ * createPublicConfigurationResponse
+ * ----------------
+ * Returns only browser-safe runtime configuration so Cloudflare Git builds do not depend on local Vite environment files.
+ *
+ * July 29, 2026: Created by Forrest Zhang for SmartService hosted DEV Supabase sign-in
+ */
+function createPublicConfigurationResponse(env: AppEnvironment["Bindings"]): {
+    supabaseAnonKey: string | null;
+    supabaseUrl: string | null;
+}
+{
+    const supabaseUrl = env.SUPABASE_URL?.trim();
+    const supabaseAnonKey = env.SUPABASE_ANON_KEY?.trim();
+
+    if (supabaseUrl === undefined || supabaseUrl.length === 0 || supabaseAnonKey === undefined || supabaseAnonKey.length === 0)
+    {
+        return {
+            supabaseAnonKey: null,
+            supabaseUrl: null,
+        };
+    }
+
+    return {
+        supabaseAnonKey,
+        supabaseUrl,
+    };
+}
+
+/**
  * createApp
  * ----------------
  * Creates the Hono Worker application with tracing, safe errors, public chat, knowledge, team, dashboard, and gap routes.
@@ -79,6 +108,13 @@ export function createApp(
         });
 
         return context.json(response);
+    });
+
+    app.get("/api/public-config", (context) =>
+    {
+        context.header("cache-control", "no-store");
+
+        return context.json(createPublicConfigurationResponse(context.env));
     });
 
     const analyticsRouter = createAnalyticsRouter(serviceFactory);

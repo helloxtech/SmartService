@@ -207,4 +207,73 @@ describe("PublicChat", () =>
         expect(screen.queryByRole("button", { name: /Need human help/u }))
             .not.toBeInTheDocument();
     });
+
+    it("keeps customer messaging open while waiting for an unclaimed human handoff", async () =>
+    {
+        sessionStorage.setItem("smartservice.publicConversation.v1", JSON.stringify({
+            conversationId,
+            conversationToken: "x".repeat(32),
+            displayName: "NovaFlow",
+            expiresAt: "2099-07-26T22:00:00.000Z",
+            welcomeMessage: "您好，欢迎联系 NovaFlow。",
+        }));
+        const fetchMock = vi.fn(async (
+            input: RequestInfo | URL,
+            init?: RequestInit,
+        ): Promise<Response> =>
+        {
+            const url = String(input);
+
+            if (url.includes(`/conversations/${conversationId}/messages`) && init?.method === "POST")
+            {
+                return new Response(JSON.stringify({
+                    answer: "Your update has been sent to human support.",
+                    citations: [],
+                    decision: "human",
+                    handoff: null,
+                    messageId: "30000000-0000-4000-a000-000000000088",
+                }), {
+                    headers: {
+                        "content-type": "application/json",
+                    },
+                    status: 200,
+                });
+            }
+
+            if (url.includes(`/conversations/${conversationId}/messages`))
+            {
+                return new Response(JSON.stringify({
+                    messages: [],
+                    nextCursor: null,
+                    status: "handoff_requested",
+                }), {
+                    headers: {
+                        "content-type": "application/json",
+                        etag: 'W/"pending-handoff"',
+                    },
+                    status: 200,
+                });
+            }
+
+            throw new Error(`Unexpected fixture request: ${url}`);
+        });
+        vi.stubGlobal("fetch", fetchMock);
+        const user = userEvent.setup();
+        render(<PublicChat />);
+
+        expect(await screen.findByText("Waiting for human support · 等待人工客服接入"))
+            .toBeInTheDocument();
+        const composer = screen.getByLabelText("Ask NovaFlow support");
+        expect(composer).toBeEnabled();
+
+        await user.type(composer, "I can share my preferred model.");
+        await user.click(screen.getByRole("button", { name: "Send message" }));
+
+        expect(await screen.findByText("I can share my preferred model."))
+            .toBeInTheDocument();
+        expect(screen.queryByText("Human support has the conversation · 人工客服已收到会话"))
+            .not.toBeInTheDocument();
+        expect(screen.queryByText("Your update has been sent to human support."))
+            .not.toBeInTheDocument();
+    });
 });

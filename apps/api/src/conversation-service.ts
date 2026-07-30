@@ -15,6 +15,7 @@ import {
     requestPublicHandoffResponseSchema,
     sendPublicMessageResponseSchema,
     type ConversationLanguage,
+    type ConversationStatus,
     type ConversationTokenClaims,
     type CreatePublicConversationRequest,
     type CreatePublicConversationResponse,
@@ -430,6 +431,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
         request: Request,
         conversationId: string,
         scope: "conversation:read" | "conversation:write",
+        writableStatuses: readonly ConversationStatus[] = ["active_ai"],
     ): Promise<{
         claims: ConversationTokenClaims;
         conversation: PublicConversationRecord;
@@ -452,13 +454,13 @@ export class DefaultPublicConversationService implements PublicConversationServi
 
         if (
             scope === "conversation:write"
-            && conversation.status !== "active_ai"
+            && !writableStatuses.includes(conversation.status)
         )
         {
             throw new ApiError(
                 409,
-                "CONVERSATION_NOT_AI_ACTIVE",
-                "AI messaging is no longer active for this conversation.",
+                "CONVERSATION_NOT_WRITEABLE",
+                "This conversation is no longer open for customer messages.",
             );
         }
 
@@ -466,6 +468,50 @@ export class DefaultPublicConversationService implements PublicConversationServi
             claims,
             conversation,
         };
+    }
+
+    /**
+     * recordHumanRoutedCustomerMessage
+     * ----------------
+     * Stores a customer update after human support is requested or connected without running retrieval, guardrails, LLM, or TTS.
+     *
+     * July 29, 2026: Created by Forrest Zhang for SmartService Pending Handoff Customer Messages
+     */
+    private async recordHumanRoutedCustomerMessage(
+        organizationId: string,
+        conversationId: string,
+        input: SendPublicMessageRequest,
+        requestId: string,
+    ): Promise<SendPublicMessageResponse>
+    {
+        const language = detectConversationLanguage(input.text);
+        const customerMessage = await this.repository.recordCustomerMessage(
+            organizationId,
+            conversationId,
+            input.clientMessageId,
+            input.text,
+            language,
+        );
+
+        if (customerMessage.created)
+        {
+            await this.refreshOperationalContext(
+                organizationId,
+                conversationId,
+                requestId,
+                true,
+            );
+        }
+
+        return sendPublicMessageResponseSchema.parse({
+            answer: language === "zh-CN"
+                ? "您的补充已发送给人工客服。"
+                : "Your update has been sent to human support.",
+            citations: [],
+            decision: "human",
+            handoff: null,
+            messageId: customerMessage.id,
+        });
     }
 
     /**
@@ -615,6 +661,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
             request,
             conversationId,
             "conversation:write",
+            ["active_ai", "handoff_requested", "active_human"],
         );
         const rateBucket = await sha256Hex(
             `${authorization.claims.org}|${conversationId}|${remoteIp ?? "unknown"}`,
@@ -626,6 +673,16 @@ export class DefaultPublicConversationService implements PublicConversationServi
             30,
             60,
         );
+
+        if (authorization.conversation.status !== "active_ai")
+        {
+            return this.recordHumanRoutedCustomerMessage(
+                authorization.claims.org,
+                conversationId,
+                input,
+                requestId,
+            );
+        }
 
         return this.processTurn(
             authorization.claims.org,

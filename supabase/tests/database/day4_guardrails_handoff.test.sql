@@ -267,20 +267,25 @@ select extensions.results_eq(
     'Repeated takeover by the owner is idempotent'
 );
 
-select extensions.throws_ok(
+select extensions.results_eq(
     $$
-        select *
-        from public.record_public_customer_message(
-            '00000000-0000-4000-a000-000000000001',
-            (select conversation_id from day4_conversation),
-            '60000000-0000-4000-a000-000000000100',
-            'AI must not answer after takeover.',
-            'en'
+        with recorded as (
+            select *
+            from public.record_public_customer_message(
+                '00000000-0000-4000-a000-000000000001',
+                (select conversation_id from day4_conversation),
+                '60000000-0000-4000-a000-000000000100',
+                'Please add this detail for the human specialist.',
+                'en'
+            )
         )
+        select recorded.created::text || ':' || conversation.status::text
+        from recorded
+        join public.conversations as conversation
+          on conversation.id = (select conversation_id from day4_conversation)
     $$,
-    'P0001',
-    'conversation_not_ai_active',
-    'The AI customer-turn path is stopped after human takeover'
+    array['true:active_human']::text[],
+    'Customer updates stay open after takeover without changing human ownership'
 );
 
 create temporary table day4_human_message

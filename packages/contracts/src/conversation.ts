@@ -65,7 +65,7 @@ export const publicHandoffSchema = z.object({
 export const sendPublicMessageResponseSchema = z.object({
     answer: z.string().min(1).max(1600),
     citations: z.array(publicCitationSchema).max(5),
-    decision: conversationDecisionSchema,
+    decision: conversationDecisionSchema.or(z.literal("human")),
     handoff: publicHandoffSchema.nullable(),
     messageId: z.uuid(),
 }).superRefine((value, context) =>
@@ -85,6 +85,15 @@ export const sendPublicMessageResponseSchema = z.object({
             code: "custom",
             message: "Handoff decisions require handoff details.",
             path: ["handoff"],
+        });
+    }
+
+    if (value.decision === "human" && value.citations.length > 0)
+    {
+        context.addIssue({
+            code: "custom",
+            message: "Human-routed customer updates cannot include citations.",
+            path: ["citations"],
         });
     }
 });

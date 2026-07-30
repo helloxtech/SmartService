@@ -33,4 +33,17 @@ describe("conversation contracts", () =>
 
         expect(result.decision).toBe("handoff");
     });
+
+    it("accepts a human-routed customer update without requiring citations", () =>
+    {
+        const result = sendPublicMessageResponseSchema.parse({
+            answer: "Your update has been sent to human support.",
+            citations: [],
+            decision: "human",
+            handoff: null,
+            messageId: "30000000-0000-4000-a000-000000000002",
+        });
+
+        expect(result.decision).toBe("human");
+    });
 });

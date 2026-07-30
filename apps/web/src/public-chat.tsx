@@ -160,6 +160,64 @@ function describeStatus(status: ConversationStatus): string
 }
 
 /**
+ * canCustomerSend
+ * ----------------
+ * Allows customer updates while AI is active, while waiting for human support, and after a human operator connects.
+ *
+ * July 29, 2026: Created by Forrest Zhang for SmartService Pending Handoff Customer Messages
+ */
+function canCustomerSend(status: ConversationStatus): boolean
+{
+    return status === "active_ai"
+        || status === "handoff_requested"
+        || status === "active_human";
+}
+
+/**
+ * describeComposerPlaceholder
+ * ----------------
+ * Explains where the next customer message will go without implying AI is still active after handoff.
+ *
+ * July 29, 2026: Created by Forrest Zhang for SmartService Pending Handoff Customer Messages
+ */
+function describeComposerPlaceholder(status: ConversationStatus): string
+{
+    if (status === "active_ai")
+    {
+        return "Ask in 中文 or English…";
+    }
+
+    if (status === "closed")
+    {
+        return "Conversation is closed.";
+    }
+
+    return "Add details for human support…";
+}
+
+/**
+ * describeHumanSupportFooter
+ * ----------------
+ * Separates waiting-for-human and human-connected states so opening the Agent view never looks like an implicit claim.
+ *
+ * July 29, 2026: Created by Forrest Zhang for SmartService Pending Handoff Customer Messages
+ */
+function describeHumanSupportFooter(status: ConversationStatus): string
+{
+    if (status === "handoff_requested")
+    {
+        return "Waiting for human support · 等待人工客服接入";
+    }
+
+    if (status === "active_human")
+    {
+        return "Human support connected · 人工客服已接入";
+    }
+
+    return "Conversation closed · 会话已结束";
+}
+
+/**
  * CitationPanel
  * ----------------
  * Shows the exact supporting excerpt and customer-safe source locator for one selected citation.
@@ -416,7 +474,7 @@ export function PublicChat(): JSX.Element
         event.preventDefault();
         const question = input.trim();
 
-        if (question.length === 0 || busy || status !== "active_ai")
+        if (question.length === 0 || busy || !canCustomerSend(status))
         {
             return;
         }
@@ -458,16 +516,25 @@ export function PublicChat(): JSX.Element
                 pending.clientMessageId,
             );
             seenMessageIds.current.add(response.messageId);
-            setMessages((current) => [...current, {
-                citations: response.citations,
-                id: response.messageId,
-                sender: "ai",
-                text: response.answer,
-            }]);
+
+            if (response.decision !== "human")
+            {
+                setMessages((current) => [...current, {
+                    citations: response.citations,
+                    id: response.messageId,
+                    sender: "ai",
+                    text: response.answer,
+                }]);
+            }
 
             if (response.handoff !== null)
             {
                 setStatus(response.handoff.status);
+                consecutiveClarifications.current = 0;
+                setHumanSupportOfferReason(null);
+            }
+            else if (response.decision === "human")
+            {
                 consecutiveClarifications.current = 0;
                 setHumanSupportOfferReason(null);
             }
@@ -687,7 +754,7 @@ export function PublicChat(): JSX.Element
                             <div className="flex items-end gap-2 rounded-xl border border-slate-300 bg-white p-2 focus-within:border-sky-600 focus-within:ring-2 focus-within:ring-sky-100">
                                 <textarea
                                     className="max-h-36 min-h-11 flex-1 resize-none border-0 px-2 py-2 text-sm outline-none"
-                                    disabled={status !== "active_ai"}
+                                    disabled={!canCustomerSend(status)}
                                     id="customer-message"
                                     maxLength={5000}
                                     onChange={(event) => setInput(event.target.value)}
@@ -699,7 +766,7 @@ export function PublicChat(): JSX.Element
                                             event.currentTarget.form?.requestSubmit();
                                         }
                                     }}
-                                    placeholder="Ask in 中文 or English…"
+                                    placeholder={describeComposerPlaceholder(status)}
                                     rows={1}
                                     value={input}
                                 />
@@ -708,7 +775,7 @@ export function PublicChat(): JSX.Element
                                     disabled={
                                         busy
                                         || input.trim().length === 0
-                                        || status !== "active_ai"
+                                        || !canCustomerSend(status)
                                         || (session === null && turnstileToken.length === 0)
                                     }
                                     size="icon"
@@ -739,7 +806,7 @@ export function PublicChat(): JSX.Element
                                     ? null
                                     : (
                                         <p className="text-right text-xs font-semibold text-amber-800">
-                                            Human support has the conversation · 人工客服已收到会话
+                                            {describeHumanSupportFooter(status)}
                                         </p>
                                     )}
                         </div>

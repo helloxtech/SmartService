@@ -481,9 +481,9 @@ export class SupabaseConversationRepository
     /**
      * recordCustomerMessage
      * ----------------
-     * Persists one idempotent customer message only while AI owns the conversation.
+     * Persists one idempotent customer message while AI owns the conversation or while a human handoff remains open.
      *
-     * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Public Conversations
+     * July 29, 2026: Updated by Forrest Zhang for SmartService Pending Handoff Customer Messages
      */
     public async recordCustomerMessage(
         organizationId: string,

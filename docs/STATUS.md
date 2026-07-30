@@ -4,7 +4,11 @@
 **Current gate:** Local P0/P1 UAT evidence complete; hosted DEV mock-provider text smoke complete
 **Current phase:** Day 10 integrated local acceptance and UAT bundle complete; hosted Supabase, Cloudflare Worker/Git deployment, and hosted fictional knowledge smoke are ready
 **Active step:** Run Forrest's hosted DEV product UAT, collect feedback, and provision the remaining live G1/G2 provider resources only when approved
-**Overall state:** Days 1–10 are green locally; fresh three-run full P0/P1 local demos passed; OpenAI, LiveKit, Deepgram, and ElevenLabs local live smokes passed; correct browser-created Supabase project is migrated, seeded, browser-visible, and verified; Cloudflare DEV R2/Queues exist; hosted Worker deploy and Git-triggered deploy are active; deployed Agent, final device evidence, and ElevenLabs commercial-use confirmation remain pending
+**Overall state:** Days 1–10 are green locally; fresh three-run full P0/P1 local demos passed; OpenAI, LiveKit, Deepgram, and ElevenLabs local live smokes passed; correct browser-created Supabase project is migrated, seeded, browser-visible, and verified; Cloudflare DEV R2/Queues exist; hosted Worker deploy and Git-triggered deploy are active; hosted pending-handoff customer-message fix is applied to Supabase and pending Cloudflare Git redeploy; deployed Agent, final device evidence, and ElevenLabs commercial-use confirmation remain pending
+
+## Recent hosted UAT fixes
+
+- July 29, 2026 PDT: Fixed pending human handoff UX so opening a conversation in the Agent portal does not imply a claim. Customers can add details while waiting for human support or after a human connects; these messages persist for the Agent and do not trigger AI/provider calls. Agent replies remain disabled until the conversation is claimed.
 
 ## Original goal
 

@@ -8,6 +8,7 @@
 
 ## Recent hosted UAT fixes
 
+- July 30, 2026 PDT: Updated the hosted and local NovaFlow Admin login email to `info@smartservice.ca`; the password was reset in Supabase Auth and ignored `.env.local` only. No password value was committed.
 - July 29, 2026 PDT: Fixed pending human handoff UX so opening a conversation in the Agent portal does not imply a claim. Customers can add details while waiting for human support or after a human connects; these messages persist for the Agent and do not trigger AI/provider calls. Agent replies remain disabled until the conversation is claimed. Hosted Supabase migration and Cloudflare Worker version `bee3c1c4-4813-455c-ad2d-0f14230b8ca2` were verified with temporary smoke data that was deleted after validation.
 
 ## Original goal

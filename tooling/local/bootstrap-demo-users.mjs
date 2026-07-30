@@ -308,7 +308,7 @@ async function main()
     );
 
     const demoValues = new Map([
-        ["DEMO_ADMIN_EMAIL", "admin@novaflow.smartservice.local"],
+        ["DEMO_ADMIN_EMAIL", "Info@smartservice.ca"],
         ["DEMO_ADMIN_PASSWORD", getConfiguredValue(
             currentValues,
             "DEMO_ADMIN_PASSWORD",

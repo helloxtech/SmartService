@@ -6,11 +6,11 @@ import { z } from "zod";
 
 const localAccessSchema = z.object({
     DEMO_ADMIN_EMAIL: z.email(),
-    DEMO_ADMIN_PASSWORD: z.string().min(10),
+    DEMO_ADMIN_PASSWORD: z.string().min(8),
     DEMO_AGENT_EMAIL: z.email(),
-    DEMO_AGENT_PASSWORD: z.string().min(10),
+    DEMO_AGENT_PASSWORD: z.string().min(8),
     DEMO_OTHER_ADMIN_EMAIL: z.email(),
-    DEMO_OTHER_ADMIN_PASSWORD: z.string().min(10),
+    DEMO_OTHER_ADMIN_PASSWORD: z.string().min(8),
     VITE_SUPABASE_ANON_KEY: z.string().min(1),
     VITE_SUPABASE_URL: z.url(),
 });

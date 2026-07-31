@@ -508,7 +508,7 @@ export function KnowledgeWorkspace({
     }
 
     return (
-        <section className="mx-auto max-w-[92rem] px-6 pb-16 lg:px-8" aria-labelledby="knowledge-heading">
+        <section className="mx-auto max-w-[118rem] px-6 pb-16 lg:px-8" aria-labelledby="knowledge-heading">
             <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <p className="text-sm font-semibold text-sky-700">{copy.approvedContent}</p>

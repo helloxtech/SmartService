@@ -657,8 +657,8 @@ export function AgentWorkspace({
         : buildSuggestedActions(detail, usefulCitations.length, language);
 
     return (
-        <section aria-labelledby="inbox-heading">
-            <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+        <section aria-labelledby="inbox-heading" className="space-y-6">
+            <div className="flex flex-wrap items-end justify-between gap-4 rounded-[2rem] border border-white/70 bg-white/80 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur">
                 <div>
                     <p className="text-sm font-semibold text-sky-700">{copy.humanHandoff}</p>
                     <h2 className="mt-1 text-3xl font-bold tracking-tight" id="inbox-heading">
@@ -668,10 +668,10 @@ export function AgentWorkspace({
                         {copy.titleBody}
                     </p>
                 </div>
-                <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <label className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm">
                     <input
                         checked={includeClosed}
-                        className="size-4 rounded border-slate-300"
+                        className="mr-2 size-4 rounded border-slate-300 align-middle"
                         onChange={(event) => setIncludeClosed(event.target.checked)}
                         type="checkbox"
                     />
@@ -682,13 +682,13 @@ export function AgentWorkspace({
             {message === null
                 ? null
                 : (
-                    <div className="mb-5 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900" role="status">
+                    <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900" role="status">
                         {message}
                     </div>
                 )}
 
-            <div className="grid min-h-[720px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[340px_minmax(0,1fr)]">
-                <aside className="border-b border-slate-200 bg-slate-50/70 lg:border-b-0 lg:border-r">
+            <div className="grid min-h-[calc(100vh-17rem)] overflow-hidden rounded-[2rem] border border-white/70 bg-white/90 shadow-[0_28px_90px_rgba(15,23,42,0.12)] backdrop-blur lg:grid-cols-[360px_minmax(0,1fr)]">
+                <aside className="border-b border-slate-200 bg-slate-50/80 lg:border-b-0 lg:border-r">
                     <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
                         <p className="text-sm font-bold">{copy.conversations}</p>
                         <RefreshCw aria-hidden="true" className="size-4 text-slate-400" />
@@ -709,11 +709,11 @@ export function AgentWorkspace({
                                 </div>
                             )
                             : (
-                                <div className="max-h-[620px] overflow-y-auto">
+                                <div className="max-h-[calc(100vh-21rem)] min-h-[560px] overflow-y-auto">
                                     {conversations.map((conversation) => (
                                         <button
                                             className={conversation.conversationId === selectedId
-                                                ? "block w-full border-b border-slate-200 bg-white px-4 py-4 text-left"
+                                                ? "block w-full border-b border-slate-200 bg-white px-4 py-4 text-left shadow-[inset_3px_0_0_rgb(2,132,199)]"
                                                 : "block w-full border-b border-slate-200 px-4 py-4 text-left hover:bg-white"}
                                             key={conversation.conversationId}
                                             onClick={() =>
@@ -751,8 +751,8 @@ export function AgentWorkspace({
                         </div>
                     )
                     : (
-                        <div className="grid min-w-0 xl:grid-cols-[minmax(0,1fr)_420px]">
-                            <div className="flex min-w-0 flex-col border-b border-slate-200 xl:border-b-0 xl:border-r">
+                        <div className="grid min-w-0 2xl:grid-cols-[minmax(620px,1fr)_500px]">
+                            <div className="flex min-w-0 flex-col border-b border-slate-200 2xl:border-b-0 2xl:border-r">
                                 <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
                                     <div>
                                         <p className="font-bold">{displayValue(detail.customer.name, language)}</p>
@@ -779,14 +779,14 @@ export function AgentWorkspace({
                                     </div>
                                 </header>
 
-                                <div className="h-[500px] space-y-4 overflow-y-auto bg-slate-50/50 p-5">
+                                <div className="h-[min(64vh,720px)] min-h-[540px] space-y-4 overflow-y-auto bg-slate-50/60 p-6">
                                     {detail.messages.map((entry) => (
                                         <article
                                             className={entry.senderType === "customer"
-                                                ? "mr-auto max-w-[85%] rounded-2xl rounded-bl-sm border border-slate-200 bg-white p-4"
+                                                ? "mr-auto max-w-[78%] rounded-2xl rounded-bl-sm border border-slate-200 bg-white p-4 shadow-sm"
                                                 : entry.senderType === "human"
-                                                    ? "ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-sky-700 p-4 text-white"
-                                                    : "ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-slate-900 p-4 text-white"}
+                                                    ? "ml-auto max-w-[78%] rounded-2xl rounded-br-sm bg-sky-700 p-4 text-white shadow-sm"
+                                                    : "ml-auto max-w-[78%] rounded-2xl rounded-br-sm bg-slate-900 p-4 text-white shadow-sm"}
                                             key={entry.messageId}
                                         >
                                             <p className="mb-2 text-[10px] font-bold uppercase tracking-wider opacity-65">
@@ -812,13 +812,13 @@ export function AgentWorkspace({
                                     ))}
                                 </div>
 
-                                <div className="border-t border-slate-200 p-4">
+                                <div className="border-t border-slate-200 bg-white/90 p-4">
                                     {canReply
                                         ? (
-                                            <form className="flex gap-2" onSubmit={handleReply}>
+                                            <form className="flex gap-3" onSubmit={handleReply}>
                                                 <label className="sr-only" htmlFor="agent-reply">{copy.send}</label>
                                                 <textarea
-                                                    className="min-h-11 flex-1 resize-none rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100"
+                                                    className="min-h-14 flex-1 resize-none rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-sky-600 focus:bg-white focus:ring-4 focus:ring-sky-100"
                                                     id="agent-reply"
                                                     maxLength={5000}
                                                     onChange={(event) => setReply(event.target.value)}
@@ -844,10 +844,10 @@ export function AgentWorkspace({
                                 </div>
                             </div>
 
-                            <aside className="max-h-[720px] space-y-5 overflow-y-auto bg-slate-50/60 p-5">
-                                <section>
+                            <aside className="max-h-[calc(100vh-17rem)] space-y-5 overflow-y-auto bg-slate-50/80 p-6">
+                                <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                                     <h3 className="text-sm font-bold">{copy.customerCard}</h3>
-                                    <dl className="mt-3 grid gap-3 text-xs">
+                                    <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2 2xl:grid-cols-1">
                                         {[
                                             [copy.name, detail.customer.name],
                                             [copy.email, detail.customer.email],
@@ -909,13 +909,13 @@ export function AgentWorkspace({
                                         </section>
                                     )}
 
-                                <section className="rounded-2xl border border-sky-100 bg-white p-4 shadow-sm">
+                                <section className="rounded-[1.5rem] border border-sky-200 bg-gradient-to-br from-sky-50 to-white p-5 shadow-sm">
                                     <h3 className="flex items-center gap-2 text-sm font-bold text-sky-950">
                                         <MessageSquareText aria-hidden="true" className="size-4" />
                                         {copy.handoffPackage}
                                     </h3>
                                     <dl className="mt-4 space-y-3 text-xs leading-5 text-sky-950">
-                                        <div className="rounded-xl bg-sky-50 p-3">
+                                        <div className="rounded-2xl border border-sky-100 bg-white/80 p-3">
                                             <dt className="font-bold">{copy.summary}</dt>
                                             <dd className="mt-1">{normalizeVisibleDemoBrand(detail.summary.conversationSummary)}</dd>
                                         </div>
@@ -944,7 +944,7 @@ export function AgentWorkspace({
                                                 </ul>
                                             </div>
                                         )}
-                                    <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                                    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                                         <div className="flex items-center justify-between gap-3">
                                             <p className="text-xs font-bold text-emerald-950">{copy.suggestedReply}</p>
                                             <Button
@@ -963,7 +963,7 @@ export function AgentWorkspace({
                                     </div>
                                 </section>
 
-                                <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                                <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
                                     <h3 className="flex items-center gap-2 text-sm font-bold text-slate-950">
                                         <ListChecks aria-hidden="true" className="size-4 text-sky-700" />
                                         {copy.suggestedActions}
@@ -978,7 +978,7 @@ export function AgentWorkspace({
                                     </ol>
                                 </section>
 
-                                <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                                <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
                                     <h3 className="flex items-center gap-2 text-sm font-bold text-slate-950">
                                         <MessageSquareText aria-hidden="true" className="size-4 text-sky-700" />
                                         {copy.linksAndSources}

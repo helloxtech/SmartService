@@ -251,7 +251,7 @@ export function TeamWorkspace({
 
     return (
         <>
-            <nav aria-label={language === "zh-CN" ? "团队工作台" : "Team workspace"} className="mx-auto mb-7 max-w-[92rem] px-6 lg:px-8">
+            <nav aria-label={language === "zh-CN" ? "团队工作台" : "Team workspace"} className="mx-auto mb-7 max-w-[118rem] px-6 lg:px-8">
                 <div className="flex flex-wrap gap-2 rounded-[1.5rem] border border-white/70 bg-white/78 p-2 shadow-[0_18px_50px_rgb(15_23_42/0.08)] backdrop-blur-2xl">
                     {navigation.map((item) =>
                     {
@@ -285,7 +285,7 @@ export function TeamWorkspace({
                     />
                 )
                 : (
-                    <div className="mx-auto max-w-[92rem] px-6 pb-16 lg:px-8">
+                    <div className="mx-auto max-w-[118rem] px-6 pb-16 lg:px-8">
                         {view === "dashboard"
                             ? (
                                 <DashboardWorkspace

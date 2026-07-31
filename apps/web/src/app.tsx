@@ -404,7 +404,7 @@ function WorkspaceApp({
     return (
         <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_#dff6ff_0,_transparent_35rem),linear-gradient(135deg,_#f8fafc_0%,_#eef4ff_48%,_#f8fafc_100%)] text-slate-950">
             <header className="sticky top-0 z-20 border-b border-white/70 bg-white/75 backdrop-blur-2xl">
-                <div className="mx-auto flex max-w-[92rem] items-center justify-between px-6 py-4 lg:px-8">
+                <div className="mx-auto flex max-w-[118rem] items-center justify-between px-6 py-4 lg:px-8">
                     <div className="flex items-center gap-3">
                         <div className="flex size-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-slate-950/15">
                             <Headphones aria-hidden="true" className="size-5" />
@@ -422,7 +422,7 @@ function WorkspaceApp({
             </header>
 
             <section className={authentication.kind === "signed-in"
-                ? "mx-auto max-w-[92rem] px-6 py-5 lg:px-8"
+                ? "mx-auto max-w-[118rem] px-6 py-5 lg:px-8"
                 : "mx-auto grid max-w-[92rem] gap-10 px-6 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:px-8"}>
                 {authentication.kind === "signed-in"
                     ? null
@@ -563,7 +563,7 @@ function WorkspaceApp({
                 ? (
                     <Suspense
                         fallback={(
-                            <div className="mx-auto max-w-[92rem] px-6 pb-16 text-sm text-slate-500 lg:px-8" role="status">
+                            <div className="mx-auto max-w-[118rem] px-6 pb-16 text-sm text-slate-500 lg:px-8" role="status">
                                 {copy.workspaceLoading}
                             </div>
                         )}

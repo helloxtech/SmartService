@@ -19,14 +19,33 @@ import { DashboardWorkspace } from "./dashboard-workspace";
 import { GuardrailWorkspace } from "./guardrail-workspace";
 import { KnowledgeGapWorkspace } from "./knowledge-gap-workspace";
 import { KnowledgeWorkspace } from "./knowledge-workspace";
+import type { UiLanguage } from "./language";
 
 interface TeamWorkspaceProps
 {
+    language: UiLanguage;
     membership: OrganizationMembership;
     session: Session;
 }
 
 type WorkspaceView = "dashboard" | "gaps" | "guardrails" | "inbox" | "knowledge";
+
+const navigationLabels: Record<UiLanguage, Record<WorkspaceView, string>> = {
+    en: {
+        dashboard: "Dashboard",
+        gaps: "Knowledge gaps",
+        guardrails: "Guardrails",
+        inbox: "Inbox",
+        knowledge: "Knowledge",
+    },
+    "zh-CN": {
+        dashboard: "数据看板",
+        gaps: "知识缺口",
+        guardrails: "安全规则",
+        inbox: "会话",
+        knowledge: "知识库",
+    },
+};
 
 /**
  * readWorkspaceRoute
@@ -111,13 +130,15 @@ function readWorkspaceRoute(pathname: string): {
  * ----------------
  * Provides role-aware navigation across inbox, knowledge, dashboard, gap-resolution, and guardrail workspaces.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 5 Dashboard and Knowledge Gaps
+ * July 30, 2026: Updated by Forrest Zhang for SmartService Language Switch
  */
 export function TeamWorkspace({
+    language,
     membership,
     session,
 }: TeamWorkspaceProps): JSX.Element
 {
+    const labels = navigationLabels[language];
     const [pathname, setPathname] = useState(window.location.pathname);
     const route = readWorkspaceRoute(pathname);
     const view = (
@@ -193,20 +214,20 @@ export function TeamWorkspace({
         ...(membership.role === "admin"
             ? [{
                 icon: LayoutDashboard,
-                label: "Dashboard · 数据看板",
+                label: labels.dashboard,
                 path: "/app/dashboard",
                 view: "dashboard" as const,
             }]
             : []),
         {
             icon: Inbox,
-            label: "Inbox · 会话",
+            label: labels.inbox,
             path: "/app/inbox",
             view: "inbox" as const,
         },
         {
             icon: BookOpenCheck,
-            label: "Knowledge · 知识库",
+            label: labels.knowledge,
             path: "/app/knowledge",
             view: "knowledge" as const,
         },
@@ -214,13 +235,13 @@ export function TeamWorkspace({
             ? [
                 {
                     icon: CircleHelp,
-                    label: "Knowledge gaps · 知识缺口",
+                    label: labels.gaps,
                     path: "/app/knowledge-gaps",
                     view: "gaps" as const,
                 },
                 {
                     icon: ShieldCheck,
-                    label: "Guardrails · 安全规则",
+                    label: labels.guardrails,
                     path: "/app/settings/guardrails",
                     view: "guardrails" as const,
                 },
@@ -230,7 +251,7 @@ export function TeamWorkspace({
 
     return (
         <>
-            <nav aria-label="Team workspace · 团队工作台" className="mx-auto mb-7 max-w-6xl px-6">
+            <nav aria-label={language === "zh-CN" ? "团队工作台" : "Team workspace"} className="mx-auto mb-7 max-w-6xl px-6">
                 <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
                     {navigation.map((item) =>
                     {

@@ -4,10 +4,24 @@ import {
     type JSX,
 } from "react";
 
+import type { UiLanguage } from "./language";
+
 export interface TurnstileWidgetProps
 {
+    language: UiLanguage;
     onToken: (token: string) => void;
 }
+
+const turnstileCopy: Record<UiLanguage, {
+    ready: string;
+}> = {
+    en: {
+        ready: "Local demo verification is ready.",
+    },
+    "zh-CN": {
+        ready: "本地演示验证已就绪。",
+    },
+};
 
 /**
  * loadTurnstileScript
@@ -60,10 +74,14 @@ function loadTurnstileScript(): Promise<void>
  *
  * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Customer Chat Security
  */
-export function TurnstileWidget({ onToken }: TurnstileWidgetProps): JSX.Element
+export function TurnstileWidget({
+    language,
+    onToken,
+}: TurnstileWidgetProps): JSX.Element
 {
     const container = useRef<HTMLDivElement>(null);
     const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+    const copy = turnstileCopy[language];
 
     useEffect(() =>
     {
@@ -116,7 +134,7 @@ export function TurnstileWidget({ onToken }: TurnstileWidgetProps): JSX.Element
     {
         return (
             <p className="text-xs text-slate-500">
-                Local demo verification is ready.
+                {copy.ready}
             </p>
         );
     }

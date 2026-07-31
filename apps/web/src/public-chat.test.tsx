@@ -202,7 +202,7 @@ describe("PublicChat", () =>
         await screen.findByText("Clarification 2");
 
         await user.click(screen.getByRole("button", { name: /Need human help/u }));
-        expect(await screen.findByText("已收到您的请求，人工客服将接手此会话。"))
+        expect(await screen.findByText("Your request was received. A human support specialist will take over this conversation."))
             .toBeInTheDocument();
         expect(screen.queryByRole("button", { name: /Need human help/u }))
             .not.toBeInTheDocument();
@@ -261,7 +261,7 @@ describe("PublicChat", () =>
         const user = userEvent.setup();
         render(<PublicChat />);
 
-        expect(await screen.findByText("Waiting for human support · 等待人工客服接入"))
+        expect(await screen.findByText("Waiting for human support"))
             .toBeInTheDocument();
         const composer = screen.getByLabelText(/Ask XFlow support/u);
         expect(composer).toBeEnabled();
@@ -271,7 +271,7 @@ describe("PublicChat", () =>
 
         expect(await screen.findByText("I can share my preferred model."))
             .toBeInTheDocument();
-        expect(screen.queryByText("Human support has the conversation · 人工客服已收到会话"))
+        expect(screen.queryByText("Human support connected"))
             .not.toBeInTheDocument();
         expect(screen.queryByText("Your update has been sent to human support."))
             .not.toBeInTheDocument();

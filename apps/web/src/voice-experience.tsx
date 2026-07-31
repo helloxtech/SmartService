@@ -23,6 +23,10 @@ import {
     pollPublicMessages,
 } from "./lib/public-conversation-api";
 import {
+    LanguageSwitch,
+    type UiLanguage,
+} from "./language";
+import {
     LiveKitVoiceRoomConnector,
     MockVoiceRoomConnector,
     type VoiceRoomConnection,
@@ -43,7 +47,93 @@ type VoiceUiState =
 export interface VoiceExperienceProps
 {
     connector?: VoiceRoomConnector;
+    onUiLanguageChange?: (language: UiLanguage) => void;
     requestMicrophone?: () => Promise<void>;
+    uiLanguage?: UiLanguage;
+}
+
+const voiceCopy: Record<UiLanguage, {
+    answersLabel: string;
+    continueText: string;
+    endVoice: string;
+    languageLabel: string;
+    languageOptionEnglish: string;
+    languageOptionZh: string;
+    microphoneNotice: string;
+    playbackFallback: string;
+    startVoice: string;
+    state: Record<VoiceUiState, string>;
+    subtitle: string;
+    title: string;
+    transcriptEmpty: string;
+    transcriptTitle: string;
+    voiceTitle: string;
+}> = {
+    en: {
+        answersLabel: "Voice answers",
+        continueText: "Continue by text",
+        endVoice: "End voice",
+        languageLabel: "Voice language",
+        languageOptionEnglish: "English",
+        languageOptionZh: "Chinese",
+        microphoneNotice: "Browser microphone only. Audio recording is off by default.",
+        playbackFallback: "No browser playback observed",
+        startVoice: "Start voice",
+        state: {
+            denied: "Microphone access was denied. You can continue securely by text.",
+            ended: "Voice session ended. No audio recording was stored.",
+            failed: "Voice could not start. Please use text chat or try again.",
+            handoff: "AI voice has stopped. Your handoff package is ready for a human agent.",
+            idle: "Click Start voice to create a private session. Nothing connects before your click.",
+            listening: "Listening now. Ask your question in Chinese or English.",
+            ready: "Agent Ready. Requesting microphone access…",
+            reconnecting: "Connection interrupted. Refreshing the secure token and reconnecting…",
+            warming: "Warming the voice agent…",
+        },
+        subtitle: "Talk when the agent is Ready",
+        title: "XFlow voice support",
+        transcriptEmpty: "Your transcript will appear here after you speak.",
+        transcriptTitle: "Live transcript",
+        voiceTitle: "A human agent can now review the transcript and handoff package. Voice AI will not reply again.",
+    },
+    "zh-CN": {
+        answersLabel: "语音回答",
+        continueText: "继续文字聊天",
+        endVoice: "结束语音",
+        languageLabel: "语音语言",
+        languageOptionEnglish: "英文",
+        languageOptionZh: "中文",
+        microphoneNotice: "仅使用浏览器麦克风，默认不录音。",
+        playbackFallback: "尚未检测到浏览器播放",
+        startVoice: "开始语音",
+        state: {
+            denied: "麦克风权限被拒绝，您可以继续使用文字聊天。",
+            ended: "语音会话已结束，未保存录音。",
+            failed: "语音暂时无法启动，请使用文字聊天或稍后重试。",
+            handoff: "AI 语音已停止，人工客服可查看转接摘要。",
+            idle: "点击开始语音后才会创建私密会话。",
+            listening: "正在聆听，请用中文或英文提问。",
+            ready: "坐席已就绪，正在请求麦克风权限…",
+            reconnecting: "连接中断，正在刷新安全令牌并重连…",
+            warming: "正在预热语音坐席…",
+        },
+        subtitle: "坐席就绪后开始说话",
+        title: "XFlow 语音客服",
+        transcriptEmpty: "开始说话后，这里会显示实时文字。",
+        transcriptTitle: "实时文字",
+        voiceTitle: "人工客服现在可以查看文字记录和转接摘要；AI 语音不会继续回复。",
+    },
+};
+
+/**
+ * ignoreLanguageChange
+ * ----------------
+ * Provides a safe no-op callback for isolated voice component tests that do not mount the full app shell.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService Language Switch
+ */
+function ignoreLanguageChange(): void
+{
 }
 
 /**
@@ -77,21 +167,9 @@ async function requestBrowserMicrophone(): Promise<void>
  *
  * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
  */
-function describeVoiceState(state: VoiceUiState): string
+function describeVoiceState(state: VoiceUiState, language: UiLanguage): string
 {
-    const descriptions: Record<VoiceUiState, string> = {
-        denied: "Microphone access was denied. You can continue securely by text. · 麦克风权限被拒绝，您可以继续使用文字聊天。",
-        ended: "Voice session ended. No audio recording was stored. · 语音会话已结束，未保存录音。",
-        failed: "Voice could not start. Please use text chat or try again. · 语音暂时无法启动，请使用文字聊天或稍后重试。",
-        handoff: "AI voice has stopped. Your handoff package is ready for a human agent. · AI 语音已停止，人工客服可查看转接摘要。",
-        idle: "Click Start voice to create a private session. Nothing connects before your click. · 点击开始语音后才会创建私密会话。",
-        listening: "Listening now. Ask your question in Chinese or English. · 正在聆听，请用中文或英文提问。",
-        ready: "Agent Ready. Requesting microphone access… · 坐席已就绪，正在请求麦克风权限…",
-        reconnecting: "Connection interrupted. Refreshing the secure token and reconnecting… · 连接中断，正在刷新安全令牌并重连…",
-        warming: "Warming the voice agent… · 正在预热语音坐席…",
-    };
-
-    return descriptions[state];
+    return voiceCopy[language].state[state];
 }
 
 /**
@@ -103,9 +181,12 @@ function describeVoiceState(state: VoiceUiState): string
  */
 export function VoiceExperience({
     connector,
+    onUiLanguageChange = ignoreLanguageChange,
     requestMicrophone = requestBrowserMicrophone,
+    uiLanguage = "en",
 }: VoiceExperienceProps): JSX.Element
 {
+    const copy = voiceCopy[uiLanguage];
     const [language, setLanguage] = useState<ConversationLanguage>("zh-CN");
     const [state, setState] = useState<VoiceUiState>("idle");
     const [transcript, setTranscript] = useState("");
@@ -477,15 +558,21 @@ export function VoiceExperience({
     return (
         <main className="min-h-screen bg-slate-950 px-5 py-10 text-white">
             <section className="mx-auto max-w-3xl rounded-[2rem] border border-white/10 bg-slate-900 p-7 shadow-2xl">
-                <div className="flex items-center gap-3 text-cyan-300">
-                    <Headphones aria-hidden="true" />
-                    <span className="text-sm font-semibold uppercase tracking-[0.18em]">XFlow voice support · XFlow 语音客服</span>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 text-cyan-300">
+                        <Headphones aria-hidden="true" />
+                        <span className="text-sm font-semibold uppercase tracking-[0.18em]">{copy.title}</span>
+                    </div>
+                    <LanguageSwitch
+                        language={uiLanguage}
+                        onLanguageChange={onUiLanguageChange}
+                    />
                 </div>
-                <h1 className="mt-5 text-4xl font-semibold">Talk when the agent is Ready · 坐席就绪后开始说话</h1>
-                <p className="mt-3 text-slate-300">{describeVoiceState(state)}</p>
+                <h1 className="mt-5 text-4xl font-semibold">{copy.subtitle}</h1>
+                <p className="mt-3 text-slate-300">{describeVoiceState(state, uiLanguage)}</p>
 
                 <div className="mt-7 flex flex-wrap gap-3">
-                    <label className="sr-only" htmlFor="voice-language">Voice language · 语音语言</label>
+                    <label className="sr-only" htmlFor="voice-language">{copy.languageLabel}</label>
                     <select
                         className="rounded-xl border border-white/15 bg-slate-950 px-4 py-3"
                         disabled={state === "warming" || state === "ready" || state === "listening"}
@@ -496,49 +583,48 @@ export function VoiceExperience({
                         }}
                         value={language}
                     >
-                        <option value="zh-CN">中文</option>
-                        <option value="en">English</option>
+                        <option value="zh-CN">{copy.languageOptionZh}</option>
+                        <option value="en">{copy.languageOptionEnglish}</option>
                     </select>
                     {state === "idle" || state === "ended" || state === "failed"
                         ? (
                             <Button onClick={() => void startVoice()}>
                                 <Mic aria-hidden="true" className="mr-2 size-4" />
-                                Start voice · 开始语音
+                                {copy.startVoice}
                             </Button>
                         )
                         : (
                             <Button onClick={() => void endVoice()} variant="outline">
                                 <MicOff aria-hidden="true" className="mr-2 size-4" />
-                                End voice · 结束语音
+                                {copy.endVoice}
                             </Button>
                         )}
                     <a
                         className="inline-flex items-center rounded-xl border border-white/15 px-4 py-2 text-sm font-medium"
                         href="/chat"
                     >
-                        Continue by text · 继续文字聊天
+                        {copy.continueText}
                     </a>
                 </div>
 
                 <div aria-live="polite" className="mt-8 min-h-32 rounded-2xl bg-slate-950 p-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Live transcript · 实时文字</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{copy.transcriptTitle}</p>
                     <p className="mt-3 text-lg text-slate-100">
-                        {transcript || "Your transcript will appear here after you speak. · 开始说话后，这里会显示实时文字。"}
+                        {transcript || copy.transcriptEmpty}
                     </p>
                 </div>
 
                 {state === "handoff"
                     ? (
                         <div className="mt-5 rounded-2xl border border-amber-300/30 bg-amber-950/40 p-5 text-amber-100" role="status">
-                            A human agent can now review the transcript and handoff package. Voice AI will not reply again.
-                            人工客服现在可以查看文字记录和转接摘要；AI 语音不会继续回复。
+                            {copy.voiceTitle}
                         </div>
                     )
                     : null}
 
                 {messages.length > 0
                     ? (
-                        <section aria-label="Voice answers" className="mt-5 space-y-4">
+                        <section aria-label={copy.answersLabel} className="mt-5 space-y-4">
                             {messages.map((message) => (
                                 <article className="rounded-2xl border border-white/10 bg-slate-800 p-5" key={message.messageId}>
                                     <p className="text-slate-100">{message.text}</p>
@@ -565,10 +651,10 @@ export function VoiceExperience({
 
                 <p className="mt-5 flex items-center gap-2 text-sm text-slate-400">
                     <ShieldCheck aria-hidden="true" className="size-4" />
-                    Browser microphone only. Audio recording is off by default. · 仅使用浏览器麦克风，默认不录音。
+                    {copy.microphoneNotice}
                 </p>
                 <p className="sr-only" data-testid="voice-playback-clock">
-                    {lastPlaybackStartedAt ?? "No browser playback observed"}
+                    {lastPlaybackStartedAt ?? copy.playbackFallback}
                 </p>
             </section>
         </main>

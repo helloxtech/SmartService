@@ -34,6 +34,10 @@ import {
     requestPublicHandoff,
     sendPublicMessage,
 } from "./lib/public-conversation-api";
+import {
+    LanguageSwitch,
+    type UiLanguage,
+} from "./language";
 import { TurnstileWidget } from "./turnstile-widget";
 
 const storedSessionSchema = z.object({
@@ -59,7 +63,122 @@ type HumanSupportOfferReason =
     | "repeated_clarification"
     | "request_error";
 
+const publicChatCopy: Record<UiLanguage, {
+    activeStatus: string;
+    activeStatusShort: string;
+    aiReadyNotice: string;
+    askLabel: string;
+    backLabel: string;
+    busy: string;
+    closedFooter: string;
+    closedPlaceholder: string;
+    closedStatus: string;
+    footerHelp: string;
+    handoffConnectedFooter: string;
+    handoffConnectedStatus: string;
+    handoffDefaultMessage: string;
+    handoffRequestedFooter: string;
+    handoffRequestedStatus: string;
+    humanStatusShort: string;
+    initialWelcome: string;
+    messageFailed: string;
+    needHumanHelp: string;
+    openWebpage: string;
+    placeholderActive: string;
+    placeholderHuman: string;
+    secureSession: string;
+    sendLabel: string;
+    sourceAria: string;
+    sourceClose: string;
+    sourceEmpty: string;
+    sourceHeading: string;
+    sourcePrefix: string;
+    subtitle: string;
+    titleSuffix: string;
+    verificationRequired: string;
+}> = {
+    en: {
+        activeStatus: "AI ready",
+        activeStatusShort: "AI ready",
+        aiReadyNotice: "Answers use approved XFlow knowledge. If evidence is missing, the assistant will request human support.",
+        askLabel: "Ask XFlow support",
+        backLabel: "Back to SmartService",
+        busy: "Checking approved knowledge…",
+        closedFooter: "Conversation closed",
+        closedPlaceholder: "Conversation is closed.",
+        closedStatus: "Conversation closed",
+        footerHelp: "Enter to send. Shift + Enter for a new line.",
+        handoffConnectedFooter: "Human support connected",
+        handoffConnectedStatus: "Human support connected",
+        handoffDefaultMessage: "Your request was received. A human support specialist will take over this conversation.",
+        handoffRequestedFooter: "Waiting for human support",
+        handoffRequestedStatus: "Human support requested",
+        humanStatusShort: "Human support",
+        initialWelcome: "Hello. I’m the XFlow support assistant. How can I help?",
+        messageFailed: "The message could not be sent.",
+        needHumanHelp: "Need human help?",
+        openWebpage: "Open webpage",
+        placeholderActive: "Ask in Chinese or English…",
+        placeholderHuman: "Add details for human support…",
+        secureSession: "Secure conversation session active",
+        sendLabel: "Send message",
+        sourceAria: "Supporting source",
+        sourceClose: "Close source",
+        sourceEmpty: "Select a source below an answer to inspect the approved excerpt.",
+        sourceHeading: "Supporting source",
+        sourcePrefix: "Source",
+        subtitle: "Grounded customer service",
+        titleSuffix: "Support",
+        verificationRequired: "Please complete the human verification before starting.",
+    },
+    "zh-CN": {
+        activeStatus: "AI 已就绪",
+        activeStatusShort: "AI 就绪",
+        aiReadyNotice: "回答只使用已批准的 XFlow 知识；证据不足时会请求人工客服。",
+        askLabel: "咨询 XFlow 客服",
+        backLabel: "返回 SmartService",
+        busy: "正在检查已批准知识…",
+        closedFooter: "会话已结束",
+        closedPlaceholder: "会话已结束。",
+        closedStatus: "会话已结束",
+        footerHelp: "回车发送，Shift + 回车换行。",
+        handoffConnectedFooter: "人工客服已接入",
+        handoffConnectedStatus: "人工已接入",
+        handoffDefaultMessage: "已收到您的请求，人工客服将接手此会话。",
+        handoffRequestedFooter: "等待人工客服接入",
+        handoffRequestedStatus: "已转人工",
+        humanStatusShort: "人工客服",
+        initialWelcome: "您好！我是 XFlow 智能客服。请问有什么可以帮您？",
+        messageFailed: "消息未发送。",
+        needHumanHelp: "需要人工帮助？",
+        openWebpage: "打开网页",
+        placeholderActive: "请输入中文或英文问题…",
+        placeholderHuman: "补充信息给人工客服…",
+        secureSession: "安全会话已开启",
+        sendLabel: "发送消息",
+        sourceAria: "引用来源",
+        sourceClose: "关闭来源",
+        sourceEmpty: "点击答案下方的来源，可查看已批准的证据片段。",
+        sourceHeading: "引用来源",
+        sourcePrefix: "来源",
+        subtitle: "有依据的客户服务",
+        titleSuffix: "客服",
+        verificationRequired: "请先完成人机验证。",
+    },
+};
+
 const sessionStorageKey = "smartservice.publicConversation.v1";
+
+/**
+ * ignoreUiLanguageChange
+ * ----------------
+ * Provides a safe no-op callback for isolated public chat tests that do not mount the full app shell.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService Language Switch
+ */
+function ignoreUiLanguageChange(): void
+{
+}
 
 /**
  * loadStoredSession
@@ -136,28 +255,30 @@ function indicatesCustomerFrustration(question: string): boolean
 /**
  * describeStatus
  * ----------------
- * Maps the persisted conversation state to concise bilingual customer-facing status copy.
+ * Maps the persisted conversation state to concise single-language customer-facing status copy.
  *
  * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Customer Chat
  */
-function describeStatus(status: ConversationStatus): string
+function describeStatus(status: ConversationStatus, language: UiLanguage): string
 {
+    const copy = publicChatCopy[language];
+
     if (status === "handoff_requested")
     {
-        return "Human support requested · 已转人工";
+        return copy.handoffRequestedStatus;
     }
 
     if (status === "active_human")
     {
-        return "Human support connected · 人工已接入";
+        return copy.handoffConnectedStatus;
     }
 
     if (status === "closed")
     {
-        return "Conversation closed · 会话已结束";
+        return copy.closedStatus;
     }
 
-    return "AI ready · AI 已就绪";
+    return copy.activeStatus;
 }
 
 /**
@@ -181,19 +302,21 @@ function canCustomerSend(status: ConversationStatus): boolean
  *
  * July 29, 2026: Created by Forrest Zhang for SmartService Pending Handoff Customer Messages
  */
-function describeComposerPlaceholder(status: ConversationStatus): string
+function describeComposerPlaceholder(status: ConversationStatus, language: UiLanguage): string
 {
+    const copy = publicChatCopy[language];
+
     if (status === "active_ai")
     {
-        return "Ask in 中文 or English…";
+        return copy.placeholderActive;
     }
 
     if (status === "closed")
     {
-        return "Conversation is closed. · 会话已结束。";
+        return copy.closedPlaceholder;
     }
 
-    return "Add details for human support… · 补充信息给人工客服…";
+    return copy.placeholderHuman;
 }
 
 /**
@@ -203,19 +326,21 @@ function describeComposerPlaceholder(status: ConversationStatus): string
  *
  * July 29, 2026: Created by Forrest Zhang for SmartService Pending Handoff Customer Messages
  */
-function describeHumanSupportFooter(status: ConversationStatus): string
+function describeHumanSupportFooter(status: ConversationStatus, language: UiLanguage): string
 {
+    const copy = publicChatCopy[language];
+
     if (status === "handoff_requested")
     {
-        return "Waiting for human support · 等待人工客服接入";
+        return copy.handoffRequestedFooter;
     }
 
     if (status === "active_human")
     {
-        return "Human support connected · 人工客服已接入";
+        return copy.handoffConnectedFooter;
     }
 
-    return "Conversation closed · 会话已结束";
+    return copy.closedFooter;
 }
 
 /**
@@ -227,15 +352,19 @@ function describeHumanSupportFooter(status: ConversationStatus): string
  */
 function CitationPanel({
     citation,
+    language,
     onClose,
 }: {
     citation: PublicCitation | null;
+    language: UiLanguage;
     onClose: () => void;
 }): JSX.Element
 {
+    const copy = publicChatCopy[language];
+
     return (
         <aside
-            aria-label="Supporting source · 引用来源"
+            aria-label={copy.sourceAria}
             className={`rounded-2xl border bg-white p-5 shadow-sm lg:sticky lg:top-6 lg:self-start ${
                 citation === null ? "border-dashed border-slate-300" : "border-sky-200"
             }`}
@@ -243,13 +372,13 @@ function CitationPanel({
             <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <BookOpen aria-hidden="true" className="size-4 text-sky-700" />
-                    <h2 className="text-sm font-bold">Supporting source · 引用来源</h2>
+                    <h2 className="text-sm font-bold">{copy.sourceHeading}</h2>
                 </div>
                 {citation === null
                     ? null
                     : (
                         <button
-                            aria-label="Close source · 关闭来源"
+                            aria-label={copy.sourceClose}
                             className="rounded-md p-1 text-slate-500 hover:bg-slate-100"
                             onClick={onClose}
                             type="button"
@@ -262,8 +391,7 @@ function CitationPanel({
             {citation === null
                 ? (
                     <p className="mt-4 text-sm leading-6 text-slate-500">
-                        Select a source below an answer to inspect the approved excerpt.
-                        点击答案下方的来源，可查看已批准的证据片段。
+                        {copy.sourceEmpty}
                     </p>
                 )
                 : (
@@ -284,7 +412,7 @@ function CitationPanel({
                                     rel="noreferrer"
                                     target="_blank"
                                 >
-                                    Open webpage · 打开网页
+                                    {copy.openWebpage}
                                     <ExternalLink aria-hidden="true" className="size-3.5" />
                                 </a>
                             )}
@@ -297,12 +425,19 @@ function CitationPanel({
 /**
  * PublicChat
  * ----------------
- * Renders the responsive bilingual customer chat with grounded citations, scoped polling, automatic escalation, and contextual human support.
+ * Renders the responsive customer chat with language-switched copy, grounded citations, scoped polling, automatic escalation, and contextual human support.
  *
  * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
  */
-export function PublicChat(): JSX.Element
+export function PublicChat({
+    onUiLanguageChange = ignoreUiLanguageChange,
+    uiLanguage = "en",
+}: {
+    onUiLanguageChange?: (language: UiLanguage) => void;
+    uiLanguage?: UiLanguage;
+}): JSX.Element
 {
+    const copy = publicChatCopy[uiLanguage];
     const initialSession = loadStoredSession();
     const [session, setSession] = useState<StoredSession | null>(initialSession);
     const [messages, setMessages] = useState<ChatMessage[]>([{
@@ -310,7 +445,7 @@ export function PublicChat(): JSX.Element
         id: "local-welcome",
         sender: "ai",
         text: initialSession?.welcomeMessage
-            ?? "您好！我是 XFlow 智能客服。您也可以用 English 提问。",
+            ?? copy.initialWelcome,
     }]);
     const [input, setInput] = useState("");
     const [busy, setBusy] = useState(false);
@@ -444,7 +579,7 @@ export function PublicChat(): JSX.Element
 
         if (turnstileToken.length === 0)
         {
-            throw new Error("Please complete the human verification before starting.");
+            throw new Error(copy.verificationRequired);
         }
 
         const created = await createPublicConversationWithFallback(
@@ -566,7 +701,7 @@ export function PublicChat(): JSX.Element
         {
             setError(caught instanceof Error
                 ? caught.message
-                : "The message could not be sent. · 消息未发送。");
+                : copy.messageFailed);
             setHumanSupportOfferReason("request_error");
         }
         finally
@@ -606,14 +741,14 @@ export function PublicChat(): JSX.Element
                 citations: [],
                 id: response.messageId,
                 sender: "system",
-                text: "已收到您的请求，人工客服将接手此会话。",
+                text: copy.handoffDefaultMessage,
             }]);
         }
         catch (caught: unknown)
         {
             setError(caught instanceof Error
                 ? caught.message
-                : "Human support could not be requested. · 暂时无法请求人工客服。");
+                : copy.messageFailed);
             setHumanSupportOfferReason("request_error");
         }
         finally
@@ -628,7 +763,7 @@ export function PublicChat(): JSX.Element
                 <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
                     <div className="flex min-w-0 items-center gap-3">
                         <a
-                            aria-label="Back to SmartService"
+                            aria-label={copy.backLabel}
                             className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
                             href="/"
                         >
@@ -638,22 +773,28 @@ export function PublicChat(): JSX.Element
                             <Headphones aria-hidden="true" className="size-5" />
                         </div>
                         <div className="min-w-0">
-                            <h1 className="truncate font-bold">{session?.displayName ?? "XFlow"} Support · 客服</h1>
+                            <h1 className="truncate font-bold">{session?.displayName ?? "XFlow"} {copy.titleSuffix}</h1>
                             <p className="hidden truncate text-xs text-slate-500 sm:block">
-                                Grounded bilingual customer service · 有依据的中英文客服
+                                {copy.subtitle}
                             </p>
                         </div>
                     </div>
-                    <span className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${
-                        status === "active_ai"
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-amber-50 text-amber-800"
-                    }`}>
-                        <span className="sm:hidden">
-                            {status === "active_ai" ? "AI · 就绪" : "Human · 人工"}
+                    <div className="flex shrink-0 items-center gap-2">
+                        <LanguageSwitch
+                            language={uiLanguage}
+                            onLanguageChange={onUiLanguageChange}
+                        />
+                        <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                            status === "active_ai"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-amber-50 text-amber-800"
+                        }`}>
+                            <span className="sm:hidden">
+                                {status === "active_ai" ? copy.activeStatusShort : copy.humanStatusShort}
+                            </span>
+                            <span className="hidden sm:inline">{describeStatus(status, uiLanguage)}</span>
                         </span>
-                        <span className="hidden sm:inline">{describeStatus(status)}</span>
-                    </span>
+                    </div>
                 </div>
             </header>
 
@@ -664,8 +805,7 @@ export function PublicChat(): JSX.Element
                         className="flex-1 space-y-5 overflow-y-auto p-4 sm:p-6"
                     >
                         <div className="mx-auto max-w-3xl rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-900">
-                            Answers use approved XFlow knowledge. If evidence is missing, the assistant will request human support.
-                            回答只使用已批准的 XFlow 知识；证据不足时会请求人工客服。
+                            {copy.aiReadyNotice}
                         </div>
 
                         {messages.map((message) => (
@@ -698,7 +838,9 @@ export function PublicChat(): JSX.Element
                                                 ? "border border-amber-200 bg-amber-50 text-amber-950"
                                                 : "rounded-tl-sm bg-slate-100 text-slate-800"
                                     }`}>
-                                        {message.text}
+                                        {message.id === "local-welcome"
+                                            ? copy.initialWelcome
+                                            : message.text}
                                     </div>
                                     {message.citations.length === 0
                                         ? null
@@ -712,7 +854,7 @@ export function PublicChat(): JSX.Element
                                                         type="button"
                                                     >
                                                         <BookOpen aria-hidden="true" className="size-3.5" />
-                                                        Source {index + 1} · 来源 {index + 1}: {citation.label}
+                                                        {copy.sourcePrefix} {index + 1}: {citation.label}
                                                     </button>
                                                 ))}
                                             </div>
@@ -725,7 +867,7 @@ export function PublicChat(): JSX.Element
                             ? (
                                 <div className="mx-auto flex max-w-3xl items-center gap-3 text-sm text-slate-500" role="status">
                                     <LoaderCircle aria-hidden="true" className="size-4 animate-spin text-sky-700" />
-                                    Checking approved knowledge… · 正在检查已批准知识…
+                                    {copy.busy}
                                 </div>
                             )
                             : null}
@@ -734,11 +876,16 @@ export function PublicChat(): JSX.Element
 
                     <div className="border-t border-slate-200 bg-slate-50 p-4 sm:p-5">
                         {session === null
-                            ? <TurnstileWidget onToken={handleTurnstileToken} />
+                            ? (
+                                <TurnstileWidget
+                                    language={uiLanguage}
+                                    onToken={handleTurnstileToken}
+                                />
+                            )
                             : (
                                 <p className="mb-2 flex items-center gap-1.5 text-xs text-emerald-700">
                                     <CheckCircle2 aria-hidden="true" className="size-3.5" />
-                                    Secure conversation session active · 安全会话已开启
+                                    {copy.secureSession}
                                 </p>
                             )}
 
@@ -752,7 +899,7 @@ export function PublicChat(): JSX.Element
 
                         <form className="mx-auto max-w-3xl" onSubmit={handleSubmit}>
                             <label className="sr-only" htmlFor="customer-message">
-                                Ask XFlow support · 咨询 XFlow 客服
+                                {copy.askLabel}
                             </label>
                             <div className="flex items-end gap-2 rounded-xl border border-slate-300 bg-white p-2 focus-within:border-sky-600 focus-within:ring-2 focus-within:ring-sky-100">
                                 <textarea
@@ -769,12 +916,12 @@ export function PublicChat(): JSX.Element
                                             event.currentTarget.form?.requestSubmit();
                                         }
                                     }}
-                                    placeholder={describeComposerPlaceholder(status)}
+                                    placeholder={describeComposerPlaceholder(status, uiLanguage)}
                                     rows={1}
                                     value={input}
                                 />
                                 <Button
-                                    aria-label="Send message · 发送消息"
+                                    aria-label={copy.sendLabel}
                                     disabled={
                                         busy
                                         || input.trim().length === 0
@@ -791,7 +938,7 @@ export function PublicChat(): JSX.Element
 
                         <div className="mx-auto mt-3 flex max-w-3xl items-center justify-between gap-3">
                             <p className="text-xs text-slate-500">
-                                Enter to send · Shift + Enter for a new line · 回车发送，Shift + 回车换行
+                                {copy.footerHelp}
                             </p>
                             {status === "active_ai" && humanSupportOfferReason !== null
                                 ? (
@@ -802,14 +949,14 @@ export function PublicChat(): JSX.Element
                                         type="button"
                                     >
                                         <LifeBuoy aria-hidden="true" className="size-3.5" />
-                                        Need human help? · 需要人工帮助？
+                                        {copy.needHumanHelp}
                                     </button>
                                 )
                                 : status === "active_ai"
                                     ? null
                                     : (
                                         <p className="text-right text-xs font-semibold text-amber-800">
-                                            {describeHumanSupportFooter(status)}
+                                            {describeHumanSupportFooter(status, uiLanguage)}
                                         </p>
                                     )}
                         </div>
@@ -818,6 +965,7 @@ export function PublicChat(): JSX.Element
 
                 <CitationPanel
                     citation={selectedCitation}
+                    language={uiLanguage}
                     onClose={() => setSelectedCitation(null)}
                 />
             </div>

@@ -44,10 +44,15 @@ test("renders the responsive public customer chat and evidence panel", async ({ 
     await page.goto("/chat");
 
     await expect(page.getByRole("heading", { name: /XFlow Support/u })).toBeVisible();
-    await expect(page.getByText("AI ready · AI 已就绪")).toBeVisible();
+    await expect(page.getByText("AI ready").nth(1)).toBeVisible();
     await expect(page.getByLabel(/Ask XFlow support/u)).toBeVisible();
     await expect(page.getByRole("heading", { name: /Supporting source/u })).toBeVisible();
     await expect(page.getByRole("button", { name: /Need human help/u })).toHaveCount(0);
+    await page.getByRole("button", { name: "Chinese" }).click();
+    await expect(page.getByText("AI 已就绪")).toBeVisible();
+    await expect(page.getByLabel(/咨询 XFlow 客服/u)).toBeVisible();
+    await expect(page.getByRole("heading", { name: /引用来源/u })).toBeVisible();
+    await expect(page.getByText("AI ready")).toHaveCount(0);
 
     await page.setViewportSize({
         height: 844,

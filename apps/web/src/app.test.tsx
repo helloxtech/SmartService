@@ -1,5 +1,17 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import {
+    cleanup,
+    render,
+    screen,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import {
+    afterEach,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+} from "vitest";
 
 vi.mock("./lib/supabase", () =>
 {
@@ -9,6 +21,16 @@ vi.mock("./lib/supabase", () =>
 });
 
 import { App } from "./app";
+
+beforeEach(() =>
+{
+    localStorage.clear();
+});
+
+afterEach(() =>
+{
+    cleanup();
+});
 
 describe("App", () =>
 {
@@ -20,5 +42,18 @@ describe("App", () =>
         expect(await screen.findByText(/Supabase configuration is not available yet/u)).toBeInTheDocument();
         expect(screen.getByLabelText(/Email/u)).toBeInTheDocument();
         expect(screen.getByLabelText(/Password/u)).toBeInTheDocument();
+    });
+
+    it("switches the visible shell copy between English and Chinese", async () =>
+    {
+        const user = userEvent.setup();
+        render(<App />);
+
+        await user.click(screen.getByRole("button", { name: "Chinese" }));
+
+        expect(screen.getByRole("heading", { name: /登录 SmartService/u })).toBeInTheDocument();
+        expect(screen.getByLabelText(/邮箱/u)).toBeInTheDocument();
+        expect(screen.queryByRole("heading", { name: /Sign in to SmartService/u }))
+            .not.toBeInTheDocument();
     });
 });

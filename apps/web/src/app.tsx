@@ -172,6 +172,23 @@ function describeError(error: unknown, language: UiLanguage): string
 }
 
 /**
+ * formatMembershipRole
+ * ----------------
+ * Converts stored membership role values into localized workspace labels without changing authorization logic.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService Workspace UX
+ */
+function formatMembershipRole(role: OrganizationMembership["role"], language: UiLanguage): string
+{
+    if (language === "zh-CN")
+    {
+        return role === "admin" ? "管理员" : "客服";
+    }
+
+    return role === "admin" ? "Admin" : "Agent";
+}
+
+/**
  * loadMembership
  * ----------------
  * Loads and validates the signed-in user's active organization membership under Supabase RLS.
@@ -464,8 +481,8 @@ function WorkspaceApp({
                                     </p>
                                     <p className="mt-1 text-sm font-medium">
                                         {authentication.session.user.email}
-                                        <span className="ml-2 capitalize text-slate-500">
-                                            · {authentication.membership.role}
+                                        <span className="ml-2 text-slate-500">
+                                            · {formatMembershipRole(authentication.membership.role, language)}
                                         </span>
                                     </p>
                                 </div>

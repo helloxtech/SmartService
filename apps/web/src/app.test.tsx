@@ -49,7 +49,7 @@ describe("App", () =>
         const user = userEvent.setup();
         render(<App />);
 
-        await user.click(screen.getByRole("button", { name: "Chinese" }));
+        await user.click(screen.getByRole("button", { name: "中文" }));
 
         expect(screen.getByRole("heading", { name: /登录 SmartService/u })).toBeInTheDocument();
         expect(screen.getByLabelText(/邮箱/u)).toBeInTheDocument();

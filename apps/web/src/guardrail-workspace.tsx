@@ -29,18 +29,101 @@ import {
     TeamApiError,
     updateGuardrailRule,
 } from "./lib/team-api";
+import type { UiLanguage } from "./language";
 
 interface GuardrailWorkspaceProps
 {
+    language?: UiLanguage;
     session: Session;
 }
 
 interface RuleEditorProps
 {
+    language: UiLanguage;
     onSaved(rule: GuardrailRule): void;
     rule: GuardrailRule;
     session: Session;
 }
+
+const guardrailCopy: Record<UiLanguage, {
+    activeConfiguration: string;
+    adminCandidate: string;
+    blockLog: string;
+    candidateEmpty: string;
+    code: string;
+    configurableBoundary: string;
+    conversation: string;
+    createRule: string;
+    created: string;
+    description: string;
+    enabled: string;
+    eventsEmpty: string;
+    guardrails: string;
+    loadingRules: string;
+    name: string;
+    newRule: string;
+    presetType: string;
+    redactionBody: string;
+    safeResponse: string;
+    saved: string;
+    saveRule: string;
+    severity: string;
+    subtitle: string;
+    withheldCandidate: string;
+}> = {
+    en: {
+        activeConfiguration: "Active configuration",
+        adminCandidate: "Admin view candidate",
+        blockLog: "Block log",
+        candidateEmpty: "No candidate was generated; the input check blocked first.",
+        code: "Code",
+        configurableBoundary: "Configurable safety boundary",
+        conversation: "conversation",
+        createRule: "Create rule",
+        created: "Guardrail rule created.",
+        description: "Description",
+        enabled: "Enabled",
+        eventsEmpty: "No guardrail events yet.",
+        guardrails: "Guardrails",
+        loadingRules: "Loading rules…",
+        name: "Name",
+        newRule: "New rule",
+        presetType: "Preset type",
+        redactionBody: "Normal log responses are redacted. Candidate text requires the separate Admin-only action below.",
+        safeResponse: "Safe customer response",
+        saved: "Saved.",
+        saveRule: "Save rule",
+        severity: "Severity",
+        subtitle: "Configure simple rule fields and safe replies. Deterministic checks and the auxiliary supervisor both enforce enabled rules before customers see an answer.",
+        withheldCandidate: "Withheld candidate",
+    },
+    "zh-CN": {
+        activeConfiguration: "当前安全配置",
+        adminCandidate: "管理员查看候选回答",
+        blockLog: "拦截日志",
+        candidateEmpty: "没有生成候选回答；输入检查已先拦截。",
+        code: "代码",
+        configurableBoundary: "可配置安全边界",
+        conversation: "会话",
+        createRule: "创建规则",
+        created: "安全规则已创建。",
+        description: "说明",
+        enabled: "启用",
+        eventsEmpty: "暂无安全规则事件。",
+        guardrails: "安全规则",
+        loadingRules: "正在加载规则…",
+        name: "名称",
+        newRule: "新建规则",
+        presetType: "预设类型",
+        redactionBody: "普通日志默认脱敏。候选回答需要通过下方的管理员专用操作单独查看。",
+        safeResponse: "安全回复",
+        saved: "已保存。",
+        saveRule: "保存规则",
+        severity: "严重程度",
+        subtitle: "配置简单规则字段和安全回复。确定性检查和辅助监督模型都会在客户看到答案前执行启用的规则。",
+        withheldCandidate: "被拦截候选回答",
+    },
+};
 
 const ruleTypes: GuardrailRule["ruleType"][] = [
     "price",
@@ -58,6 +141,90 @@ const severities: GuardrailRule["severity"][] = [
     "high",
     "critical",
 ];
+
+/**
+ * formatRuleType
+ * ----------------
+ * Converts stored guardrail rule types into compact Admin-facing labels.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService Workspace UX
+ */
+function formatRuleType(ruleType: GuardrailRule["ruleType"], language: UiLanguage): string
+{
+    if (language === "zh-CN")
+    {
+        const labels: Record<GuardrailRule["ruleType"], string> = {
+            competitor: "竞品",
+            custom: "自定义",
+            delivery: "交付",
+            price: "价格",
+            safety: "安全",
+            security: "隐私安全",
+            unsupported_claim: "无依据声明",
+        };
+
+        return labels[ruleType];
+    }
+
+    return ruleType.replace("_", " ");
+}
+
+/**
+ * formatSeverity
+ * ----------------
+ * Converts stored severity values into compact Admin-facing labels.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService Workspace UX
+ */
+function formatSeverity(severity: GuardrailRule["severity"], language: UiLanguage): string
+{
+    if (language === "zh-CN")
+    {
+        const labels: Record<GuardrailRule["severity"], string> = {
+            critical: "严重",
+            high: "高",
+            low: "低",
+            medium: "中",
+        };
+
+        return labels[severity];
+    }
+
+    return severity;
+}
+
+/**
+ * createDefaultNewRule
+ * ----------------
+ * Creates a localized draft rule for the Admin new-rule form without persisting any data.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService Workspace UX
+ */
+function createDefaultNewRule(language: UiLanguage, code = "CUSTOM_RULE"): CreateGuardrailRuleRequest
+{
+    if (language === "zh-CN")
+    {
+        return {
+            code,
+            description: "描述必须转人工处理的客户问题或候选回答。",
+            enabled: true,
+            name: "自定义转人工",
+            ruleType: "custom",
+            safeResponse: "这个请求我不能直接处理，已为您转接人工客服。",
+            severity: "high",
+        };
+    }
+
+    return {
+        code,
+        description: "Describe the customer or candidate output that must be escalated.",
+        enabled: true,
+        name: "Custom escalation",
+        ruleType: "custom",
+        safeResponse: "I cannot help with that request. I have handed the conversation to a human specialist.",
+        severity: "high",
+    };
+}
 
 /**
  * describeError
@@ -83,9 +250,9 @@ function describeError(error: unknown): string
  *
  * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Guardrail Logs
  */
-function formatTime(value: string): string
+function formatTime(value: string, language: UiLanguage): string
 {
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat(language === "zh-CN" ? "zh-CN" : undefined, {
         dateStyle: "medium",
         timeStyle: "short",
     }).format(new Date(value));
@@ -99,11 +266,13 @@ function formatTime(value: string): string
  * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Guardrail Administration
  */
 function RuleEditor({
+    language,
     onSaved,
     rule,
     session,
 }: RuleEditorProps): JSX.Element
 {
+    const copy = guardrailCopy[language];
     const [draft, setDraft] = useState<UpdateGuardrailRuleRequest>({
         description: rule.description,
         enabled: rule.enabled,
@@ -132,7 +301,7 @@ function RuleEditor({
         {
             const saved = await updateGuardrailRule(session, rule.id, draft);
             onSaved(saved);
-            setMessage("Saved.");
+            setMessage(copy.saved);
         }
         catch (error: unknown)
         {
@@ -149,7 +318,7 @@ function RuleEditor({
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <p className="font-mono text-xs font-bold text-sky-700">{rule.code}</p>
-                    <p className="mt-1 text-xs text-slate-400">Preset type: {draft.ruleType}</p>
+                    <p className="mt-1 text-xs text-slate-400">{copy.presetType}: {formatRuleType(draft.ruleType ?? rule.ruleType, language)}</p>
                 </div>
                 <label className="flex items-center gap-2 text-sm font-semibold">
                     <input
@@ -161,13 +330,13 @@ function RuleEditor({
                         })}
                         type="checkbox"
                     />
-                    Enabled
+                    {copy.enabled}
                 </label>
             </div>
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <label className="text-xs font-semibold text-slate-700">
-                    Rule name
+                    {copy.name}
                     <input
                         className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
                         maxLength={160}
@@ -180,7 +349,7 @@ function RuleEditor({
                     />
                 </label>
                 <label className="text-xs font-semibold text-slate-700">
-                    Severity
+                    {copy.severity}
                     <select
                         className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
                         onChange={(event) => setDraft({
@@ -190,14 +359,14 @@ function RuleEditor({
                         value={draft.severity}
                     >
                         {severities.map((severity) => (
-                            <option key={severity} value={severity}>{severity}</option>
+                            <option key={severity} value={severity}>{formatSeverity(severity, language)}</option>
                         ))}
                     </select>
                 </label>
             </div>
 
             <label className="mt-4 block text-xs font-semibold text-slate-700">
-                Description
+                {copy.description}
                 <textarea
                     className="mt-1.5 min-h-20 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                     maxLength={2000}
@@ -211,7 +380,7 @@ function RuleEditor({
             </label>
 
             <label className="mt-4 block text-xs font-semibold text-slate-700">
-                Safe customer response
+                {copy.safeResponse}
                 <textarea
                     className="mt-1.5 min-h-20 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                     maxLength={4000}
@@ -230,7 +399,7 @@ function RuleEditor({
                     {saving
                         ? <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
                         : <Save aria-hidden="true" className="size-4" />}
-                    Save rule
+                    {copy.saveRule}
                 </Button>
             </div>
         </form>
@@ -245,24 +414,18 @@ function RuleEditor({
  * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Guardrail Administration
  */
 export function GuardrailWorkspace({
+    language = "en",
     session,
 }: GuardrailWorkspaceProps): JSX.Element
 {
+    const copy = guardrailCopy[language];
     const [rules, setRules] = useState<GuardrailRule[]>([]);
     const [events, setEvents] = useState<GuardrailEvent[]>([]);
     const [candidateByEvent, setCandidateByEvent] = useState<Record<string, string | null>>({});
     const [loading, setLoading] = useState(true);
     const [creating, setCreating] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
-    const [newRule, setNewRule] = useState<CreateGuardrailRuleRequest>({
-        code: "CUSTOM_RULE",
-        description: "Describe the customer or candidate output that must be escalated.",
-        enabled: true,
-        name: "Custom escalation",
-        ruleType: "custom",
-        safeResponse: "I cannot help with that request. I have handed the conversation to a human specialist.",
-        severity: "high",
-    });
+    const [newRule, setNewRule] = useState<CreateGuardrailRuleRequest>(() => createDefaultNewRule(language));
 
     useEffect(() =>
     {
@@ -345,12 +508,8 @@ export function GuardrailWorkspace({
             {
                 return left.code.localeCompare(right.code);
             }));
-            setNewRule({
-                ...newRule,
-                code: "CUSTOM_RULE_2",
-                name: "New custom escalation",
-            });
-            setMessage("Guardrail rule created.");
+            setNewRule(createDefaultNewRule(language, "CUSTOM_RULE_2"));
+            setMessage(copy.created);
         }
         catch (error: unknown)
         {
@@ -405,12 +564,12 @@ export function GuardrailWorkspace({
     return (
         <section aria-labelledby="guardrail-heading">
             <div>
-                <p className="text-sm font-semibold text-sky-700">Configurable safety boundary</p>
+                <p className="text-sm font-semibold text-sky-700">{copy.configurableBoundary}</p>
                 <h2 className="mt-1 text-3xl font-bold tracking-tight" id="guardrail-heading">
-                    Guardrails
+                    {copy.guardrails}
                 </h2>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    Configure simple rule fields and safe replies. Deterministic checks and the auxiliary supervisor both enforce enabled rules before customers see an answer.
+                    {copy.subtitle}
                 </p>
             </div>
 
@@ -422,14 +581,14 @@ export function GuardrailWorkspace({
                     </div>
                 )}
 
-            <form className="mt-6 rounded-2xl border border-sky-200 bg-sky-50/50 p-5" onSubmit={handleCreate}>
+            <form className="mt-6 rounded-3xl border border-sky-200 bg-sky-50/60 p-6" onSubmit={handleCreate}>
                 <h3 className="flex items-center gap-2 font-bold">
                     <Plus aria-hidden="true" className="size-4" />
-                    New rule
+                    {copy.newRule}
                 </h3>
-                <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <label className="text-xs font-semibold">
-                        Code
+                        {copy.code}
                         <input
                             className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 font-mono text-sm"
                             onChange={(event) => setNewRule({
@@ -442,7 +601,7 @@ export function GuardrailWorkspace({
                         />
                     </label>
                     <label className="text-xs font-semibold">
-                        Name
+                        {copy.name}
                         <input
                             className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
                             onChange={(event) => setNewRule({
@@ -454,7 +613,7 @@ export function GuardrailWorkspace({
                         />
                     </label>
                     <label className="text-xs font-semibold">
-                        Preset type
+                        {copy.presetType}
                         <select
                             className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
                             onChange={(event) => setNewRule({
@@ -464,12 +623,12 @@ export function GuardrailWorkspace({
                             value={newRule.ruleType}
                         >
                             {ruleTypes.map((type) => (
-                                <option key={type} value={type}>{type}</option>
+                                <option key={type} value={type}>{formatRuleType(type, language)}</option>
                             ))}
                         </select>
                     </label>
                     <label className="text-xs font-semibold">
-                        Severity
+                        {copy.severity}
                         <select
                             className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm"
                             onChange={(event) => setNewRule({
@@ -479,14 +638,14 @@ export function GuardrailWorkspace({
                             value={newRule.severity}
                         >
                             {severities.map((severity) => (
-                                <option key={severity} value={severity}>{severity}</option>
+                                <option key={severity} value={severity}>{formatSeverity(severity, language)}</option>
                             ))}
                         </select>
                     </label>
                 </div>
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div className="mt-4 grid gap-4 xl:grid-cols-2">
                     <label className="text-xs font-semibold">
-                        Description
+                        {copy.description}
                         <textarea
                             className="mt-1.5 min-h-20 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                             onChange={(event) => setNewRule({
@@ -498,7 +657,7 @@ export function GuardrailWorkspace({
                         />
                     </label>
                     <label className="text-xs font-semibold">
-                        Safe response
+                        {copy.safeResponse}
                         <textarea
                             className="mt-1.5 min-h-20 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                             onChange={(event) => setNewRule({
@@ -515,7 +674,7 @@ export function GuardrailWorkspace({
                         {creating
                             ? <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
                             : <Plus aria-hidden="true" className="size-4" />}
-                        Create rule
+                        {copy.createRule}
                     </Button>
                 </div>
             </form>
@@ -523,19 +682,20 @@ export function GuardrailWorkspace({
             <div className="mt-8">
                 <h3 className="flex items-center gap-2 text-lg font-bold">
                     <ShieldCheck aria-hidden="true" className="size-5 text-emerald-700" />
-                    Active configuration
+                    {copy.activeConfiguration}
                 </h3>
                 {loading
                     ? (
                         <p className="mt-4 flex items-center gap-2 text-sm text-slate-500">
                             <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-                            Loading rules…
+                            {copy.loadingRules}
                         </p>
                     )
                     : (
                         <div className="mt-4 grid gap-4 xl:grid-cols-2">
                             {rules.map((rule) => (
                                 <RuleEditor
+                                    language={language}
                                     key={rule.id}
                                     onSaved={handleSaved}
                                     rule={rule}
@@ -549,42 +709,42 @@ export function GuardrailWorkspace({
             <div className="mt-10">
                 <h3 className="flex items-center gap-2 text-lg font-bold">
                     <AlertTriangle aria-hidden="true" className="size-5 text-amber-600" />
-                    Block log
+                    {copy.blockLog}
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
-                    Normal log responses are redacted. Candidate text requires the separate Admin-only action below.
+                    {copy.redactionBody}
                 </p>
 
                 <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
                     {events.length === 0
                         ? (
-                            <p className="p-6 text-sm text-slate-500">No guardrail events yet.</p>
+                            <p className="p-6 text-sm text-slate-500">{copy.eventsEmpty}</p>
                         )
                         : events.map((event) => (
                             <article className="border-b border-slate-200 p-5 last:border-b-0" key={event.id}>
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                     <div>
                                         <p className="font-mono text-xs font-bold text-amber-800">
-                                            {event.ruleCode} · {event.severity}
+                                            {event.ruleCode} · {formatSeverity(event.severity, language)}
                                         </p>
                                         <p className="mt-2 text-sm leading-6 text-slate-700">{event.reason}</p>
                                         <p className="mt-2 text-xs text-slate-400">
-                                            {formatTime(event.createdAt)} · conversation {event.conversationId.slice(0, 8)}…
+                                            {formatTime(event.createdAt, language)} · {copy.conversation} {event.conversationId.slice(0, 8)}…
                                         </p>
                                     </div>
                                     <Button onClick={() => void handleCandidate(event.id)} size="sm" variant="outline">
                                         <Eye aria-hidden="true" className="size-4" />
-                                        Admin view candidate
+                                        {copy.adminCandidate}
                                     </Button>
                                 </div>
                                 {Object.hasOwn(candidateByEvent, event.id)
                                     ? (
                                         <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4">
                                             <p className="text-xs font-bold uppercase tracking-wide text-rose-800">
-                                                Withheld candidate
+                                                {copy.withheldCandidate}
                                             </p>
                                             <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-rose-950">
-                                                {candidateByEvent[event.id] ?? "No candidate was generated; the input check blocked first."}
+                                                {candidateByEvent[event.id] ?? copy.candidateEmpty}
                                             </p>
                                         </div>
                                     )

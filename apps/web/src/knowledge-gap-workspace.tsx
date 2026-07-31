@@ -32,13 +32,131 @@ import {
     resolveKnowledgeGap,
     retestKnowledgeGap,
 } from "./lib/analytics-api";
+import type { UiLanguage } from "./language";
 
 interface KnowledgeGapWorkspaceProps
 {
     initialGapId: string | null;
+    language?: UiLanguage;
     onOpenGap(gapId: string | null): void;
     session: Session;
 }
+
+const gapCopy: Record<UiLanguage, {
+    all: string;
+    approvedAnswer: string;
+    back: string;
+    createEmbed: string;
+    dataLoop: string;
+    exampleQuestion: string;
+    gapReason: string;
+    grouped(count: number): string;
+    ignore: string;
+    ignored: string;
+    knowledgeGaps: string;
+    knowledgeRepairComplete: string;
+    knowledgeTitle: string;
+    lastSeenPrefix: string;
+    loading: string;
+    manualBody: string;
+    manualKnowledge: string;
+    manualSource: string;
+    noGaps(filter: KnowledgeGapStatus | "all"): string;
+    open: string;
+    openExample: string;
+    optional: string;
+    readyChunks(count: number): string;
+    refreshLabel: string;
+    reopen: string;
+    resolved: string;
+    retestBody: string;
+    retestOriginal: string;
+    selectBody: string;
+    selectGap: string;
+    seen(count: number): string;
+    sourceNote: string;
+    sourceNotePlaceholder: string;
+    status: string;
+    subtitle: string;
+    unsupportedGrouped: string;
+}> = {
+    en: {
+        all: "All",
+        approvedAnswer: "Approved answer",
+        back: "Back to gaps",
+        createEmbed: "Create and embed knowledge",
+        dataLoop: "Data feedback loop",
+        exampleQuestion: "Example customer question",
+        gapReason: "Gap reason",
+        grouped: (count) => `${count} grouped question${count === 1 ? "" : "s"}`,
+        ignore: "Ignore",
+        ignored: "Ignored",
+        knowledgeGaps: "Knowledge gaps",
+        knowledgeRepairComplete: "Knowledge repair complete",
+        knowledgeTitle: "Knowledge title",
+        lastSeenPrefix: "Last seen",
+        loading: "Loading gaps…",
+        manualBody: "Save an approved answer as a manual source and queue the shared embedding pipeline.",
+        manualKnowledge: "One-click manual knowledge",
+        manualSource: "Manual resolution source",
+        noGaps: (filter) => `No ${filter === "all" ? "" : filter} gaps`,
+        open: "Open",
+        openExample: "Open example conversation",
+        optional: "optional",
+        readyChunks: (count) => `${count} ready chunk${count === 1 ? "" : "s"}.`,
+        refreshLabel: "Refresh knowledge gaps",
+        reopen: "Reopen",
+        resolved: "Resolved",
+        retestBody: "Re-test searches only this manual source and requires validated citations.",
+        retestOriginal: "Re-test original question",
+        selectBody: "Open a grouped question to review its example, occurrences, and resolution workflow.",
+        selectGap: "Select a knowledge gap",
+        seen: (count) => `Seen ${count} time${count === 1 ? "" : "s"}`,
+        sourceNote: "Source note",
+        sourceNotePlaceholder: "For example: Confirmed by product lead",
+        status: "Status",
+        subtitle: "Repeated normalized questions stay grouped. Add one approved answer, embed it, then prove the repair with a cited re-test.",
+        unsupportedGrouped: "New unsupported questions will be grouped here.",
+    },
+    "zh-CN": {
+        all: "全部",
+        approvedAnswer: "已批准答案",
+        back: "返回缺口列表",
+        createEmbed: "创建并嵌入知识",
+        dataLoop: "数据反馈闭环",
+        exampleQuestion: "客户示例问题",
+        gapReason: "缺口原因",
+        grouped: (count) => `${count} 个归组问题`,
+        ignore: "忽略",
+        ignored: "已忽略",
+        knowledgeGaps: "知识缺口",
+        knowledgeRepairComplete: "知识修复完成",
+        knowledgeTitle: "知识标题",
+        lastSeenPrefix: "最近出现",
+        loading: "正在加载知识缺口…",
+        manualBody: "把已批准答案保存为手动知识源，并进入共享嵌入流程。",
+        manualKnowledge: "一键补充手动知识",
+        manualSource: "手动修复来源",
+        noGaps: (filter) => filter === "all" ? "没有知识缺口" : `没有${filter === "open" ? "未处理" : filter === "resolved" ? "已解决" : "已忽略"}缺口`,
+        open: "未处理",
+        openExample: "打开示例会话",
+        optional: "可选",
+        readyChunks: (count) => `${count} 个就绪片段。`,
+        refreshLabel: "刷新知识缺口",
+        reopen: "重新打开",
+        resolved: "已解决",
+        retestBody: "重新测试只搜索这个手动来源，并要求返回已验证引用。",
+        retestOriginal: "重新测试原问题",
+        selectBody: "选择一个归组问题，查看示例、出现次数和修复流程。",
+        selectGap: "选择知识缺口",
+        seen: (count) => `已出现 ${count} 次`,
+        sourceNote: "来源备注",
+        sourceNotePlaceholder: "例如：产品负责人已确认",
+        status: "状态",
+        subtitle: "重复的标准化问题会自动归组。补充一个已批准答案、完成嵌入后，再用带引用的重新测试验证修复。",
+        unsupportedGrouped: "新的未支持问题会在这里归组。",
+    },
+};
 
 const processingStatuses = new Set([
     "uploaded",
@@ -110,10 +228,12 @@ function statusClass(status: KnowledgeGapStatus): string
  */
 export function KnowledgeGapWorkspace({
     initialGapId,
+    language = "en",
     onOpenGap,
     session,
 }: KnowledgeGapWorkspaceProps): JSX.Element
 {
+    const copy = gapCopy[language];
     const [filter, setFilter] = useState<KnowledgeGapStatus | "all">("open");
     const [gaps, setGaps] = useState<KnowledgeGap[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(initialGapId);
@@ -364,17 +484,17 @@ export function KnowledgeGapWorkspace({
         <section aria-labelledby="knowledge-gaps-heading">
             <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <p className="text-sm font-semibold text-sky-700">Data feedback loop</p>
+                    <p className="text-sm font-semibold text-sky-700">{copy.dataLoop}</p>
                     <h2 className="mt-1 text-3xl font-bold tracking-tight" id="knowledge-gaps-heading">
-                        Knowledge gaps
+                        {copy.knowledgeGaps}
                     </h2>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                        Repeated normalized questions stay grouped. Add one approved answer, embed it, then prove the repair with a cited re-test.
+                        {copy.subtitle}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
                     <label className="text-sm font-semibold text-slate-600" htmlFor="gap-filter">
-                        Status
+                        {copy.status}
                     </label>
                     <select
                         className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"
@@ -385,13 +505,13 @@ export function KnowledgeGapWorkspace({
                         }}
                         value={filter}
                     >
-                        <option value="open">Open</option>
-                        <option value="resolved">Resolved</option>
-                        <option value="ignored">Ignored</option>
-                        <option value="all">All</option>
+                        <option value="open">{copy.open}</option>
+                        <option value="resolved">{copy.resolved}</option>
+                        <option value="ignored">{copy.ignored}</option>
+                        <option value="all">{copy.all}</option>
                     </select>
                     <Button
-                        aria-label="Refresh knowledge gaps"
+                        aria-label={copy.refreshLabel}
                         disabled={loading}
                         onClick={() => void handleRefresh()}
                         size="icon"
@@ -413,23 +533,23 @@ export function KnowledgeGapWorkspace({
             <div className="grid min-h-[620px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[330px_minmax(0,1fr)]">
                 <aside className="border-b border-slate-200 bg-slate-50/70 lg:border-b-0 lg:border-r">
                     <div className="border-b border-slate-200 px-4 py-3">
-                        <p className="text-sm font-bold">{gaps.length} grouped question{gaps.length === 1 ? "" : "s"}</p>
+                        <p className="text-sm font-bold">{copy.grouped(gaps.length)}</p>
                     </div>
 
                     {loading && gaps.length === 0
                         ? (
                             <p className="flex items-center gap-2 p-5 text-sm text-slate-500" role="status">
                                 <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-                                Loading gaps…
+                                {copy.loading}
                             </p>
                         )
                         : gaps.length === 0
                             ? (
                                 <div className="p-8 text-center">
                                     <CheckCircle2 aria-hidden="true" className="mx-auto size-7 text-emerald-600" />
-                                    <p className="mt-3 font-semibold">No {filter === "all" ? "" : filter} gaps</p>
+                                    <p className="mt-3 font-semibold">{copy.noGaps(filter)}</p>
                                     <p className="mt-1 text-sm text-slate-500">
-                                        New unsupported questions will be grouped here.
+                                        {copy.unsupportedGrouped}
                                     </p>
                                 </div>
                             )
@@ -456,7 +576,7 @@ export function KnowledgeGapWorkspace({
                                                 {gap.normalizedQuestion}
                                             </p>
                                             <p className="mt-2 text-xs text-slate-500">
-                                                Last seen {formatTime(gap.lastSeenAt)}
+                                                {copy.lastSeenPrefix} {formatTime(gap.lastSeenAt)}
                                             </p>
                                         </button>
                                     ))}
@@ -469,9 +589,9 @@ export function KnowledgeGapWorkspace({
                         ? (
                             <div className="flex min-h-[500px] flex-col items-center justify-center text-center">
                                 <CircleAlert aria-hidden="true" className="size-9 text-slate-300" />
-                                <h3 className="mt-4 text-lg font-bold">Select a knowledge gap</h3>
+                                <h3 className="mt-4 text-lg font-bold">{copy.selectGap}</h3>
                                 <p className="mt-2 max-w-sm text-sm text-slate-500">
-                                    Open a grouped question to review its example, occurrences, and resolution workflow.
+                                    {copy.selectBody}
                                 </p>
                             </div>
                         )
@@ -488,7 +608,7 @@ export function KnowledgeGapWorkspace({
                                     type="button"
                                 >
                                     <ArrowLeft aria-hidden="true" className="size-4" />
-                                    Back to gaps
+                                    {copy.back}
                                 </button>
 
                                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -500,7 +620,7 @@ export function KnowledgeGapWorkspace({
                                             {detail.normalizedQuestion}
                                         </h3>
                                         <p className="mt-2 text-sm text-slate-500">
-                                            Seen {detail.occurrenceCount} time{detail.occurrenceCount === 1 ? "" : "s"} · latest {formatTime(detail.lastSeenAt)}
+                                            {copy.seen(detail.occurrenceCount)} · {copy.lastSeenPrefix} {formatTime(detail.lastSeenAt)}
                                         </p>
                                     </div>
                                     {detail.status === "open"
@@ -511,7 +631,7 @@ export function KnowledgeGapWorkspace({
                                                 size="sm"
                                                 variant="ghost"
                                             >
-                                                Ignore
+                                                {copy.ignore}
                                             </Button>
                                         )
                                         : detail.status === "ignored"
@@ -523,7 +643,7 @@ export function KnowledgeGapWorkspace({
                                                     variant="outline"
                                                 >
                                                     <RotateCcw aria-hidden="true" className="size-4" />
-                                                    Reopen
+                                                    {copy.reopen}
                                                 </Button>
                                             )
                                             : null}
@@ -532,13 +652,13 @@ export function KnowledgeGapWorkspace({
                                 <div className="mt-6 grid gap-4 sm:grid-cols-2">
                                     <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                                         <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                            Example customer question
+                                            {copy.exampleQuestion}
                                         </p>
                                         <p className="mt-2 text-sm leading-6">{detail.exampleQuestion}</p>
                                     </article>
                                     <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                                         <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                                            Gap reason
+                                            {copy.gapReason}
                                         </p>
                                         <p className="mt-2 text-sm leading-6">{detail.reason}</p>
                                         {detail.firstConversationId === null
@@ -548,7 +668,7 @@ export function KnowledgeGapWorkspace({
                                                     className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-sky-700"
                                                     href={`/app/conversations/${detail.firstConversationId}`}
                                                 >
-                                                    Open example conversation
+                                                    {copy.openExample}
                                                     <ExternalLink aria-hidden="true" className="size-3" />
                                                 </a>
                                             )}
@@ -562,7 +682,7 @@ export function KnowledgeGapWorkspace({
                                             <div className="flex flex-wrap items-center justify-between gap-3">
                                                 <div>
                                                     <p className="text-xs font-bold uppercase tracking-wide text-sky-700">
-                                                        Manual resolution source
+                                                        {copy.manualSource}
                                                     </p>
                                                     <p className="mt-1 font-semibold">{detail.resolutionSource.name}</p>
                                                 </div>
@@ -585,7 +705,7 @@ export function KnowledgeGapWorkspace({
                                                     )
                                                     : (
                                                         <p className="mt-3 text-sm text-slate-600">
-                                                            {detail.resolutionSource.chunkCount} ready chunk{detail.resolutionSource.chunkCount === 1 ? "" : "s"}.
+                                                            {copy.readyChunks(detail.resolutionSource.chunkCount)}
                                                         </p>
                                                     )}
                                         </article>
@@ -597,10 +717,10 @@ export function KnowledgeGapWorkspace({
                                             <div className="flex flex-wrap items-center justify-between gap-3">
                                                 <div>
                                                     <p className="text-sm font-bold text-emerald-900">
-                                                        Knowledge repair complete
+                                                        {copy.knowledgeRepairComplete}
                                                     </p>
                                                     <p className="mt-1 text-sm text-emerald-800">
-                                                        Re-test searches only this manual source and requires validated citations.
+                                                        {copy.retestBody}
                                                     </p>
                                                 </div>
                                                 <Button
@@ -608,7 +728,7 @@ export function KnowledgeGapWorkspace({
                                                     onClick={() => void handleRetest()}
                                                 >
                                                     <SearchCheck aria-hidden="true" className="size-4" />
-                                                    Re-test original question
+                                                    {copy.retestOriginal}
                                                 </Button>
                                             </div>
 
@@ -644,15 +764,15 @@ export function KnowledgeGapWorkspace({
                                                         <BookPlus aria-hidden="true" className="size-5" />
                                                     </span>
                                                     <div>
-                                                        <h4 className="font-bold">One-click manual knowledge</h4>
+                                                        <h4 className="font-bold">{copy.manualKnowledge}</h4>
                                                         <p className="mt-1 text-sm text-slate-500">
-                                                            Save an approved answer as a manual source and queue the shared embedding pipeline.
+                                                            {copy.manualBody}
                                                         </p>
                                                     </div>
                                                 </div>
 
                                                 <label className="mt-5 block text-sm font-semibold" htmlFor="gap-title">
-                                                    Knowledge title
+                                                    {copy.knowledgeTitle}
                                                 </label>
                                                 <input
                                                     className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
@@ -664,7 +784,7 @@ export function KnowledgeGapWorkspace({
                                                 />
 
                                                 <label className="mt-4 block text-sm font-semibold" htmlFor="gap-answer">
-                                                    Approved answer
+                                                    {copy.approvedAnswer}
                                                 </label>
                                                 <textarea
                                                     className="mt-2 min-h-32 w-full rounded-lg border border-slate-300 p-3 text-sm leading-6"
@@ -676,14 +796,14 @@ export function KnowledgeGapWorkspace({
                                                 />
 
                                                 <label className="mt-4 block text-sm font-semibold" htmlFor="gap-source-note">
-                                                    Source note <span className="font-normal text-slate-500">(optional)</span>
+                                                    {copy.sourceNote} <span className="font-normal text-slate-500">({copy.optional})</span>
                                                 </label>
                                                 <input
                                                     className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
                                                     id="gap-source-note"
                                                     maxLength={500}
                                                     onChange={(event) => setSourceNote(event.target.value)}
-                                                    placeholder="For example: Confirmed by product lead"
+                                                    placeholder={copy.sourceNotePlaceholder}
                                                     value={sourceNote}
                                                 />
 
@@ -691,7 +811,7 @@ export function KnowledgeGapWorkspace({
                                                     {busy
                                                         ? <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
                                                         : <BookPlus aria-hidden="true" className="size-4" />}
-                                                    Create and embed knowledge
+                                                    {copy.createEmbed}
                                                 </Button>
                                             </form>
                                         )}

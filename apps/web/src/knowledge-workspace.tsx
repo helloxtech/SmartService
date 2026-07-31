@@ -35,12 +35,115 @@ import {
     submitKnowledgeFile,
     submitWebsite,
 } from "./lib/knowledge-api";
+import type { UiLanguage } from "./language";
 
 interface KnowledgeWorkspaceProps
 {
+    language?: UiLanguage;
     membership: OrganizationMembership;
     session: Session;
 }
+
+const knowledgeCopy: Record<UiLanguage, {
+    addWebsite: string;
+    addWebsiteBody: string;
+    agentReadOnly: string;
+    approvedContent: string;
+    documentBody: string;
+    documentQueued: string;
+    docsLabel: string;
+    chunksLabel: string;
+    deleteConfirm(name: string): string;
+    deleteLabel(name: string): string;
+    disable: string;
+    enable: string;
+    extractUpload: string;
+    extractingStage: string;
+    fileRequired: string;
+    knowledge: string;
+    loadingSources: string;
+    noSources: string;
+    noSourcesBody: string;
+    refresh: string;
+    reprocess: string;
+    sources: string;
+    sourceCount(count: number): string;
+    subtitle: string;
+    updated: string;
+    uploadDocument: string;
+    uploadingStage: string;
+    validating: string;
+    validateCrawl: string;
+    websiteQueued: string;
+    websiteUrl: string;
+}> = {
+    en: {
+        addWebsite: "Add a website",
+        addWebsiteBody: "Public HTTP(S), same origin, up to 10 demo pages and depth 2.",
+        agentReadOnly: "Agent access is read-only. An organization Admin can add or update approved knowledge.",
+        approvedContent: "Approved company content",
+        documentBody: "PDF or DOCX, up to 20 MB. Scanned PDF OCR is not included.",
+        documentQueued: "Document queued for chunking and embedding.",
+        docsLabel: "docs",
+        chunksLabel: "chunks",
+        deleteConfirm: (name) => `Delete "${name}" and remove it from retrieval?`,
+        deleteLabel: (name) => `Delete ${name}`,
+        disable: "Disable",
+        enable: "Enable",
+        extractUpload: "Extract and upload",
+        extractingStage: "Extracting text in your browser…",
+        fileRequired: "Choose a PDF or DOCX file first.",
+        knowledge: "Knowledge",
+        loadingSources: "Loading sources…",
+        noSources: "No knowledge sources yet",
+        noSourcesBody: "Add a document or website to start the ingestion pipeline.",
+        refresh: "Refresh",
+        reprocess: "Reprocess",
+        sources: "Sources",
+        sourceCount: (count) => `${count} active record${count === 1 ? "" : "s"} in this organization`,
+        subtitle: "Upload text-based PDF or DOCX files, or crawl a bounded public website. Ready content becomes eligible for grounded answers.",
+        updated: "Updated",
+        uploadDocument: "Upload a document",
+        uploadingStage: "Uploading original and extracted content…",
+        validating: "Validating…",
+        validateCrawl: "Validate and crawl",
+        websiteQueued: "Website crawl queued. Status will refresh automatically.",
+        websiteUrl: "Website URL",
+    },
+    "zh-CN": {
+        addWebsite: "添加网站",
+        addWebsiteBody: "公开 HTTP(S) 网站，同一域名，演示限制为最多 10 页、深度 2。",
+        agentReadOnly: "客服账号只能查看。组织管理员可以添加或更新已批准知识。",
+        approvedContent: "已批准企业内容",
+        documentBody: "支持 PDF 或 DOCX，最大 20 MB；暂不包含扫描 PDF OCR。",
+        documentQueued: "文档已加入分块和嵌入队列。",
+        docsLabel: "个文档",
+        chunksLabel: "个片段",
+        deleteConfirm: (name) => `删除“${name}”并从检索中移除？`,
+        deleteLabel: (name) => `删除 ${name}`,
+        disable: "停用",
+        enable: "启用",
+        extractUpload: "提取并上传",
+        extractingStage: "正在浏览器中提取文本…",
+        fileRequired: "请先选择 PDF 或 DOCX 文件。",
+        knowledge: "知识库",
+        loadingSources: "正在加载来源…",
+        noSources: "暂无知识来源",
+        noSourcesBody: "添加文档或网站后即可启动知识处理流程。",
+        refresh: "刷新",
+        reprocess: "重新处理",
+        sources: "来源",
+        sourceCount: (count) => `本组织有 ${count} 条可用记录`,
+        subtitle: "上传文字型 PDF/DOCX，或抓取受限公开网站。就绪内容可用于有依据回答。",
+        updated: "更新于",
+        uploadDocument: "上传文档",
+        uploadingStage: "正在上传原文件和提取内容…",
+        validating: "验证中…",
+        validateCrawl: "验证并抓取",
+        websiteQueued: "网站抓取已加入队列，状态会自动刷新。",
+        websiteUrl: "网站地址",
+    },
+};
 
 const processingStatuses = new Set([
     "uploaded",
@@ -88,14 +191,41 @@ function describeError(error: unknown): string
  *
  * July 26, 2026: Created by Forrest Zhang for SmartService Day 2 Knowledge Ingestion
  */
-function formatSourceType(type: KnowledgeSource["type"]): string
+function formatSourceType(type: KnowledgeSource["type"], language: UiLanguage): string
 {
     if (type === "url")
     {
-        return "Website";
+        return language === "zh-CN" ? "网站" : "Website";
     }
 
     return type.toUpperCase();
+}
+
+/**
+ * formatSourceStatus
+ * ----------------
+ * Converts stored ingestion status values into compact operator-facing labels.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService Workspace UX
+ */
+function formatSourceStatus(status: KnowledgeSource["status"], language: UiLanguage): string
+{
+    if (language === "zh-CN")
+    {
+        const labels: Record<KnowledgeSource["status"], string> = {
+            chunking: "分块中",
+            disabled: "已停用",
+            embedding: "嵌入中",
+            extracting: "提取中",
+            failed: "失败",
+            ready: "就绪",
+            uploaded: "已上传",
+        };
+
+        return labels[status];
+    }
+
+    return status;
 }
 
 /**
@@ -105,9 +235,9 @@ function formatSourceType(type: KnowledgeSource["type"]): string
  *
  * July 26, 2026: Created by Forrest Zhang for SmartService Day 2 Knowledge Ingestion
  */
-function formatUpdatedAt(value: string): string
+function formatUpdatedAt(value: string, language: UiLanguage): string
 {
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat(language === "zh-CN" ? "zh-CN" : undefined, {
         dateStyle: "medium",
         timeStyle: "short",
     }).format(new Date(value));
@@ -148,10 +278,12 @@ function statusClassName(status: KnowledgeSource["status"]): string
  * July 26, 2026: Created by Forrest Zhang for SmartService Day 2 Knowledge Ingestion
  */
 export function KnowledgeWorkspace({
+    language = "en",
     membership,
     session,
 }: KnowledgeWorkspaceProps): JSX.Element
 {
+    const copy = knowledgeCopy[language];
     const isAdmin = membership.role === "admin";
     const [sources, setSources] = useState<KnowledgeSource[]>([]);
     const [loading, setLoading] = useState(true);
@@ -254,15 +386,15 @@ export function KnowledgeWorkspace({
 
         if (file === null)
         {
-            setMessage("Choose a PDF or DOCX file first.");
+            setMessage(copy.fileRequired);
             return;
         }
 
         try
         {
-            setFileStage("Extracting text in your browser…");
+            setFileStage(copy.extractingStage);
             const prepared = await prepareKnowledgeFile(file);
-            setFileStage("Uploading original and extracted content…");
+            setFileStage(copy.uploadingStage);
             await submitKnowledgeFile(session, prepared);
             setFile(null);
 
@@ -273,7 +405,7 @@ export function KnowledgeWorkspace({
 
             await refreshSources(false);
             setFileStage(null);
-            setMessage("Document queued for chunking and embedding.");
+            setMessage(copy.documentQueued);
         }
         catch (error: unknown)
         {
@@ -302,7 +434,7 @@ export function KnowledgeWorkspace({
                 maxPages: 10,
                 url,
             });
-            setMessage("Website crawl queued. Status will refresh automatically.");
+            setMessage(copy.websiteQueued);
             await refreshSources(false);
         }
         catch (error: unknown)
@@ -351,7 +483,7 @@ export function KnowledgeWorkspace({
      */
     async function handleDelete(source: KnowledgeSource): Promise<void>
     {
-        if (!globalThis.confirm(`Delete "${source.name}" and remove it from retrieval?`))
+        if (!globalThis.confirm(copy.deleteConfirm(source.name)))
         {
             return;
         }
@@ -375,15 +507,15 @@ export function KnowledgeWorkspace({
     }
 
     return (
-        <section className="mx-auto max-w-6xl px-6 pb-16" aria-labelledby="knowledge-heading">
+        <section className="mx-auto max-w-[92rem] px-6 pb-16 lg:px-8" aria-labelledby="knowledge-heading">
             <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <p className="text-sm font-semibold text-sky-700">Approved company content</p>
+                    <p className="text-sm font-semibold text-sky-700">{copy.approvedContent}</p>
                     <h2 className="mt-1 text-3xl font-bold tracking-tight" id="knowledge-heading">
-                        Knowledge
+                        {copy.knowledge}
                     </h2>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                        Upload text-based PDF or DOCX files, or crawl a bounded public website. Ready content becomes eligible for grounded answers.
+                        {copy.subtitle}
                     </p>
                 </div>
                 <Button
@@ -393,7 +525,7 @@ export function KnowledgeWorkspace({
                     variant="outline"
                 >
                     <RefreshCw aria-hidden="true" className={loading ? "size-4 animate-spin" : "size-4"} />
-                    Refresh
+                    {copy.refresh}
                 </Button>
             </div>
 
@@ -414,9 +546,9 @@ export function KnowledgeWorkspace({
                                     <UploadCloud aria-hidden="true" className="size-5" />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold">Upload a document</h3>
+                                    <h3 className="font-bold">{copy.uploadDocument}</h3>
                                     <p className="mt-1 text-sm text-slate-500">
-                                        PDF or DOCX, up to 20 MB. Scanned PDF OCR is not included.
+                                        {copy.documentBody}
                                     </p>
                                 </div>
                             </div>
@@ -436,7 +568,7 @@ export function KnowledgeWorkspace({
                                     </p>
                                 )}
                             <Button className="mt-5" disabled={file === null || fileStage !== null} type="submit">
-                                Extract and upload
+                                {copy.extractUpload}
                             </Button>
                         </form>
 
@@ -446,14 +578,14 @@ export function KnowledgeWorkspace({
                                     <Globe2 aria-hidden="true" className="size-5" />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold">Add a website</h3>
+                                    <h3 className="font-bold">{copy.addWebsite}</h3>
                                     <p className="mt-1 text-sm text-slate-500">
-                                        Public HTTP(S), same origin, up to 10 demo pages and depth 2.
+                                        {copy.addWebsiteBody}
                                     </p>
                                 </div>
                             </div>
                             <label className="mt-5 block text-sm font-medium" htmlFor="knowledge-url">
-                                Website URL
+                                {copy.websiteUrl}
                             </label>
                             <input
                                 className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100"
@@ -464,22 +596,22 @@ export function KnowledgeWorkspace({
                                 value={url}
                             />
                             <Button className="mt-5" disabled={urlSubmitting} type="submit" variant="outline">
-                                {urlSubmitting ? "Validating…" : "Validate and crawl"}
+                                {urlSubmitting ? copy.validating : copy.validateCrawl}
                             </Button>
                         </form>
                     </div>
                 )
                 : (
                     <div className="mb-8 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-                        Agent access is read-only. An organization Admin manages knowledge sources.
+                        {copy.agentReadOnly}
                     </div>
                 )}
 
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-200 px-5 py-4">
-                    <h3 className="font-bold">Sources</h3>
+                    <h3 className="font-bold">{copy.sources}</h3>
                     <p className="mt-1 text-sm text-slate-500">
-                        {sources.length} active record{sources.length === 1 ? "" : "s"} in this organization
+                        {copy.sourceCount(sources.length)}
                     </p>
                 </div>
 
@@ -487,16 +619,16 @@ export function KnowledgeWorkspace({
                     ? (
                         <div className="flex items-center justify-center gap-2 p-10 text-sm text-slate-500">
                             <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-                            Loading sources…
+                            {copy.loadingSources}
                         </div>
                     )
                     : sources.length === 0
                         ? (
                             <div className="p-10 text-center">
                                 <FileText aria-hidden="true" className="mx-auto size-7 text-slate-400" />
-                                <p className="mt-3 font-semibold">No knowledge sources yet</p>
+                                <p className="mt-3 font-semibold">{copy.noSources}</p>
                                 <p className="mt-1 text-sm text-slate-500">
-                                    Add a document or website to start the ingestion pipeline.
+                                    {copy.noSourcesBody}
                                 </p>
                             </div>
                         )
@@ -517,20 +649,20 @@ export function KnowledgeWorkspace({
                                                             : <FileText aria-hidden="true" className="size-4 text-sky-700" />}
                                                         <p className="max-w-xl truncate font-semibold">{source.name}</p>
                                                         <span className="rounded-full border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">
-                                                            {formatSourceType(source.type)}
+                                                            {formatSourceType(source.type, language)}
                                                         </span>
-                                                        <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold capitalize ${statusClassName(source.status)}`}>
-                                                            {source.status}
+                                                        <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${statusClassName(source.status)}`}>
+                                                            {formatSourceStatus(source.status, language)}
                                                         </span>
                                                     </div>
                                                     <p className="mt-2 text-xs text-slate-500">
-                                                        Updated {formatUpdatedAt(source.updatedAt)}
+                                                        {copy.updated} {formatUpdatedAt(source.updatedAt, language)}
                                                         {" · "}
                                                         v{source.activeVersion}
                                                         {" · "}
-                                                        {source.documentCount} docs
+                                                        {source.documentCount} {copy.docsLabel}
                                                         {" · "}
-                                                        {source.chunkCount} chunks
+                                                        {source.chunkCount} {copy.chunksLabel}
                                                     </p>
                                                     {source.sourceUrl === null
                                                         ? null
@@ -548,8 +680,8 @@ export function KnowledgeWorkspace({
                                                                         style={{ width: `${progressByStatus[source.status]}%` }}
                                                                     />
                                                                 </div>
-                                                                <p className="mt-1 text-xs capitalize text-sky-700">
-                                                                    {source.status}…
+                                                                <p className="mt-1 text-xs text-sky-700">
+                                                                    {formatSourceStatus(source.status, language)}…
                                                                 </p>
                                                             </div>
                                                         )
@@ -576,7 +708,7 @@ export function KnowledgeWorkspace({
                                                                         variant="outline"
                                                                     >
                                                                         <RefreshCw aria-hidden="true" className="size-4" />
-                                                                        Reprocess
+                                                                        {copy.reprocess}
                                                                     </Button>
                                                                 )
                                                                 : null}
@@ -589,7 +721,7 @@ export function KnowledgeWorkspace({
                                                                         variant="outline"
                                                                     >
                                                                         <Check aria-hidden="true" className="size-4" />
-                                                                        Enable
+                                                                        {copy.enable}
                                                                     </Button>
                                                                 )
                                                                 : source.status === "ready" || source.status === "failed"
@@ -600,12 +732,12 @@ export function KnowledgeWorkspace({
                                                                             size="sm"
                                                                             variant="ghost"
                                                                         >
-                                                                            Disable
+                                                                            {copy.disable}
                                                                         </Button>
                                                                     )
                                                                     : null}
                                                             <Button
-                                                                aria-label={`Delete ${source.name}`}
+                                                                aria-label={copy.deleteLabel(source.name)}
                                                                 disabled={busy || processing}
                                                                 onClick={() => void handleDelete(source)}
                                                                 size="icon"

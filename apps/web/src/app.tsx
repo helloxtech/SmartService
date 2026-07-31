@@ -387,7 +387,7 @@ function WorkspaceApp({
     return (
         <main className="min-h-screen bg-slate-50 text-slate-950">
             <header className="border-b border-slate-200 bg-white">
-                <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+                <div className="mx-auto flex max-w-[92rem] items-center justify-between px-6 py-4 lg:px-8">
                     <div className="flex items-center gap-3">
                         <div className="flex size-10 items-center justify-center rounded-xl bg-sky-700 text-white">
                             <Headphones aria-hidden="true" className="size-5" />
@@ -405,8 +405,8 @@ function WorkspaceApp({
             </header>
 
             <section className={authentication.kind === "signed-in"
-                ? "mx-auto max-w-6xl px-6 py-4"
-                : "mx-auto grid max-w-6xl gap-10 px-6 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:items-center"}>
+                ? "mx-auto max-w-[92rem] px-6 py-5 lg:px-8"
+                : "mx-auto grid max-w-[92rem] gap-10 px-6 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:px-8"}>
                 {authentication.kind === "signed-in"
                     ? null
                     : (
@@ -546,7 +546,7 @@ function WorkspaceApp({
                 ? (
                     <Suspense
                         fallback={(
-                            <div className="mx-auto max-w-6xl px-6 pb-16 text-sm text-slate-500" role="status">
+                            <div className="mx-auto max-w-[92rem] px-6 pb-16 text-sm text-slate-500 lg:px-8" role="status">
                                 {copy.workspaceLoading}
                             </div>
                         )}

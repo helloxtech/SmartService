@@ -251,7 +251,7 @@ export function TeamWorkspace({
 
     return (
         <>
-            <nav aria-label={language === "zh-CN" ? "团队工作台" : "Team workspace"} className="mx-auto mb-7 max-w-6xl px-6">
+            <nav aria-label={language === "zh-CN" ? "团队工作台" : "Team workspace"} className="mx-auto mb-7 max-w-[92rem] px-6 lg:px-8">
                 <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
                     {navigation.map((item) =>
                     {
@@ -279,15 +279,17 @@ export function TeamWorkspace({
             {view === "knowledge"
                 ? (
                     <KnowledgeWorkspace
+                        language={language}
                         membership={membership}
                         session={session}
                     />
                 )
                 : (
-                    <div className="mx-auto max-w-6xl px-6 pb-16">
+                    <div className="mx-auto max-w-[92rem] px-6 pb-16 lg:px-8">
                         {view === "dashboard"
                             ? (
                                 <DashboardWorkspace
+                                    language={language}
                                     onOpenKnowledgeGaps={() => navigate("/app/knowledge-gaps")}
                                     session={session}
                                 />
@@ -297,6 +299,7 @@ export function TeamWorkspace({
                                     <KnowledgeGapWorkspace
                                         initialGapId={route.gapId}
                                         key={route.gapId ?? "knowledge-gaps"}
+                                        language={language}
                                         onOpenGap={(gapId) =>
                                         {
                                             navigate(gapId === null
@@ -307,11 +310,12 @@ export function TeamWorkspace({
                                     />
                                 )
                                 : view === "guardrails"
-                                    ? <GuardrailWorkspace session={session} />
+                                    ? <GuardrailWorkspace language={language} session={session} />
                                     : (
                                         <AgentWorkspace
                                             initialConversationId={route.conversationId}
                                             key={route.conversationId ?? "inbox"}
+                                            language={language}
                                             onOpenConversation={(conversationId) =>
                                             {
                                                 navigate(`/app/conversations/${conversationId}`);

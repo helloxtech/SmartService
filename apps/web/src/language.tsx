@@ -5,19 +5,13 @@ import type { UiLanguage } from "./language-state";
 export type { UiLanguage } from "./language-state";
 
 const languageLabels: Record<UiLanguage, {
-    english: string;
     language: string;
-    zh: string;
 }> = {
     en: {
-        english: "English",
         language: "Language",
-        zh: "Chinese",
     },
     "zh-CN": {
-        english: "英文",
         language: "语言",
-        zh: "中文",
     },
 };
 
@@ -53,7 +47,7 @@ export function LanguageSwitch({
                 onClick={() => onLanguageChange("en")}
                 type="button"
             >
-                {labels.english}
+                English
             </button>
             <button
                 aria-pressed={language === "zh-CN"}
@@ -63,7 +57,7 @@ export function LanguageSwitch({
                 onClick={() => onLanguageChange("zh-CN")}
                 type="button"
             >
-                {labels.zh}
+                中文
             </button>
         </div>
     );

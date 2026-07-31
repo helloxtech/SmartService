@@ -22,12 +22,88 @@ import {
     AnalyticsApiError,
     getDashboardSummary,
 } from "./lib/analytics-api";
+import type { UiLanguage } from "./language";
 
 interface DashboardWorkspaceProps
 {
+    language?: UiLanguage;
     onOpenKnowledgeGaps(): void;
     session: Session;
 }
+
+const dashboardCopy: Record<UiLanguage, {
+    aiContainment: string;
+    aiContainmentDetail(count: number): string;
+    apply: string;
+    closeKnowledgeLoop: string;
+    dashboard: string;
+    dateFrom: string;
+    dateTo: string;
+    handoffDetail(count: number): string;
+    handoffRate: string;
+    humanHandoff: string;
+    knowledgeGaps: string;
+    knowledgeGapsDetail: string;
+    loading: string;
+    loopBody: string;
+    operations: string;
+    refreshLabel: string;
+    resolutionMix: string;
+    resolutionMixBody: string;
+    reviewGaps: string;
+    subtitle: string;
+    totalConversations: string;
+    totalDetail: string;
+}> = {
+    en: {
+        aiContainment: "AI containment",
+        aiContainmentDetail: (count) => `${count} AI-resolved without handoff`,
+        apply: "Apply",
+        closeKnowledgeLoop: "Close the knowledge loop",
+        dashboard: "Dashboard",
+        dateFrom: "From",
+        dateTo: "To",
+        handoffDetail: (count) => `${count} entered human handoff`,
+        handoffRate: "Handoff rate",
+        humanHandoff: "Human handoff",
+        knowledgeGaps: "Knowledge gaps",
+        knowledgeGapsDetail: "Unresolved in selected period",
+        loading: "Loading dashboard…",
+        loopBody: "Group repeated unanswered questions, add one approved answer, embed it, and re-test the original question.",
+        operations: "P0 operations",
+        refreshLabel: "Refresh dashboard",
+        resolutionMix: "Resolution mix",
+        resolutionMixBody: "Rates divide by closed conversations in the selected period.",
+        reviewGaps: "Review knowledge gaps",
+        subtitle: "Exact tenant metrics use closed conversations and grouped unresolved questions.",
+        totalConversations: "Total conversations",
+        totalDetail: "Closed in selected period",
+    },
+    "zh-CN": {
+        aiContainment: "AI 自助解决率",
+        aiContainmentDetail: (count) => `${count} 个会话由 AI 解决且未转人工`,
+        apply: "应用",
+        closeKnowledgeLoop: "闭环知识缺口",
+        dashboard: "数据看板",
+        dateFrom: "开始",
+        dateTo: "结束",
+        handoffDetail: (count) => `${count} 个会话进入人工接入`,
+        handoffRate: "转人工率",
+        humanHandoff: "人工接入",
+        knowledgeGaps: "知识缺口",
+        knowledgeGapsDetail: "所选周期内未解决",
+        loading: "正在加载数据看板…",
+        loopBody: "把重复的未回答问题归组，补充一个已批准答案，完成嵌入后重新测试原问题。",
+        operations: "P0 运营",
+        refreshLabel: "刷新数据看板",
+        resolutionMix: "解决方式",
+        resolutionMixBody: "比例基于所选周期内已关闭的会话计算。",
+        reviewGaps: "查看知识缺口",
+        subtitle: "租户指标来自已关闭会话和归组后的未解决问题。",
+        totalConversations: "会话总数",
+        totalDetail: "所选周期内已关闭",
+    },
+};
 
 /**
  * formatDateInput
@@ -131,10 +207,12 @@ function formatPercent(value: number): string
  * July 26, 2026: Created by Forrest Zhang for SmartService Day 5 Dashboard
  */
 export function DashboardWorkspace({
+    language = "en",
     onOpenKnowledgeGaps,
     session,
 }: DashboardWorkspaceProps): JSX.Element
 {
+    const copy = dashboardCopy[language];
     const [fromDate, setFromDate] = useState(initialDashboardRange.from);
     const [toDate, setToDate] = useState(initialDashboardRange.to);
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -227,27 +305,27 @@ export function DashboardWorkspace({
         ? []
         : [
             {
-                detail: "Closed in selected period",
+                detail: copy.totalDetail,
                 icon: Gauge,
-                label: "Total conversations",
+                label: copy.totalConversations,
                 value: summary.totalConversations.toString(),
             },
             {
-                detail: `${summary.aiContainedConversations} AI-resolved without handoff`,
+                detail: copy.aiContainmentDetail(summary.aiContainedConversations),
                 icon: Bot,
-                label: "AI containment",
+                label: copy.aiContainment,
                 value: formatPercent(summary.aiContainmentRate),
             },
             {
-                detail: `${summary.handedOffConversations} entered human handoff`,
+                detail: copy.handoffDetail(summary.handedOffConversations),
                 icon: UsersRound,
-                label: "Handoff rate",
+                label: copy.handoffRate,
                 value: formatPercent(summary.handoffRate),
             },
             {
-                detail: "Unresolved in selected period",
+                detail: copy.knowledgeGapsDetail,
                 icon: CircleAlert,
-                label: "Knowledge gaps",
+                label: copy.knowledgeGaps,
                 value: summary.openKnowledgeGapCount.toString(),
             },
         ];
@@ -256,18 +334,18 @@ export function DashboardWorkspace({
         <section aria-labelledby="dashboard-heading">
             <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                 <div>
-                    <p className="text-sm font-semibold text-sky-700">P0 operations</p>
+                    <p className="text-sm font-semibold text-sky-700">{copy.operations}</p>
                     <h2 className="mt-1 text-3xl font-bold tracking-tight" id="dashboard-heading">
-                        Dashboard
+                        {copy.dashboard}
                     </h2>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                        Exact tenant metrics use closed conversations and grouped unresolved questions.
+                        {copy.subtitle}
                     </p>
                 </div>
 
                 <form className="flex flex-wrap items-end gap-3" onSubmit={handleFilter}>
                     <label className="text-xs font-semibold text-slate-600">
-                        From
+                        {copy.dateFrom}
                         <input
                             className="mt-1 block h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"
                             max={toDate}
@@ -278,7 +356,7 @@ export function DashboardWorkspace({
                         />
                     </label>
                     <label className="text-xs font-semibold text-slate-600">
-                        To
+                        {copy.dateTo}
                         <input
                             className="mt-1 block h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm"
                             min={fromDate}
@@ -290,7 +368,7 @@ export function DashboardWorkspace({
                     </label>
                     <Button disabled={loading} size="sm" type="submit" variant="outline">
                         <CalendarDays aria-hidden="true" className="size-4" />
-                        Apply
+                        {copy.apply}
                     </Button>
                 </form>
             </div>
@@ -307,7 +385,7 @@ export function DashboardWorkspace({
                 ? (
                     <div className="flex min-h-64 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-sm text-slate-500">
                         <LoaderCircle aria-hidden="true" className="size-5 animate-spin" />
-                        Loading dashboard…
+                        {copy.loading}
                     </div>
                 )
                 : (
@@ -340,13 +418,13 @@ export function DashboardWorkspace({
                                     <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                                         <div className="flex items-center justify-between gap-3">
                                             <div>
-                                                <h3 className="font-bold">Resolution mix</h3>
+                                                <h3 className="font-bold">{copy.resolutionMix}</h3>
                                                 <p className="mt-1 text-sm text-slate-500">
-                                                    Rates divide by closed conversations in the selected period.
+                                                    {copy.resolutionMixBody}
                                                 </p>
                                             </div>
                                             <Button
-                                                aria-label="Refresh dashboard"
+                                                aria-label={copy.refreshLabel}
                                                 disabled={loading}
                                                 onClick={() => void loadSummary()}
                                                 size="icon"
@@ -359,12 +437,12 @@ export function DashboardWorkspace({
                                         <div className="mt-7 space-y-6">
                                             <div>
                                                 <div className="mb-2 flex justify-between text-sm">
-                                                    <span className="font-semibold">AI containment</span>
+                                                    <span className="font-semibold">{copy.aiContainment}</span>
                                                     <span>{formatPercent(summary.aiContainmentRate)}</span>
                                                 </div>
                                                 <div className="h-3 overflow-hidden rounded-full bg-slate-100">
                                                     <div
-                                                        aria-label={`AI containment ${formatPercent(summary.aiContainmentRate)}`}
+                                                        aria-label={`${copy.aiContainment} ${formatPercent(summary.aiContainmentRate)}`}
                                                         className="h-full rounded-full bg-emerald-500"
                                                         role="img"
                                                         style={{ width: `${summary.aiContainmentRate * 100}%` }}
@@ -373,12 +451,12 @@ export function DashboardWorkspace({
                                             </div>
                                             <div>
                                                 <div className="mb-2 flex justify-between text-sm">
-                                                    <span className="font-semibold">Human handoff</span>
+                                                    <span className="font-semibold">{copy.humanHandoff}</span>
                                                     <span>{formatPercent(summary.handoffRate)}</span>
                                                 </div>
                                                 <div className="h-3 overflow-hidden rounded-full bg-slate-100">
                                                     <div
-                                                        aria-label={`Handoff rate ${formatPercent(summary.handoffRate)}`}
+                                                        aria-label={`${copy.handoffRate} ${formatPercent(summary.handoffRate)}`}
                                                         className="h-full rounded-full bg-amber-500"
                                                         role="img"
                                                         style={{ width: `${summary.handoffRate * 100}%` }}
@@ -391,13 +469,13 @@ export function DashboardWorkspace({
                                     <article className="flex flex-col justify-between rounded-2xl border border-sky-200 bg-sky-50 p-6">
                                         <div>
                                             <CircleAlert aria-hidden="true" className="size-6 text-sky-700" />
-                                            <h3 className="mt-4 text-xl font-bold">Close the knowledge loop</h3>
+                                            <h3 className="mt-4 text-xl font-bold">{copy.closeKnowledgeLoop}</h3>
                                             <p className="mt-2 text-sm leading-6 text-slate-600">
-                                                Group repeated unanswered questions, add one approved answer, embed it, and re-test the original question.
+                                                {copy.loopBody}
                                             </p>
                                         </div>
                                         <Button className="mt-6" onClick={onOpenKnowledgeGaps}>
-                                            Review knowledge gaps
+                                            {copy.reviewGaps}
                                             <ArrowRight aria-hidden="true" className="size-4" />
                                         </Button>
                                     </article>

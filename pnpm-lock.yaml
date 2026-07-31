@@ -11,6 +11,9 @@ importers:
       '@eslint/js':
         specifier: 10.0.1
         version: 10.0.1(eslint@10.8.0(jiti@2.7.0))
+      '@livekit/agents':
+        specifier: 1.5.5
+        version: 1.5.5(@livekit/rtc-node@0.13.31)(typescript@6.0.3)(zod@4.4.3)
       '@playwright/test':
         specifier: 1.62.0
         version: 1.62.0

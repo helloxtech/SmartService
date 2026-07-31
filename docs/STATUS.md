@@ -8,8 +8,9 @@
 
 ## Recent hosted UAT fixes
 
+- July 30, 2026 PDT: Added a temporary hosted deployment bridge so public text and voice try the XFlow demo public key first, then retry the legacy demo key only on `WIDGET_NOT_FOUND`; this allows Git/Cloudflare deployment before hosted Supabase data is refreshed.
 - July 30, 2026 PDT: Renamed the fictional demo tenant and all generated fixture/verification references to XFlow, changed the non-secret demo public key to `xflow-public-demo`, and added visible Chinese/English UI copy to the main login, public chat, team navigation, and browser voice surfaces.
-- July 30, 2026 PDT: The XFlow/Chinese UI update is validated locally only. Hosted Supabase data and the hosted Cloudflare deployment still require the browser-owned Supabase project access path or restored hosted service credentials before `smartservice.ca` can be claimed current for this change.
+- July 30, 2026 PDT: The XFlow/Chinese UI update is validated locally. Hosted Supabase still requires the browser-owned project access path or restored hosted service credentials before the legacy key fallback can be removed and hosted tenant data can be claimed fully refreshed.
 - July 30, 2026 PDT: Updated the hosted and local XFlow Admin login email to `info@smartservice.ca`; the password was reset in Supabase Auth and ignored `.env.local` only. No password value was committed.
 - July 29, 2026 PDT: Fixed pending human handoff UX so opening a conversation in the Agent portal does not imply a claim. Customers can add details while waiting for human support or after a human connects; these messages persist for the Agent and do not trigger AI/provider calls. Agent replies remain disabled until the conversation is claimed. Hosted Supabase migration and Cloudflare Worker version `bee3c1c4-4813-455c-ad2d-0f14230b8ca2` were verified with temporary smoke data that was deleted after validation.
 
@@ -261,12 +262,12 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Live provider smoke tests | Passed locally: OpenAI chat/supervisor/embeddings, LiveKit authenticated API/token generation, Deepgram English/Chinese STT, and ElevenLabs Chinese TTS. Hosted DEV health/admin/public-chat smoke passed with mock provider modes; hosted/deployed live G1/G2 evidence remains pending |
 | Hosted DEV Worker smoke | Passed after Git deploy: `smartservice-dev` `/health` returned `200`, hosted Admin login passed, public conversation creation returned `201`, and public message send returned `200` |
 | Hosted DEV text UAT smoke | Passed after fixture seed: 3 Ready fictional sources, 23 embedded chunks, 2/2 cited answers, and 1/1 safe missing-knowledge handoff |
-| Local XFlow and Chinese UI update checkpoint | Passed: format, lint, typecheck, unit tests, build, 4/4 Playwright tests, P0 evaluation, guardrail evaluation, 121/121 database assertions, ingestion/conversation/Days 4–10 smokes, and local same-origin Supabase browser configuration |
+| Local XFlow and Chinese UI update checkpoint | Passed: format, lint, typecheck, unit tests, build, 4/4 Playwright tests, P0 evaluation, guardrail evaluation, 121/121 database assertions, ingestion/conversation/Days 4–10 smokes, local same-origin Supabase browser configuration, and targeted web type/unit/browser tests for the hosted public-key fallback |
 | Cost-bearing provider calls | Bounded live smokes only: three OpenAI Responses/Embeddings calls, two Deepgram STT calls, one ElevenLabs TTS call, and a LiveKit authentication/token check |
 
 ## Current blockers
 
-- This XFlow/Chinese UI change is not yet hosted on `smartservice.ca`: the Supabase connector still sees only the wrong inactive project `wfkheempcfislbaonkiz`, not the browser-owned hosted project `ibuvpregltbvxsxhivrg`, and the hosted database needs the XFlow public key/display/fixture refresh before deployment.
+- Hosted Supabase still needs the XFlow public key/display/fixture refresh: the Supabase connector still sees only the wrong inactive project `wfkheempcfislbaonkiz`, not the browser-owned hosted project `ibuvpregltbvxsxhivrg`. The deployed web app has a narrow legacy public-key fallback until that refresh is possible.
 - Hosted P0 no longer blocks on basic Supabase schema, demo identities, Cloudflare Worker deployment, core Worker secrets, or DEV smoke. It still blocks on Browser Run token/access verification, live Turnstile hostname keys, R2 signer credentials, and switching ingestion/chat/auxiliary/Turnstile provider modes from mock to live for G1 evidence.
 - P1 live acceptance remains blocked on ElevenLabs commercial-use confirmation, deployed LiveKit Agent configuration, and final microphone/device/network verification. Provider credentials and local smokes are verified, but they do not by themselves satisfy live G2.
 

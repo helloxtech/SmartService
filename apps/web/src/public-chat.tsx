@@ -28,7 +28,8 @@ import {
 import { z } from "zod";
 
 import {
-    createPublicConversation,
+    createPublicConversationWithFallback,
+    getConfiguredDemoPublicKeys,
     pollPublicMessages,
     requestPublicHandoff,
     sendPublicMessage,
@@ -325,7 +326,7 @@ export function PublicChat(): JSX.Element
     const seenMessageIds = useRef(new Set<string>());
     const retryMessage = useRef<{ clientMessageId: string; text: string } | null>(null);
     const transcriptEnd = useRef<HTMLDivElement>(null);
-    const publicKey = import.meta.env.VITE_DEMO_PUBLIC_KEY ?? "xflow-public-demo";
+    const publicKeys = getConfiguredDemoPublicKeys();
 
     const handleTurnstileToken = useCallback((token: string) =>
     {
@@ -446,8 +447,8 @@ export function PublicChat(): JSX.Element
             throw new Error("Please complete the human verification before starting.");
         }
 
-        const created = await createPublicConversation(
-            publicKey,
+        const created = await createPublicConversationWithFallback(
+            publicKeys,
             language,
             turnstileToken,
         );

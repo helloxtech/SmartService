@@ -20,6 +20,13 @@ const apiErrorSchema = z.object({
     }),
 });
 
+const defaultDemoPublicKey = "xflow-public-demo";
+const legacyDemoPublicKey = "novaflow-public-demo";
+
+type PublicApiFailure = Error & {
+    code: string;
+};
+
 export interface PollResult
 {
     etag: string | null;
@@ -40,13 +47,41 @@ function getApiUrl(path: string): string
 }
 
 /**
+ * createApiFailure
+ * ----------------
+ * Creates a typed public API error while preserving the server's stable error code for bounded recovery decisions.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ */
+function createApiFailure(code: string, message: string): PublicApiFailure
+{
+    return Object.assign(new Error(message), {
+        code,
+    });
+}
+
+/**
+ * isWidgetNotFoundError
+ * ----------------
+ * Detects the one safe retry case for demo public-key migration without masking unrelated customer-service failures.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ */
+function isWidgetNotFoundError(error: unknown): boolean
+{
+    return error instanceof Error
+        && "code" in error
+        && error.code === "WIDGET_NOT_FOUND";
+}
+
+/**
  * readApiFailure
  * ----------------
  * Converts a bounded server error envelope into customer-safe text without reflecting raw response data.
  *
  * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Customer Chat
  */
-async function readApiFailure(response: Response): Promise<Error>
+async function readApiFailure(response: Response): Promise<PublicApiFailure>
 {
     try
     {
@@ -54,7 +89,7 @@ async function readApiFailure(response: Response): Promise<Error>
 
         if (parsed.success)
         {
-            return new Error(parsed.data.error.message);
+            return createApiFailure(parsed.data.error.code, parsed.data.error.message);
         }
     }
     catch
@@ -62,7 +97,24 @@ async function readApiFailure(response: Response): Promise<Error>
         // The stable fallback below intentionally hides invalid or non-JSON upstream bodies.
     }
 
-    return new Error("The customer service request could not be completed.");
+    return createApiFailure("UNKNOWN", "The customer service request could not be completed.");
+}
+
+/**
+ * getConfiguredDemoPublicKeys
+ * ----------------
+ * Returns the current XFlow demo public key plus a temporary legacy key fallback for hosted deployments whose Supabase seed has not been refreshed yet.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ */
+export function getConfiguredDemoPublicKeys(): readonly string[]
+{
+    const configuredPublicKey = import.meta.env.VITE_DEMO_PUBLIC_KEY ?? defaultDemoPublicKey;
+    return Array.from(new Set([
+        configuredPublicKey,
+        defaultDemoPublicKey,
+        legacyDemoPublicKey,
+    ]));
 }
 
 /**
@@ -101,6 +153,52 @@ export async function createPublicConversation(
     }
 
     return createPublicConversationResponseSchema.parse(await response.json());
+}
+
+/**
+ * createPublicConversationWithFallback
+ * ----------------
+ * Starts a public conversation with the current XFlow key and retries only the legacy demo key when hosted Supabase still has the older tenant key.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ */
+export async function createPublicConversationWithFallback(
+    publicKeys: readonly string[],
+    language: ConversationLanguage,
+    turnstileToken: string,
+    channel: "text" | "voice" = "text",
+): Promise<CreatePublicConversationResponse>
+{
+    let lastFailure: unknown;
+
+    for (const publicKey of publicKeys)
+    {
+        try
+        {
+            return await createPublicConversation(
+                publicKey,
+                language,
+                turnstileToken,
+                channel,
+            );
+        }
+        catch (error)
+        {
+            if (!isWidgetNotFoundError(error))
+            {
+                throw error;
+            }
+
+            lastFailure = error;
+        }
+    }
+
+    if (lastFailure instanceof Error)
+    {
+        throw lastFailure;
+    }
+
+    throw createApiFailure("WIDGET_NOT_FOUND", "The customer service widget is not available.");
 }
 
 /**

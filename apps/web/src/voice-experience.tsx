@@ -17,8 +17,9 @@ import {
 } from "react";
 
 import {
-    createPublicConversation,
+    createPublicConversationWithFallback,
     createVoiceToken,
+    getConfiguredDemoPublicKeys,
     pollPublicMessages,
 } from "./lib/public-conversation-api";
 import {
@@ -127,7 +128,7 @@ export function VoiceExperience({
     const handoffActive = useRef(false);
     const cursor = useRef<string | null>(null);
     const etag = useRef<string | null>(null);
-    const publicKey = import.meta.env.VITE_DEMO_PUBLIC_KEY ?? "xflow-public-demo";
+    const publicKeys = getConfiguredDemoPublicKeys();
 
     useEffect(() =>
     {
@@ -415,8 +416,8 @@ export function VoiceExperience({
 
         try
         {
-            const conversation = await createPublicConversation(
-                publicKey,
+            const conversation = await createPublicConversationWithFallback(
+                publicKeys,
                 language,
                 "local-demo-turnstile",
                 "voice",

@@ -167,7 +167,7 @@ async function createVoiceConversation()
                 language: "zh-CN",
                 name: "Day 6 Voice Customer",
             },
-            publicKey: "xflow-public-demo",
+            publicKey: "smart-service-public-demo",
             turnstileToken: "local-demo-turnstile",
         }),
         headers: {

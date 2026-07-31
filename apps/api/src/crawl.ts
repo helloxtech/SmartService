@@ -391,10 +391,10 @@ export class MockWebsiteCrawlProvider implements CrawlProvider
             {
                 canonicalUrl: `${origin}/`,
                 sections: [{
-                    heading: "XFlow Industrial Systems",
-                    text: "XFlow supplies fictional NF-Series industrial liquid-transfer pumps in Canada and the United States.",
+                    heading: "Smart Service Demo Knowledge",
+                    text: "Smart Service demo knowledge describes fictional NF-Series industrial liquid-transfer pumps in Canada and the United States.",
                 }],
-                title: "XFlow Industrial Systems",
+                title: "Smart Service Demo Knowledge",
             },
             {
                 canonicalUrl: `${origin}/products`,
@@ -422,7 +422,7 @@ export class MockWebsiteCrawlProvider implements CrawlProvider
             schemaVersion: 1,
             sourceType: "url",
             standardPageCount: calculateStandardPages(combinedText),
-            title: "XFlow demo website",
+            title: "Smart Service demo website",
         });
     }
 }

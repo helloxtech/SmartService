@@ -21,7 +21,7 @@ const runtimePublicConfigurationSchema = z.object({
  * ----------------
  * Creates the browser Supabase client from validated browser-safe project URL and anon key values.
  *
- * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
+ * July 30, 2026: Updated by Forrest Zhang for SmartService Chinese UI
  */
 function createConfiguredClient(supabaseUrl: string, supabaseAnonKey: string): SupabaseClient
 {
@@ -70,7 +70,7 @@ async function fetchRuntimePublicConfiguration(): Promise<{
  * ----------------
  * Creates one browser Supabase client when public configuration exists and returns null for an intentionally unconfigured local shell.
  *
- * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
+ * July 30, 2026: Updated by Forrest Zhang for SmartService Chinese UI
  */
 export async function getSupabaseClient(): Promise<SupabaseClient | null>
 {

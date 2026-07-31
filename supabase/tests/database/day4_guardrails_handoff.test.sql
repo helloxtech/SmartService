@@ -65,7 +65,7 @@ on commit drop
 as
 select *
 from public.create_public_conversation(
-    'xflow-public-demo',
+    'smart-service-public-demo',
     'text',
     null,
     null,

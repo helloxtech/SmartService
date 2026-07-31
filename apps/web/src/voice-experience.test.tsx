@@ -49,9 +49,9 @@ function createFetchMock(
             return new Response(JSON.stringify({
                 conversationId,
                 conversationToken: "x".repeat(32),
-                displayName: "XFlow",
+                displayName: "Smart Service",
                 expiresAt: "2099-07-27T08:00:00.000Z",
-                welcomeMessage: "您好，欢迎联系 XFlow。",
+                welcomeMessage: "Hello, I'm the Smart Service Assistant. How can I help?",
             }), {
                 headers: {
                     "content-type": "application/json",

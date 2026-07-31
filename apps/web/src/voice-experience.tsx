@@ -91,7 +91,7 @@ const voiceCopy: Record<UiLanguage, {
             warming: "Warming the voice agent…",
         },
         subtitle: "Talk when the agent is Ready",
-        title: "XFlow voice support",
+        title: "Smart Service voice support",
         transcriptEmpty: "Your transcript will appear here after you speak.",
         transcriptTitle: "Live transcript",
         voiceTitle: "A human agent can now review the transcript and handoff package. Voice AI will not reply again.",
@@ -118,7 +118,7 @@ const voiceCopy: Record<UiLanguage, {
             warming: "正在预热语音坐席…",
         },
         subtitle: "坐席就绪后开始说话",
-        title: "XFlow 语音客服",
+        title: "Smart Service 语音客服",
         transcriptEmpty: "开始说话后，这里会显示实时文字。",
         transcriptTitle: "实时文字",
         voiceTitle: "人工客服现在可以查看文字记录和转接摘要；AI 语音不会继续回复。",
@@ -141,7 +141,7 @@ function ignoreLanguageChange(): void
  * ----------------
  * Requests one audio track only after the connector reports that the Agent is Ready, then immediately releases the permission probe.
  *
- * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
+ * July 30, 2026: Updated by Forrest Zhang for SmartService Chinese UI
  */
 async function requestBrowserMicrophone(): Promise<void>
 {
@@ -165,7 +165,7 @@ async function requestBrowserMicrophone(): Promise<void>
  * ----------------
  * Maps each lifecycle state to concise bilingual-ready customer guidance.
  *
- * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
+ * July 30, 2026: Updated by Forrest Zhang for SmartService Chinese UI
  */
 function describeVoiceState(state: VoiceUiState, language: UiLanguage): string
 {

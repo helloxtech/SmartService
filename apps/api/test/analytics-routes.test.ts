@@ -29,7 +29,7 @@ const identity: AdminIdentity = {
 };
 const gap: KnowledgeGap = {
     createdAt: timestamp,
-    exampleQuestion: "What is the XFlow NF-500 warranty?",
+    exampleQuestion: "What is the Smart Service NF-500 warranty?",
     firstConversationId: "20000000-0000-4000-a000-000000000001",
     id: gapId,
     lastSeenAt: timestamp,

@@ -47,9 +47,9 @@ describe("PublicChat", () =>
                 return new Response(JSON.stringify({
                     conversationId,
                     conversationToken: "x".repeat(32),
-                    displayName: "XFlow",
+                    displayName: "Smart Service",
                     expiresAt: "2099-07-26T22:00:00.000Z",
-                    welcomeMessage: "您好，欢迎联系 XFlow。",
+                    welcomeMessage: "Hello, I'm the Smart Service Assistant. How can I help?",
                 }), {
                     headers: {
                         "content-type": "application/json",
@@ -100,7 +100,7 @@ describe("PublicChat", () =>
         expect(screen.queryByRole("button", { name: /Need human help/u }))
             .not.toBeInTheDocument();
         await user.type(
-            screen.getByLabelText(/Ask XFlow support/u),
+            screen.getByLabelText(/Ask Smart Service support/u),
             "NF-500 的保修期多久？",
         );
         await user.click(screen.getByRole("button", { name: /Send message/u }));
@@ -130,9 +130,9 @@ describe("PublicChat", () =>
                 return new Response(JSON.stringify({
                     conversationId,
                     conversationToken: "x".repeat(32),
-                    displayName: "XFlow",
+                    displayName: "Smart Service",
                     expiresAt: "2099-07-26T22:00:00.000Z",
-                    welcomeMessage: "您好，欢迎联系 XFlow。",
+                    welcomeMessage: "Hello, I'm the Smart Service Assistant. How can I help?",
                 }), {
                     headers: {
                         "content-type": "application/json",
@@ -191,13 +191,13 @@ describe("PublicChat", () =>
         render(<PublicChat />);
 
         await screen.findByText("Local demo verification is ready.");
-        await user.type(screen.getByLabelText(/Ask XFlow support/u), "First unclear question");
+        await user.type(screen.getByLabelText(/Ask Smart Service support/u), "First unclear question");
         await user.click(screen.getByRole("button", { name: /Send message/u }));
         await screen.findByText("Clarification 1");
         expect(screen.queryByRole("button", { name: /Need human help/u }))
             .not.toBeInTheDocument();
 
-        await user.type(screen.getByLabelText(/Ask XFlow support/u), "Second unclear question");
+        await user.type(screen.getByLabelText(/Ask Smart Service support/u), "Second unclear question");
         await user.click(screen.getByRole("button", { name: /Send message/u }));
         await screen.findByText("Clarification 2");
 
@@ -213,9 +213,9 @@ describe("PublicChat", () =>
         sessionStorage.setItem("smartservice.publicConversation.v1", JSON.stringify({
             conversationId,
             conversationToken: "x".repeat(32),
-            displayName: "XFlow",
+            displayName: "Smart Service",
             expiresAt: "2099-07-26T22:00:00.000Z",
-            welcomeMessage: "您好，欢迎联系 XFlow。",
+            welcomeMessage: "Hello, I'm the Smart Service Assistant. How can I help?",
         }));
         const fetchMock = vi.fn(async (
             input: RequestInfo | URL,
@@ -263,7 +263,7 @@ describe("PublicChat", () =>
 
         expect(await screen.findByText("Waiting for human support"))
             .toBeInTheDocument();
-        const composer = screen.getByLabelText(/Ask XFlow support/u);
+        const composer = screen.getByLabelText(/Ask Smart Service support/u);
         expect(composer).toBeEnabled();
 
         await user.type(composer, "I can share my preferred model.");

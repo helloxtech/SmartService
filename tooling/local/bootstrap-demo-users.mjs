@@ -25,7 +25,7 @@ let bootstrapStage = "initializing";
  * ----------------
  * Parses a simple KEY=value environment document while rejecting malformed variable names.
  *
- * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Admin Email
+ * July 30, 2026: Updated by Forrest Zhang for SmartService Admin Email
  */
 function parseEnvironmentText(text)
 {
@@ -155,7 +155,7 @@ async function updateLocalEnvironment(filePath, currentText, updates)
  * ----------------
  * Writes local Worker Supabase bindings plus generated upload and conversation signers to Wrangler's ignored secret file.
  *
- * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
+ * July 30, 2026: Updated by Forrest Zhang for SmartService Chinese UI
  */
 async function writeWorkerDevelopmentVariables(filePath, localStatus, voiceServiceToken)
 {
@@ -333,7 +333,7 @@ async function main()
         ["SUPABASE_URL", localStatus.API_URL],
         ["VITE_SUPABASE_ANON_KEY", localStatus.ANON_KEY],
         ["VITE_SUPABASE_URL", localStatus.API_URL],
-        ["VITE_DEMO_PUBLIC_KEY", "xflow-public-demo"],
+        ["VITE_DEMO_PUBLIC_KEY", "smart-service-public-demo"],
         ["VOICE_INTERNAL_API_BASE_URL", "http://127.0.0.1:8787"],
         ["VOICE_INTERNAL_SERVICE_TOKEN", voiceServiceToken],
     ]);
@@ -357,19 +357,19 @@ async function main()
     bootstrapStage = "waiting for local Auth readiness";
     await waitForLocalAuth(client);
 
-    bootstrapStage = "creating the XFlow Admin";
+    bootstrapStage = "creating the Smart Service Admin";
     const adminUserId = await ensureAuthUser(
         client,
         demoValues.get("DEMO_ADMIN_EMAIL"),
         demoValues.get("DEMO_ADMIN_PASSWORD"),
-        "XFlow Demo Admin",
+        "Smart Service Demo Admin",
     );
-    bootstrapStage = "creating the XFlow Agent";
+    bootstrapStage = "creating the Smart Service Agent";
     const agentUserId = await ensureAuthUser(
         client,
         demoValues.get("DEMO_AGENT_EMAIL"),
         demoValues.get("DEMO_AGENT_PASSWORD"),
-        "XFlow Demo Agent",
+        "Smart Service Demo Agent",
     );
     bootstrapStage = "creating the isolation-tenant Admin";
     const otherAdminUserId = await ensureAuthUser(

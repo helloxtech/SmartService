@@ -7,9 +7,9 @@ insert into public.organizations (
 values
     (
         '00000000-0000-4000-a000-000000000001',
-        'XFlow Industrial Systems',
-        'xflow-demo',
-        'xflow-public-demo'
+        'Smart Service Demo',
+        'smart-service-demo',
+        'smart-service-public-demo'
     ),
     (
         '00000000-0000-4000-a000-000000000002',
@@ -30,9 +30,9 @@ insert into public.organization_settings (
 values
     (
         '00000000-0000-4000-a000-000000000001',
-        'XFlow',
+        'Smart Service',
         'zh-CN',
-        '您好，欢迎联系 XFlow。请问有什么可以帮您？',
+        'Hello, I''m the Smart Service Assistant. How can I help?',
         30,
         true
     ),

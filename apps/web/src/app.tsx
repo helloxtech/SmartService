@@ -72,14 +72,14 @@ const appCopy: Record<UiLanguage, {
         email: "Email",
         evidenceCardBody: "No unsupported answer.",
         evidenceCardTitle: "Evidence first",
-        heroBody: "SmartService keeps company answers tied to approved knowledge, routes uncertain requests to people, and gives agents the context they need.",
+        heroBody: "Smart Service keeps company answers tied to approved knowledge, routes uncertain requests to people, and gives agents the context they need.",
         heroEyebrow: "Bilingual service",
         heroTitle: "Secure customer conversations with AI and human handoff.",
         membershipError: "Your organization membership could not be loaded.",
         password: "Password",
         requestFailed: "The request could not be completed.",
         signIn: "Sign in",
-        signInHeading: "Sign in to SmartService",
+        signInHeading: "Sign in to Smart Service",
         signInIntro: "Use a fictional demo Admin or Agent identity. Credentials remain in local secret storage.",
         signInInvalid: "The email or password is not valid.",
         signInLoading: "Signing in…",
@@ -92,7 +92,7 @@ const appCopy: Record<UiLanguage, {
         voiceLoading: "Loading secure voice support…",
         workspaceLoading: "Loading team workspace…",
         workspaceReady: "Workspace ready",
-        workspaceSubtitle: "XFlow demo workspace",
+        workspaceSubtitle: "AI Assistant Workspace",
     },
     "zh-CN": {
         authLoading: "正在加载安全客户聊天…",
@@ -103,14 +103,14 @@ const appCopy: Record<UiLanguage, {
         email: "邮箱",
         evidenceCardBody: "不编造没有证据的答案。",
         evidenceCardTitle: "证据优先",
-        heroBody: "SmartService 会基于已批准知识回答客户问题；证据不足时转交人工，并把上下文交给客服人员。",
+        heroBody: "Smart Service 会基于已批准知识回答客户问题；证据不足时转交人工，并把上下文交给客服人员。",
         heroEyebrow: "中英文客服",
         heroTitle: "安全的 AI 客服对话和人工接入工作台。",
         membershipError: "无法加载组织权限。",
         password: "密码",
         requestFailed: "请求未完成。",
         signIn: "登录",
-        signInHeading: "登录 SmartService",
+        signInHeading: "登录 Smart Service",
         signInIntro: "使用演示管理员或客服账号登录；凭据只保存在本地安全配置中。",
         signInInvalid: "邮箱或密码不正确。",
         signInLoading: "登录中…",
@@ -123,7 +123,7 @@ const appCopy: Record<UiLanguage, {
         voiceLoading: "正在加载安全语音客服…",
         workspaceLoading: "正在加载团队工作台…",
         workspaceReady: "工作台已就绪",
-        workspaceSubtitle: "XFlow 演示工作台",
+        workspaceSubtitle: "AI 助手工作台",
     },
 };
 
@@ -159,7 +159,7 @@ const VoiceExperience = lazy(async () =>
  * ----------------
  * Converts an unknown operational failure into safe user-facing text without exposing credentials or response bodies.
  *
- * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
+ * July 30, 2026: Updated by Forrest Zhang for SmartService Chinese UI
  */
 function describeError(error: unknown, language: UiLanguage): string
 {
@@ -402,15 +402,15 @@ function WorkspaceApp({
     }
 
     return (
-        <main className="min-h-screen bg-slate-50 text-slate-950">
-            <header className="border-b border-slate-200 bg-white">
+        <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_#dff6ff_0,_transparent_35rem),linear-gradient(135deg,_#f8fafc_0%,_#eef4ff_48%,_#f8fafc_100%)] text-slate-950">
+            <header className="sticky top-0 z-20 border-b border-white/70 bg-white/75 backdrop-blur-2xl">
                 <div className="mx-auto flex max-w-[92rem] items-center justify-between px-6 py-4 lg:px-8">
                     <div className="flex items-center gap-3">
-                        <div className="flex size-10 items-center justify-center rounded-xl bg-sky-700 text-white">
+                        <div className="flex size-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-slate-950/15">
                             <Headphones aria-hidden="true" className="size-5" />
                         </div>
                         <div>
-                            <p className="text-base font-bold tracking-tight">SmartService</p>
+                            <p className="text-base font-semibold tracking-tight">Smart Service</p>
                             <p className="text-xs text-slate-500">{copy.workspaceSubtitle}</p>
                         </div>
                     </div>
@@ -447,17 +447,17 @@ function WorkspaceApp({
                             </div>
 
                             <div className="mt-8 grid gap-4 sm:grid-cols-3">
-                                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                                <div className="rounded-2xl border border-white/70 bg-white/70 p-5 shadow-sm backdrop-blur-xl">
                                     <Languages aria-hidden="true" className="mb-3 size-5 text-sky-700" />
                                     <p className="font-semibold">{copy.bilingualCardTitle}</p>
                                     <p className="mt-1 text-sm text-slate-500">{copy.bilingualCardBody}</p>
                                 </div>
-                                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                                <div className="rounded-2xl border border-white/70 bg-white/70 p-5 shadow-sm backdrop-blur-xl">
                                     <LockKeyhole aria-hidden="true" className="mb-3 size-5 text-sky-700" />
                                     <p className="font-semibold">{copy.tenantCardTitle}</p>
                                     <p className="mt-1 text-sm text-slate-500">{copy.tenantCardBody}</p>
                                 </div>
-                                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                                <div className="rounded-2xl border border-white/70 bg-white/70 p-5 shadow-sm backdrop-blur-xl">
                                     <CheckCircle2 aria-hidden="true" className="mb-3 size-5 text-sky-700" />
                                     <p className="font-semibold">{copy.evidenceCardTitle}</p>
                                     <p className="mt-1 text-sm text-slate-500">{copy.evidenceCardBody}</p>
@@ -467,8 +467,8 @@ function WorkspaceApp({
                     )}
 
                 <div className={authentication.kind === "signed-in"
-                    ? "rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
-                    : "rounded-2xl border border-slate-200 bg-white p-7 shadow-sm"}>
+                    ? "rounded-2xl border border-white/70 bg-white/78 px-4 py-3 shadow-[0_18px_50px_rgb(15_23_42/0.08)] backdrop-blur-2xl"
+                    : "rounded-[2rem] border border-white/70 bg-white/82 p-7 shadow-[0_24px_80px_rgb(15_23_42/0.12)] backdrop-blur-2xl"}>
                     {authentication.kind === "signed-in"
                         ? (
                             <div
@@ -505,7 +505,7 @@ function WorkspaceApp({
                                     </label>
                                     <input
                                         autoComplete="username"
-                                        className="h-11 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100"
+                                        className="h-11 w-full rounded-xl border border-slate-200 bg-white/90 px-3 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-200/70"
                                         id="email"
                                         onChange={(event) => setEmail(event.target.value)}
                                         required
@@ -518,7 +518,7 @@ function WorkspaceApp({
                                     </label>
                                     <input
                                         autoComplete="current-password"
-                                        className="h-11 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100"
+                                        className="h-11 w-full rounded-xl border border-slate-200 bg-white/90 px-3 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-200/70"
                                         id="password"
                                         onChange={(event) => setPassword(event.target.value)}
                                         required

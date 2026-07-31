@@ -163,7 +163,7 @@ async function createReadyVoiceSession(environment, language, fixtureIp)
                 customer: {
                     language,
                 },
-                publicKey: "xflow-public-demo",
+                publicKey: "smart-service-public-demo",
                 turnstileToken: "local-demo-turnstile",
             }),
             headers: {

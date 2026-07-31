@@ -478,8 +478,8 @@ function buildDeterministicFixtureAnswer(input: RagGenerationInput): RagAnswer
         result = createEvidenceAnswer(
             input,
             [/Custom-configured products/iu, /not returnable/iu, /manufacturing defect/iu],
-            "定制产品通常 not returnable；只有 XFlow 确认存在 manufacturing defect 时例外。",
-            "Custom-configured products are not returnable unless XFlow confirms a manufacturing defect.",
+            "定制产品通常 not returnable；只有 Smart Service 确认存在 manufacturing defect 时例外。",
+            "Custom-configured products are not returnable unless Smart Service confirms a manufacturing defect.",
         );
     }
 

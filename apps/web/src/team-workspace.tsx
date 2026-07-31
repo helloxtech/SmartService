@@ -52,7 +52,7 @@ const navigationLabels: Record<UiLanguage, Record<WorkspaceView, string>> = {
  * ----------------
  * Maps the current same-origin path to a bounded workspace view and optional conversation identifier.
  *
- * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
+ * July 30, 2026: Updated by Forrest Zhang for SmartService Chinese UI
  */
 function readWorkspaceRoute(pathname: string): {
     conversationId: string | null;
@@ -252,7 +252,7 @@ export function TeamWorkspace({
     return (
         <>
             <nav aria-label={language === "zh-CN" ? "团队工作台" : "Team workspace"} className="mx-auto mb-7 max-w-[92rem] px-6 lg:px-8">
-                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+                <div className="flex flex-wrap gap-2 rounded-[1.5rem] border border-white/70 bg-white/78 p-2 shadow-[0_18px_50px_rgb(15_23_42/0.08)] backdrop-blur-2xl">
                     {navigation.map((item) =>
                     {
                         const Icon = item.icon;
@@ -262,8 +262,8 @@ export function TeamWorkspace({
                             <a
                                 aria-current={active ? "page" : undefined}
                                 className={active
-                                    ? "flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white"
-                                    : "flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950"}
+                                    ? "flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-950/15"
+                                    : "flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-white hover:text-slate-950"}
                                 href={item.path}
                                 key={item.path}
                                 onClick={(event) => handleNavigation(event, item.path)}

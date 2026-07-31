@@ -229,7 +229,7 @@ async function createConversation(language, fixtureIp)
                 language,
                 name: "Day 4 Customer",
             },
-            publicKey: "xflow-public-demo",
+            publicKey: "smart-service-public-demo",
             turnstileToken: "local-demo-turnstile",
         }),
         headers: {
@@ -340,7 +340,7 @@ async function teamRequest(session, path, schema, init = {})
  * ----------------
  * Polls the scoped public endpoint for target human/system copy and enforces the three-second visibility objective.
  *
- * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
+ * July 30, 2026: Updated by Forrest Zhang for SmartService Chinese UI
  */
 async function waitForPublicMessage(conversation, targetText)
 {

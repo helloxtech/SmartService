@@ -23,7 +23,7 @@ afterEach(() =>
 
 describe("public conversation API", () =>
 {
-    it("retries the legacy demo key only when hosted Supabase has not received the XFlow key yet", async () =>
+    it("retries the legacy demo key only when hosted Supabase has not received the current demo key yet", async () =>
     {
         const attemptedKeys: string[] = [];
         const fetchMock = vi.fn(async (
@@ -40,7 +40,7 @@ describe("public conversation API", () =>
             const request = createConversationRequestSchema.parse(rawBody);
             attemptedKeys.push(request.publicKey);
 
-            if (request.publicKey === "xflow-public-demo")
+            if (request.publicKey === "smart-service-public-demo")
             {
                 return new Response(JSON.stringify({
                     error: {
@@ -71,16 +71,16 @@ describe("public conversation API", () =>
         vi.stubGlobal("fetch", fetchMock);
 
         const result = await createPublicConversationWithFallback(
-            ["xflow-public-demo", "novaflow-public-demo"],
+            ["smart-service-public-demo", "xflow-public-demo", "novaflow-public-demo"],
             "zh-CN",
             "local-demo-turnstile",
         );
 
-        expect(result.displayName).toBe("XFlow");
-        expect(result.welcomeMessage).toBe("您好，欢迎联系 XFlow。");
+        expect(result.displayName).toBe("Smart Service");
+        expect(result.welcomeMessage).toBe("您好，我是 Smart Service 智能客服。请问有什么可以帮您？");
         expect(attemptedKeys).toEqual([
+            "smart-service-public-demo",
             "xflow-public-demo",
-            "novaflow-public-demo",
         ]);
     });
 
@@ -103,7 +103,7 @@ describe("public conversation API", () =>
         vi.stubGlobal("fetch", fetchMock);
 
         await expect(createPublicConversationWithFallback(
-            ["xflow-public-demo", "novaflow-public-demo"],
+            ["smart-service-public-demo", "xflow-public-demo", "novaflow-public-demo"],
             "zh-CN",
             "local-demo-turnstile",
         )).rejects.toThrow("Human verification failed.");
@@ -143,8 +143,8 @@ describe("public conversation API", () =>
             "40000000-0000-4000-a000-000000000001",
         );
 
-        expect(result.answer).toContain("XFlow");
-        expect(result.citations[0]?.label).toBe("XFlow Support FAQ — Warranty");
-        expect(result.citations[0]?.supportingExcerpt).toBe("XFlow NF-500 limited warranty: 36 months.");
+        expect(result.answer).toContain("Smart Service");
+        expect(result.citations[0]?.label).toBe("Smart Service Support FAQ — Warranty");
+        expect(result.citations[0]?.supportingExcerpt).toBe("Smart Service NF-500 limited warranty: 36 months.");
     });
 });

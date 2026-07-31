@@ -38,7 +38,7 @@ describe("App", () =>
     {
         render(<App />);
 
-        expect(screen.getByRole("heading", { name: /Sign in to SmartService/u })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: /Sign in to Smart Service/u })).toBeInTheDocument();
         expect(await screen.findByText(/Supabase configuration is not available yet/u)).toBeInTheDocument();
         expect(screen.getByLabelText(/Email/u)).toBeInTheDocument();
         expect(screen.getByLabelText(/Password/u)).toBeInTheDocument();
@@ -51,9 +51,9 @@ describe("App", () =>
 
         await user.click(screen.getByRole("button", { name: "中文" }));
 
-        expect(screen.getByRole("heading", { name: /登录 SmartService/u })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: /登录 Smart Service/u })).toBeInTheDocument();
         expect(screen.getByLabelText(/邮箱/u)).toBeInTheDocument();
-        expect(screen.queryByRole("heading", { name: /Sign in to SmartService/u }))
+        expect(screen.queryByRole("heading", { name: /Sign in to Smart Service/u }))
             .not.toBeInTheDocument();
     });
 });

@@ -54,7 +54,7 @@ const extractedPayload: ExtractedKnowledgePayload = {
             heading: "Page 1",
             pageEnd: 1,
             pageStart: 1,
-            text: "The fictional XFlow NF-500 has documented operating limits.",
+            text: "The fictional Smart Service NF-500 has documented operating limits.",
         }],
         title: "manual.pdf",
     }],

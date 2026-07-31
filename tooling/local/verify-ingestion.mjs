@@ -237,7 +237,7 @@ async function verifyDatabaseResults(environment)
  * ----------------
  * Runs real-browser PDF, DOCX, and URL intake through the local Worker, Queue, R2 binding, Supabase, and mock embeddings.
  *
- * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
+ * July 30, 2026: Updated by Forrest Zhang for SmartService Chinese UI
  */
 async function main()
 {

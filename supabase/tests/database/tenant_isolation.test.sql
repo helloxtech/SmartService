@@ -128,7 +128,7 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 
 select extensions.results_eq(
     $$select slug from public.organizations order by slug$$,
-    array['xflow-demo']::text[],
+    array['smart-service-demo']::text[],
     'Tenant A Admin sees only Tenant A'
 );
 
@@ -149,7 +149,7 @@ select extensions.results_eq(
     $$
         with changed as (
             update public.organization_settings
-            set display_name = 'XFlow Admin Verified'
+            set display_name = 'Smart Service Admin Verified'
             where organization_id = '00000000-0000-4000-a000-000000000001'
             returning organization_id
         )
@@ -184,7 +184,7 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 
 select extensions.results_eq(
     $$select slug from public.organizations order by slug$$,
-    array['xflow-demo']::text[],
+    array['smart-service-demo']::text[],
     'Tenant A Agent sees only Tenant A'
 );
 

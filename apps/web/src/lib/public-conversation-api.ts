@@ -20,7 +20,8 @@ const apiErrorSchema = z.object({
     }),
 });
 
-const defaultDemoPublicKey = "xflow-public-demo";
+const defaultDemoPublicKey = "smart-service-public-demo";
+const legacyFlowDemoPublicKey = "xflow-public-demo";
 const legacyDemoPublicKey = "novaflow-public-demo";
 
 type PublicApiFailure = Error & {
@@ -51,7 +52,7 @@ function getApiUrl(path: string): string
  * ----------------
  * Creates a typed public API error while preserving the server's stable error code for bounded recovery decisions.
  *
- * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ * July 30, 2026: Created by Forrest Zhang for SmartService hosted demo compatibility
  */
 function createApiFailure(code: string, message: string): PublicApiFailure
 {
@@ -65,7 +66,7 @@ function createApiFailure(code: string, message: string): PublicApiFailure
  * ----------------
  * Detects the one safe retry case for demo public-key migration without masking unrelated customer-service failures.
  *
- * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ * July 30, 2026: Created by Forrest Zhang for SmartService hosted demo compatibility
  */
 function isWidgetNotFoundError(error: unknown): boolean
 {
@@ -77,30 +78,47 @@ function isWidgetNotFoundError(error: unknown): boolean
 /**
  * normalizeHostedDemoBrand
  * ----------------
- * Replaces stale hosted demo branding in browser-visible session text while the hosted database is awaiting the XFlow seed refresh.
+ * Replaces stale hosted demo branding in browser-visible text while keeping low-level public keys unchanged for compatibility.
  *
- * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ * July 30, 2026: Updated by Forrest Zhang for SmartService branding cleanup
  */
 function normalizeHostedDemoBrand(value: string): string
 {
-    return value.replaceAll("NovaFlow", "XFlow");
+    return value
+        .replaceAll("NovaFlow", "Smart Service")
+        .replaceAll("XFlow", "Smart Service");
+}
+
+/**
+ * getSmartServiceWelcomeMessage
+ * ----------------
+ * Provides the customer-visible demo greeting in the selected language so stale hosted tenant settings cannot leak old names.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService branding cleanup
+ */
+function getSmartServiceWelcomeMessage(language: ConversationLanguage): string
+{
+    return language === "zh-CN"
+        ? "您好，我是 Smart Service 智能客服。请问有什么可以帮您？"
+        : "Hello, I'm the Smart Service Assistant. How can I help?";
 }
 
 /**
  * normalizeDemoConversationResponse
  * ----------------
- * Keeps the temporary legacy-key fallback from showing the old demo tenant name in public chat or voice headers.
+ * Keeps hosted demo responses from showing old demo tenant names in public chat or voice headers.
  *
- * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ * July 30, 2026: Updated by Forrest Zhang for SmartService branding cleanup
  */
 function normalizeDemoConversationResponse(
     response: CreatePublicConversationResponse,
+    language: ConversationLanguage,
 ): CreatePublicConversationResponse
 {
     return {
         ...response,
-        displayName: normalizeHostedDemoBrand(response.displayName),
-        welcomeMessage: normalizeHostedDemoBrand(response.welcomeMessage),
+        displayName: "Smart Service",
+        welcomeMessage: getSmartServiceWelcomeMessage(language),
     };
 }
 
@@ -109,7 +127,7 @@ function normalizeDemoConversationResponse(
  * ----------------
  * Normalizes browser-visible citation display fields during the temporary hosted demo key fallback.
  *
- * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ * July 30, 2026: Created by Forrest Zhang for SmartService hosted demo compatibility
  */
 function normalizeDemoCitations(
     citations: SendPublicMessageResponse["citations"],
@@ -130,7 +148,7 @@ function normalizeDemoCitations(
  * ----------------
  * Normalizes browser-visible answer and citation fields that can still contain stale hosted demo branding.
  *
- * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ * July 30, 2026: Created by Forrest Zhang for SmartService hosted demo compatibility
  */
 function normalizeDemoMessageResponse(response: SendPublicMessageResponse): SendPublicMessageResponse
 {
@@ -146,7 +164,7 @@ function normalizeDemoMessageResponse(response: SendPublicMessageResponse): Send
  * ----------------
  * Normalizes polled public messages so resumed sessions do not re-display stale hosted demo branding.
  *
- * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ * July 30, 2026: Created by Forrest Zhang for SmartService hosted demo compatibility
  */
 function normalizeDemoMessageListResponse(response: PublicMessageListResponse): PublicMessageListResponse
 {
@@ -192,9 +210,9 @@ async function readApiFailure(response: Response): Promise<PublicApiFailure>
 /**
  * getConfiguredDemoPublicKeys
  * ----------------
- * Returns the current XFlow demo public key plus a temporary legacy key fallback for hosted deployments whose Supabase seed has not been refreshed yet.
+ * Returns the current demo public key plus a temporary legacy key fallback for hosted deployments whose Supabase seed has not been refreshed yet.
  *
- * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ * July 30, 2026: Updated by Forrest Zhang for SmartService branding cleanup
  */
 export function getConfiguredDemoPublicKeys(): readonly string[]
 {
@@ -202,6 +220,7 @@ export function getConfiguredDemoPublicKeys(): readonly string[]
     return Array.from(new Set([
         configuredPublicKey,
         defaultDemoPublicKey,
+        legacyFlowDemoPublicKey,
         legacyDemoPublicKey,
     ]));
 }
@@ -247,9 +266,9 @@ export async function createPublicConversation(
 /**
  * createPublicConversationWithFallback
  * ----------------
- * Starts a public conversation with the current XFlow key and retries only the legacy demo key when hosted Supabase still has the older tenant key.
+ * Starts a public conversation with the current demo key and retries only the legacy demo key when hosted Supabase still has the older tenant key.
  *
- * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ * July 30, 2026: Updated by Forrest Zhang for SmartService branding cleanup
  */
 export async function createPublicConversationWithFallback(
     publicKeys: readonly string[],
@@ -271,9 +290,7 @@ export async function createPublicConversationWithFallback(
                 channel,
             );
 
-            return publicKey === legacyDemoPublicKey
-                ? normalizeDemoConversationResponse(response)
-                : response;
+            return normalizeDemoConversationResponse(response, language);
         }
         catch (error)
         {

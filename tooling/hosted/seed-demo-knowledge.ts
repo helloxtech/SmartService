@@ -190,9 +190,9 @@ function createWebsitePayload(): ExtractedKnowledgePayload
                 canonicalUrl: "https://example.com/support",
                 sections: [{
                     heading: "Support",
-                    text: "XFlow support can help with troubleshooting, warranty routing, and safe escalation when approved knowledge is insufficient.",
+                    text: "Smart Service support can help with troubleshooting, warranty routing, and safe escalation when approved knowledge is insufficient.",
                 }],
-                title: "XFlow Support",
+                title: "Smart Service Support",
             },
         ],
         schemaVersion: 1,
@@ -205,7 +205,7 @@ function createWebsitePayload(): ExtractedKnowledgePayload
 /**
  * getAdminUserId
  * ----------------
- * Finds one active XFlow Admin user id so hosted fixture sources keep an auditable creator.
+ * Finds one active Smart Service Admin user id so hosted fixture sources keep an auditable creator.
  *
  * July 28, 2026: Created by Forrest Zhang for Hosted DEV UAT
  */
@@ -231,14 +231,14 @@ async function getAdminUserId(environment: Environment): Promise<string>
 
     if (error !== null || data === null || data.length !== 1)
     {
-        throw new Error("No active XFlow Admin membership was found for hosted fixture seeding.");
+        throw new Error("No active Smart Service Admin membership was found for hosted fixture seeding.");
     }
 
     const userId = data[0]?.user_id;
 
     if (typeof userId !== "string" || userId.length === 0)
     {
-        throw new Error("The XFlow Admin membership did not contain a valid user id.");
+        throw new Error("The Smart Service Admin membership did not contain a valid user id.");
     }
 
     return userId;
@@ -260,7 +260,7 @@ function getSourceFixtures(): SourceFixture[]
                 pageCount: 5,
                 path: "docs/spec/fixtures/knowledge/demo_company_product_manual.md",
                 sourceType: "pdf",
-                title: "XFlow NF-Series Product Manual",
+                title: "Smart Service NF-Series Product Manual",
             }),
             extractedObjectKey: `org/${organizationId}/hosted-fixtures/extracted/xflow-nf-series-manual.json`,
             idempotencyKey: "hosted-dev-fixture-product-manual-v1",
@@ -276,7 +276,7 @@ function getSourceFixtures(): SourceFixture[]
                 pageCount: 3,
                 path: "docs/spec/fixtures/knowledge/demo_company_faq.md",
                 sourceType: "docx",
-                title: "XFlow Support FAQ",
+                title: "Smart Service Support FAQ",
             }),
             extractedObjectKey: `org/${organizationId}/hosted-fixtures/extracted/xflow-support-faq.json`,
             idempotencyKey: "hosted-dev-fixture-support-faq-v1",
@@ -421,7 +421,7 @@ async function summarizeKnowledge(environment: Environment): Promise<{
 /**
  * main
  * ----------------
- * Seeds hosted DEV with fictional approved XFlow knowledge for mock-provider UAT smoke testing.
+ * Seeds hosted DEV with fictional approved Smart Service knowledge for mock-provider UAT smoke testing.
  *
  * July 28, 2026: Created by Forrest Zhang for Hosted DEV UAT
  */

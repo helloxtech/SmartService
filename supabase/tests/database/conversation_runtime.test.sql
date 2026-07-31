@@ -48,7 +48,7 @@ on commit drop
 as
 select *
 from public.create_public_conversation(
-    'xflow-public-demo',
+    'smart-service-public-demo',
     'text',
     'Fixture Customer',
     'fixture@example.test',
@@ -65,14 +65,14 @@ select extensions.results_eq(
         from created_conversation
     $$,
     array['00000000-0000-4000-a000-000000000001'::uuid],
-    'The public key resolves to the authoritative XFlow organization'
+    'The public key resolves to the authoritative Smart Service organization'
 );
 
 select extensions.results_eq(
     $$
         select replay.conversation_id
         from public.create_public_conversation(
-            'xflow-public-demo',
+            'smart-service-public-demo',
             'text',
             'Fixture Customer',
             'fixture@example.test',
@@ -352,7 +352,7 @@ from (
         ('handoff-runtime-fixture-two')
 ) as fixture(idempotency_key)
 cross join lateral public.create_public_conversation(
-    'xflow-public-demo',
+    'smart-service-public-demo',
     'text',
     null,
     null,

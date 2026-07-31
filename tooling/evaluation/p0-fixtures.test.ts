@@ -39,7 +39,7 @@ async function loadApprovedFixtureEvidence(): Promise<RetrievedEvidence[]>
             content: manual,
             sourceLocator: {
                 kind: "manual",
-                title: "XFlow NF-Series Product Manual",
+                title: "Smart Service NF-Series Product Manual",
             },
         },
         {
@@ -48,7 +48,7 @@ async function loadApprovedFixtureEvidence(): Promise<RetrievedEvidence[]>
             content: faq,
             sourceLocator: {
                 kind: "manual",
-                title: "XFlow Industrial Systems FAQ",
+                title: "Smart Service Industrial Systems FAQ",
             },
         },
     ];

@@ -290,7 +290,7 @@ async function createUnsupportedConversation(question, fixtureIp)
                     language: "en",
                     name: "Day 5 Customer",
                 },
-                publicKey: "xflow-public-demo",
+                publicKey: "smart-service-public-demo",
                 turnstileToken: "local-demo-turnstile",
             }),
             headers: {

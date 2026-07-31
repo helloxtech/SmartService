@@ -14,6 +14,7 @@ import {
     LifeBuoy,
     LoaderCircle,
     Send,
+    ShieldCheck,
     UserRound,
     X,
 } from "lucide-react";
@@ -100,9 +101,9 @@ const publicChatCopy: Record<UiLanguage, {
     en: {
         activeStatus: "AI ready",
         activeStatusShort: "AI ready",
-        aiReadyNotice: "Answers use approved XFlow knowledge. If evidence is missing, the assistant will request human support.",
-        askLabel: "Ask XFlow support",
-        backLabel: "Back to SmartService",
+        aiReadyNotice: "Smart Service answers only from approved knowledge. If evidence is missing, the assistant will request human support.",
+        askLabel: "Ask Smart Service support",
+        backLabel: "Back to Smart Service",
         busy: "Checking approved knowledge…",
         closedFooter: "Conversation closed",
         closedPlaceholder: "Conversation is closed.",
@@ -114,7 +115,7 @@ const publicChatCopy: Record<UiLanguage, {
         handoffRequestedFooter: "Waiting for human support",
         handoffRequestedStatus: "Human support requested",
         humanStatusShort: "Human support",
-        initialWelcome: "Hello. I’m the XFlow support assistant. How can I help?",
+        initialWelcome: "Hello, I'm the Smart Service Assistant. How can I help?",
         messageFailed: "The message could not be sent.",
         needHumanHelp: "Need human help?",
         openWebpage: "Open webpage",
@@ -134,9 +135,9 @@ const publicChatCopy: Record<UiLanguage, {
     "zh-CN": {
         activeStatus: "AI 已就绪",
         activeStatusShort: "AI 就绪",
-        aiReadyNotice: "回答只使用已批准的 XFlow 知识；证据不足时会请求人工客服。",
-        askLabel: "咨询 XFlow 客服",
-        backLabel: "返回 SmartService",
+        aiReadyNotice: "Smart Service 只使用已批准知识回答；证据不足时会请求人工客服。",
+        askLabel: "咨询 Smart Service 客服",
+        backLabel: "返回 Smart Service",
         busy: "正在检查已批准知识…",
         closedFooter: "会话已结束",
         closedPlaceholder: "会话已结束。",
@@ -148,7 +149,7 @@ const publicChatCopy: Record<UiLanguage, {
         handoffRequestedFooter: "等待人工客服接入",
         handoffRequestedStatus: "已转人工",
         humanStatusShort: "人工客服",
-        initialWelcome: "您好！我是 XFlow 智能客服。请问有什么可以帮您？",
+        initialWelcome: "您好，我是 Smart Service 智能客服。请问有什么可以帮您？",
         messageFailed: "消息未发送。",
         needHumanHelp: "需要人工帮助？",
         openWebpage: "打开网页",
@@ -286,7 +287,7 @@ function describeStatus(status: ConversationStatus, language: UiLanguage): strin
  * ----------------
  * Allows customer updates while AI is active, while waiting for human support, and after a human operator connects.
  *
- * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
+ * July 30, 2026: Updated by Forrest Zhang for SmartService Chinese UI
  */
 function canCustomerSend(status: ConversationStatus): boolean
 {
@@ -348,7 +349,7 @@ function describeHumanSupportFooter(status: ConversationStatus, language: UiLang
  * ----------------
  * Shows the exact supporting excerpt and customer-safe source locator for one selected citation.
  *
- * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
+ * July 30, 2026: Updated by Forrest Zhang for SmartService branding cleanup
  */
 function CitationPanel({
     citation,
@@ -365,8 +366,8 @@ function CitationPanel({
     return (
         <aside
             aria-label={copy.sourceAria}
-            className={`rounded-2xl border bg-white p-5 shadow-sm lg:sticky lg:top-6 lg:self-start ${
-                citation === null ? "border-dashed border-slate-300" : "border-sky-200"
+            className={`rounded-[1.75rem] border bg-white/80 p-5 shadow-[0_18px_50px_rgb(15_23_42/0.08)] backdrop-blur-xl lg:sticky lg:top-6 lg:self-start ${
+                citation === null ? "border-dashed border-white/70" : "border-sky-100"
             }`}
         >
             <div className="flex items-center justify-between gap-3">
@@ -379,7 +380,7 @@ function CitationPanel({
                     : (
                         <button
                             aria-label={copy.sourceClose}
-                            className="rounded-md p-1 text-slate-500 hover:bg-slate-100"
+                            className="rounded-full p-1 text-slate-500 hover:bg-slate-100"
                             onClick={onClose}
                             type="button"
                         >
@@ -400,7 +401,7 @@ function CitationPanel({
                         <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">
                             {citation.sourceType}
                         </p>
-                        <blockquote className="mt-4 rounded-xl bg-sky-50 p-4 text-sm leading-6 text-slate-700">
+                        <blockquote className="mt-4 rounded-2xl bg-sky-50/80 p-4 text-sm leading-6 text-slate-700">
                             {citation.supportingExcerpt}
                         </blockquote>
                         {citation.sourceUrl === null
@@ -427,7 +428,7 @@ function CitationPanel({
  * ----------------
  * Renders the responsive customer chat with language-switched copy, grounded citations, scoped polling, automatic escalation, and contextual human support.
  *
- * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
+ * July 30, 2026: Updated by Forrest Zhang for SmartService Apple-inspired UI
  */
 export function PublicChat({
     onUiLanguageChange = ignoreUiLanguageChange,
@@ -758,22 +759,22 @@ export function PublicChat({
     }
 
     return (
-        <main className="min-h-screen bg-slate-100 text-slate-950">
-            <header className="border-b border-slate-200 bg-white">
+        <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_#dff6ff_0,_transparent_34rem),linear-gradient(135deg,_#f8fafc_0%,_#eef4ff_45%,_#f8fafc_100%)] text-slate-950">
+            <header className="sticky top-0 z-20 border-b border-white/70 bg-white/75 backdrop-blur-2xl">
                 <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
                     <div className="flex min-w-0 items-center gap-3">
                         <a
                             aria-label={copy.backLabel}
-                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                            className="rounded-full p-2 text-slate-500 hover:bg-white"
                             href="/"
                         >
                             <ArrowLeft aria-hidden="true" className="size-5" />
                         </a>
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sky-700 text-white">
+                        <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-slate-950/15">
                             <Headphones aria-hidden="true" className="size-5" />
                         </div>
                         <div className="min-w-0">
-                            <h1 className="truncate font-bold">{session?.displayName ?? "XFlow"} {copy.titleSuffix}</h1>
+                            <h1 className="truncate text-base font-semibold tracking-tight">Smart Service {copy.titleSuffix}</h1>
                             <p className="hidden truncate text-xs text-slate-500 sm:block">
                                 {copy.subtitle}
                             </p>
@@ -784,10 +785,10 @@ export function PublicChat({
                             language={uiLanguage}
                             onLanguageChange={onUiLanguageChange}
                         />
-                        <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                        <span className={`rounded-full px-3 py-1.5 text-xs font-semibold shadow-sm ${
                             status === "active_ai"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-amber-50 text-amber-800"
+                                ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
+                                : "bg-amber-50 text-amber-800 ring-1 ring-amber-100"
                         }`}>
                             <span className="sm:hidden">
                                 {status === "active_ai" ? copy.activeStatusShort : copy.humanStatusShort}
@@ -798,14 +799,15 @@ export function PublicChat({
                 </div>
             </header>
 
-            <div className="mx-auto grid max-w-7xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-                <section className="flex min-h-[calc(100vh-8.5rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+                <section className="flex min-h-[calc(100vh-9rem)] flex-col overflow-hidden rounded-[2rem] border border-white/70 bg-white/78 shadow-[0_24px_80px_rgb(15_23_42/0.12)] backdrop-blur-2xl">
                     <div
                         aria-live="polite"
-                        className="flex-1 space-y-5 overflow-y-auto p-4 sm:p-6"
+                        className="flex-1 space-y-6 overflow-y-auto p-4 sm:p-7"
                     >
-                        <div className="mx-auto max-w-3xl rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-900">
-                            {copy.aiReadyNotice}
+                        <div className="mx-auto flex max-w-3xl items-start gap-3 rounded-2xl border border-sky-100 bg-sky-50/80 px-4 py-3 text-sm leading-6 text-sky-950">
+                            <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-sky-700" />
+                            <span>{copy.aiReadyNotice}</span>
                         </div>
 
                         {messages.map((message) => (
@@ -815,7 +817,7 @@ export function PublicChat({
                                 }`}
                                 key={message.id}
                             >
-                                <div className={`flex size-8 shrink-0 items-center justify-center rounded-full ${
+                                <div className={`flex size-9 shrink-0 items-center justify-center rounded-full shadow-sm ${
                                     message.sender === "customer"
                                         ? "bg-slate-800 text-white"
                                         : message.sender === "human"
@@ -831,12 +833,12 @@ export function PublicChat({
                                 <div className={`max-w-[85%] ${
                                     message.sender === "customer" ? "text-right" : ""
                                 }`}>
-                                    <div className={`inline-block rounded-2xl px-4 py-3 text-left text-sm leading-6 ${
+                                    <div className={`inline-block rounded-[1.35rem] px-4 py-3 text-left text-sm leading-6 shadow-sm ${
                                         message.sender === "customer"
                                             ? "rounded-tr-sm bg-slate-900 text-white"
                                             : message.sender === "system"
                                                 ? "border border-amber-200 bg-amber-50 text-amber-950"
-                                                : "rounded-tl-sm bg-slate-100 text-slate-800"
+                                                : "rounded-tl-sm bg-white text-slate-800 ring-1 ring-slate-200/70"
                                     }`}>
                                         {message.id === "local-welcome"
                                             ? copy.initialWelcome
@@ -848,7 +850,7 @@ export function PublicChat({
                                             <div className="mt-2 flex flex-wrap gap-2">
                                                 {message.citations.map((citation, index) => (
                                                     <button
-                                                        className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-white px-3 py-1.5 text-left text-xs font-semibold text-sky-800 hover:border-sky-400 hover:bg-sky-50"
+                                                        className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-white/90 px-3 py-1.5 text-left text-xs font-semibold text-sky-800 shadow-sm hover:border-sky-400 hover:bg-sky-50"
                                                         key={citation.citationId}
                                                         onClick={() => setSelectedCitation(citation)}
                                                         type="button"
@@ -874,7 +876,7 @@ export function PublicChat({
                         <div ref={transcriptEnd} />
                     </div>
 
-                    <div className="border-t border-slate-200 bg-slate-50 p-4 sm:p-5">
+                    <div className="border-t border-white/70 bg-white/70 p-4 backdrop-blur-xl sm:p-5">
                         {session === null
                             ? (
                                 <TurnstileWidget
@@ -901,9 +903,9 @@ export function PublicChat({
                             <label className="sr-only" htmlFor="customer-message">
                                 {copy.askLabel}
                             </label>
-                            <div className="flex items-end gap-2 rounded-xl border border-slate-300 bg-white p-2 focus-within:border-sky-600 focus-within:ring-2 focus-within:ring-sky-100">
+                            <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-inner shadow-slate-200/50 focus-within:border-slate-400 focus-within:ring-4 focus-within:ring-slate-200/60">
                                 <textarea
-                                    className="max-h-36 min-h-11 flex-1 resize-none border-0 px-2 py-2 text-sm outline-none"
+                                    className="max-h-36 min-h-11 flex-1 resize-none border-0 bg-transparent px-3 py-2 text-sm outline-none"
                                     disabled={!canCustomerSend(status)}
                                     id="customer-message"
                                     maxLength={5000}

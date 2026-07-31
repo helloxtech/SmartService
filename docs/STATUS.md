@@ -8,7 +8,7 @@
 
 ## Recent hosted UAT fixes
 
-- July 30, 2026 PDT: Added a temporary hosted deployment bridge so public text and voice try the XFlow demo public key first, then retry the legacy demo key only on `WIDGET_NOT_FOUND`; this allows Git/Cloudflare deployment before hosted Supabase data is refreshed.
+- July 30, 2026 PDT: Added a temporary hosted deployment bridge so public text and voice try the XFlow demo public key first, then retry the legacy demo key only on `WIDGET_NOT_FOUND`; stale hosted display/welcome text is normalized in the browser so Git/Cloudflare deployment can proceed before hosted Supabase data is refreshed.
 - July 30, 2026 PDT: Renamed the fictional demo tenant and all generated fixture/verification references to XFlow, changed the non-secret demo public key to `xflow-public-demo`, and added visible Chinese/English UI copy to the main login, public chat, team navigation, and browser voice surfaces.
 - July 30, 2026 PDT: The XFlow/Chinese UI update is validated locally. Hosted Supabase still requires the browser-owned project access path or restored hosted service credentials before the legacy key fallback can be removed and hosted tenant data can be claimed fully refreshed.
 - July 30, 2026 PDT: Updated the hosted and local XFlow Admin login email to `info@smartservice.ca`; the password was reset in Supabase Auth and ignored `.env.local` only. No password value was committed.

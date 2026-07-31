@@ -75,6 +75,36 @@ function isWidgetNotFoundError(error: unknown): boolean
 }
 
 /**
+ * normalizeHostedDemoBrand
+ * ----------------
+ * Replaces stale hosted demo branding in browser-visible session text while the hosted database is awaiting the XFlow seed refresh.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ */
+function normalizeHostedDemoBrand(value: string): string
+{
+    return value.replaceAll("NovaFlow", "XFlow");
+}
+
+/**
+ * normalizeDemoConversationResponse
+ * ----------------
+ * Keeps the temporary legacy-key fallback from showing the old demo tenant name in public chat or voice headers.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ */
+function normalizeDemoConversationResponse(
+    response: CreatePublicConversationResponse,
+): CreatePublicConversationResponse
+{
+    return {
+        ...response,
+        displayName: normalizeHostedDemoBrand(response.displayName),
+        welcomeMessage: normalizeHostedDemoBrand(response.welcomeMessage),
+    };
+}
+
+/**
  * readApiFailure
  * ----------------
  * Converts a bounded server error envelope into customer-safe text without reflecting raw response data.
@@ -175,12 +205,16 @@ export async function createPublicConversationWithFallback(
     {
         try
         {
-            return await createPublicConversation(
+            const response = await createPublicConversation(
                 publicKey,
                 language,
                 turnstileToken,
                 channel,
             );
+
+            return publicKey === legacyDemoPublicKey
+                ? normalizeDemoConversationResponse(response)
+                : response;
         }
         catch (error)
         {

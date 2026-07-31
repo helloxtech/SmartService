@@ -55,9 +55,9 @@ describe("public conversation API", () =>
             return new Response(JSON.stringify({
                 conversationId: "20000000-0000-4000-a000-000000000001",
                 conversationToken: "x".repeat(32),
-                displayName: "XFlow",
+                displayName: "NovaFlow",
                 expiresAt: "2099-07-30T22:00:00.000Z",
-                welcomeMessage: "您好，欢迎联系 XFlow。",
+                welcomeMessage: "您好，欢迎联系 NovaFlow。",
             }), {
                 headers: {
                     "content-type": "application/json",
@@ -74,6 +74,7 @@ describe("public conversation API", () =>
         );
 
         expect(result.displayName).toBe("XFlow");
+        expect(result.welcomeMessage).toBe("您好，欢迎联系 XFlow。");
         expect(attemptedKeys).toEqual([
             "xflow-public-demo",
             "novaflow-public-demo",

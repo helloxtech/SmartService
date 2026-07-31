@@ -105,6 +105,65 @@ function normalizeDemoConversationResponse(
 }
 
 /**
+ * normalizeDemoCitations
+ * ----------------
+ * Normalizes browser-visible citation display fields during the temporary hosted demo key fallback.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ */
+function normalizeDemoCitations(
+    citations: SendPublicMessageResponse["citations"],
+): SendPublicMessageResponse["citations"]
+{
+    return citations.map((citation) =>
+    {
+        return {
+            ...citation,
+            label: normalizeHostedDemoBrand(citation.label),
+            supportingExcerpt: normalizeHostedDemoBrand(citation.supportingExcerpt),
+        };
+    });
+}
+
+/**
+ * normalizeDemoMessageResponse
+ * ----------------
+ * Normalizes browser-visible answer and citation fields that can still contain stale hosted demo branding.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ */
+function normalizeDemoMessageResponse(response: SendPublicMessageResponse): SendPublicMessageResponse
+{
+    return {
+        ...response,
+        answer: normalizeHostedDemoBrand(response.answer),
+        citations: normalizeDemoCitations(response.citations),
+    };
+}
+
+/**
+ * normalizeDemoMessageListResponse
+ * ----------------
+ * Normalizes polled public messages so resumed sessions do not re-display stale hosted demo branding.
+ *
+ * July 30, 2026: Created by Forrest Zhang for SmartService hosted XFlow compatibility
+ */
+function normalizeDemoMessageListResponse(response: PublicMessageListResponse): PublicMessageListResponse
+{
+    return {
+        ...response,
+        messages: response.messages.map((message) =>
+        {
+            return {
+                ...message,
+                citations: normalizeDemoCitations(message.citations),
+                text: normalizeHostedDemoBrand(message.text),
+            };
+        }),
+    };
+}
+
+/**
  * readApiFailure
  * ----------------
  * Converts a bounded server error envelope into customer-safe text without reflecting raw response data.
@@ -300,7 +359,7 @@ export async function sendPublicMessage(
         throw await readApiFailure(response);
     }
 
-    return sendPublicMessageResponseSchema.parse(await response.json());
+    return normalizeDemoMessageResponse(sendPublicMessageResponseSchema.parse(await response.json()));
 }
 
 /**
@@ -357,7 +416,7 @@ export async function pollPublicMessages(
 
     return {
         etag: response.headers.get("etag"),
-        response: publicMessageListResponseSchema.parse(await response.json()),
+        response: normalizeDemoMessageListResponse(publicMessageListResponseSchema.parse(await response.json())),
     };
 }
 

@@ -7,7 +7,10 @@ import {
     vi,
 } from "vitest";
 
-import { createPublicConversationWithFallback } from "./public-conversation-api";
+import {
+    createPublicConversationWithFallback,
+    sendPublicMessage,
+} from "./public-conversation-api";
 
 const createConversationRequestSchema = z.object({
     publicKey: z.string(),
@@ -106,5 +109,42 @@ describe("public conversation API", () =>
         )).rejects.toThrow("Human verification failed.");
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("normalizes stale hosted demo branding in browser-visible answer citations", async () =>
+    {
+        const fetchMock = vi.fn(async (): Promise<Response> =>
+        {
+            return new Response(JSON.stringify({
+                answer: "NovaFlow confirms the NF-500 warranty is 36 months.",
+                citations: [{
+                    citationId: "50000000-0000-4000-a000-000000000001",
+                    label: "NovaFlow Support FAQ — Warranty",
+                    sourceType: "docx",
+                    sourceUrl: null,
+                    supportingExcerpt: "NovaFlow NF-500 limited warranty: 36 months.",
+                }],
+                decision: "answer",
+                handoff: null,
+                messageId: "30000000-0000-4000-a000-000000000001",
+            }), {
+                headers: {
+                    "content-type": "application/json",
+                },
+                status: 200,
+            });
+        });
+        vi.stubGlobal("fetch", fetchMock);
+
+        const result = await sendPublicMessage(
+            "20000000-0000-4000-a000-000000000001",
+            "x".repeat(32),
+            "NF-500 的保修期多久？",
+            "40000000-0000-4000-a000-000000000001",
+        );
+
+        expect(result.answer).toContain("XFlow");
+        expect(result.citations[0]?.label).toBe("XFlow Support FAQ — Warranty");
+        expect(result.citations[0]?.supportingExcerpt).toBe("XFlow NF-500 limited warranty: 36 months.");
     });
 });

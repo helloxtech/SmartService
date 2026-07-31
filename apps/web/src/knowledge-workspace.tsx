@@ -23,6 +23,7 @@ import {
     type JSX,
 } from "react";
 
+import { normalizeVisibleDemoBrand } from "./branding";
 import {
     DocumentExtractionError,
     prepareKnowledgeFile,
@@ -483,7 +484,7 @@ export function KnowledgeWorkspace({
      */
     async function handleDelete(source: KnowledgeSource): Promise<void>
     {
-        if (!globalThis.confirm(copy.deleteConfirm(source.name)))
+        if (!globalThis.confirm(copy.deleteConfirm(normalizeVisibleDemoBrand(source.name))))
         {
             return;
         }
@@ -638,6 +639,7 @@ export function KnowledgeWorkspace({
                                 {
                                     const processing = processingStatuses.has(source.status);
                                     const busy = busySourceId === source.id;
+                                    const visibleSourceName = normalizeVisibleDemoBrand(source.name);
 
                                     return (
                                         <li className="p-5" key={source.id}>
@@ -647,7 +649,7 @@ export function KnowledgeWorkspace({
                                                         {source.type === "url"
                                                             ? <Globe2 aria-hidden="true" className="size-4 text-indigo-600" />
                                                             : <FileText aria-hidden="true" className="size-4 text-sky-700" />}
-                                                        <p className="max-w-xl truncate font-semibold">{source.name}</p>
+                                                        <p className="max-w-xl truncate font-semibold">{visibleSourceName}</p>
                                                         <span className="rounded-full border border-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">
                                                             {formatSourceType(source.type, language)}
                                                         </span>
@@ -737,7 +739,7 @@ export function KnowledgeWorkspace({
                                                                     )
                                                                     : null}
                                                             <Button
-                                                                aria-label={copy.deleteLabel(source.name)}
+                                                                aria-label={copy.deleteLabel(visibleSourceName)}
                                                                 disabled={busy || processing}
                                                                 onClick={() => void handleDelete(source)}
                                                                 size="icon"

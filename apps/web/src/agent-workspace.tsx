@@ -24,6 +24,7 @@ import {
     type JSX,
 } from "react";
 
+import { normalizeVisibleDemoBrand } from "./branding";
 import {
     claimTeamConversation,
     closeTeamConversation,
@@ -607,7 +608,7 @@ export function AgentWorkspace({
     {
         if (detail !== null)
         {
-            setReply(detail.summary.suggestedReply);
+            setReply(normalizeVisibleDemoBrand(detail.summary.suggestedReply));
         }
     }
 
@@ -731,7 +732,7 @@ export function AgentWorkspace({
                                                 </span>
                                             </div>
                                             <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
-                                                {conversation.summary.customerQuestion}
+                                                {normalizeVisibleDemoBrand(conversation.summary.customerQuestion)}
                                             </p>
                                             <p className="mt-2 flex items-center gap-1 text-[11px] text-slate-400">
                                                 <Clock3 aria-hidden="true" className="size-3" />
@@ -797,12 +798,12 @@ export function AgentWorkspace({
                                                             ? copy.humanMessage
                                                             : entry.senderType}
                                             </p>
-                                            <p className="whitespace-pre-wrap text-sm leading-6">{entry.text}</p>
+                                            <p className="whitespace-pre-wrap text-sm leading-6">{normalizeVisibleDemoBrand(entry.text)}</p>
                                             {entry.citations.length > 0
                                                 ? (
                                                     <ul className="mt-3 space-y-1 border-t border-white/20 pt-2 text-xs opacity-80">
                                                         {entry.citations.map((citation) => (
-                                                            <li key={citation.citationId}>{citation.label}</li>
+                                                            <li key={citation.citationId}>{normalizeVisibleDemoBrand(citation.label)}</li>
                                                         ))}
                                                     </ul>
                                                 )
@@ -916,19 +917,19 @@ export function AgentWorkspace({
                                     <dl className="mt-4 space-y-3 text-xs leading-5 text-sky-950">
                                         <div className="rounded-xl bg-sky-50 p-3">
                                             <dt className="font-bold">{copy.summary}</dt>
-                                            <dd className="mt-1">{detail.summary.conversationSummary}</dd>
+                                            <dd className="mt-1">{normalizeVisibleDemoBrand(detail.summary.conversationSummary)}</dd>
                                         </div>
                                         <div>
                                             <dt className="font-bold">{copy.currentIntent}</dt>
-                                            <dd>{detail.summary.currentIntent}</dd>
+                                            <dd>{normalizeVisibleDemoBrand(detail.summary.currentIntent)}</dd>
                                         </div>
                                         <div>
                                             <dt className="font-bold">{copy.whyEscalated}</dt>
-                                            <dd>{detail.summary.triggerReason}</dd>
+                                            <dd>{normalizeVisibleDemoBrand(detail.summary.triggerReason)}</dd>
                                         </div>
                                         <div>
                                             <dt className="font-bold">{copy.nextStep}</dt>
-                                            <dd>{detail.summary.nextStep}</dd>
+                                            <dd>{normalizeVisibleDemoBrand(detail.summary.nextStep)}</dd>
                                         </div>
                                     </dl>
                                     {detail.summary.confirmedFacts.length === 0
@@ -938,7 +939,7 @@ export function AgentWorkspace({
                                                 <p className="text-xs font-bold text-slate-700">{copy.facts}</p>
                                                 <ul className="mt-2 list-disc space-y-1 pl-4 text-xs leading-5 text-slate-700">
                                                     {detail.summary.confirmedFacts.map((fact) => (
-                                                        <li key={fact}>{fact}</li>
+                                                        <li key={fact}>{normalizeVisibleDemoBrand(fact)}</li>
                                                     ))}
                                                 </ul>
                                             </div>
@@ -957,7 +958,7 @@ export function AgentWorkspace({
                                             </Button>
                                         </div>
                                         <p className="mt-2 text-xs leading-5 text-emerald-950">
-                                            {detail.summary.suggestedReply}
+                                            {normalizeVisibleDemoBrand(detail.summary.suggestedReply)}
                                         </p>
                                     </div>
                                 </section>
@@ -971,7 +972,7 @@ export function AgentWorkspace({
                                         {suggestedActions.map((action) => (
                                             <li className="flex gap-2" key={action}>
                                                 <CheckCircle2 aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
-                                                <span>{action}</span>
+                                                <span>{normalizeVisibleDemoBrand(action)}</span>
                                             </li>
                                         ))}
                                     </ol>
@@ -994,9 +995,9 @@ export function AgentWorkspace({
                                             <div className="mt-3 space-y-2">
                                                 {usefulCitations.map((citation) => (
                                                     <article className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs" key={citation.citationId}>
-                                                        <p className="font-bold text-slate-900">{citation.label}</p>
+                                                        <p className="font-bold text-slate-900">{normalizeVisibleDemoBrand(citation.label)}</p>
                                                         <p className="mt-1 line-clamp-3 leading-5 text-slate-600">
-                                                            {citation.supportingExcerpt}
+                                                            {normalizeVisibleDemoBrand(citation.supportingExcerpt)}
                                                         </p>
                                                         {citation.sourceUrl === null
                                                             ? null
@@ -1056,11 +1057,11 @@ export function AgentWorkspace({
                                                     <dl className="mt-3 space-y-3 text-xs leading-5 text-emerald-950">
                                                         <div>
                                                             <dt className="font-bold">{copy.summary}</dt>
-                                                            <dd>{detail.summaryRecord.summary}</dd>
+                                                            <dd>{normalizeVisibleDemoBrand(detail.summaryRecord.summary)}</dd>
                                                         </div>
                                                         <div>
                                                             <dt className="font-bold">{copy.primaryIntent}</dt>
-                                                            <dd>{detail.summaryRecord.primaryIntent}</dd>
+                                                            <dd>{normalizeVisibleDemoBrand(detail.summaryRecord.primaryIntent)}</dd>
                                                         </div>
                                                         <div>
                                                             <dt className="font-bold">{copy.intentOutcome}</dt>
@@ -1068,7 +1069,7 @@ export function AgentWorkspace({
                                                         </div>
                                                         <div>
                                                             <dt className="font-bold">{copy.suggestedWording}</dt>
-                                                            <dd>{detail.summaryRecord.suggestedScript}</dd>
+                                                            <dd>{normalizeVisibleDemoBrand(detail.summaryRecord.suggestedScript)}</dd>
                                                         </div>
                                                     </dl>
                                                 )}

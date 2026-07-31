@@ -294,7 +294,7 @@ async function main()
         await expect(page.getByText("Document queued for chunking and embedding.")).toBeVisible({
             timeout: 30_000,
         });
-        await waitForReadySource(page, "xflow-nf-series-manual.pdf");
+        await waitForReadySource(page, "smart-service-nf-series-manual.pdf");
 
         verificationStage = "ingesting the real DOCX fixture";
         await page.locator('input[type="file"]').setInputFiles(resolve(
@@ -304,7 +304,7 @@ async function main()
             timeout: 10_000,
         });
         await extractButton.click();
-        await waitForReadySource(page, "xflow-support-faq.docx");
+        await waitForReadySource(page, "smart-service-support-faq.docx");
 
         verificationStage = "ingesting the bounded URL fixture";
         await page.getByLabel("Website URL").fill("https://example.com");

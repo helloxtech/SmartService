@@ -13,6 +13,8 @@ import {
 } from "@smartservice/contracts";
 import { z } from "zod";
 
+import { normalizeVisibleDemoBrand } from "../branding";
+
 const apiErrorSchema = z.object({
     error: z.object({
         code: z.string(),
@@ -84,9 +86,7 @@ function isWidgetNotFoundError(error: unknown): boolean
  */
 function normalizeHostedDemoBrand(value: string): string
 {
-    return value
-        .replaceAll("NovaFlow", "Smart Service")
-        .replaceAll("XFlow", "Smart Service");
+    return normalizeVisibleDemoBrand(value);
 }
 
 /**

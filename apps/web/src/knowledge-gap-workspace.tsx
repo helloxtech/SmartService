@@ -24,6 +24,7 @@ import {
     type JSX,
 } from "react";
 
+import { normalizeVisibleDemoBrand } from "./branding";
 import {
     AnalyticsApiError,
     applyKnowledgeGapAction,
@@ -363,7 +364,7 @@ export function KnowledgeGapWorkspace({
         setSelectedId(gap.id);
         setDetail(gap);
         setRetest(null);
-        setTitle(gap.normalizedQuestion.slice(0, 120));
+        setTitle(normalizeVisibleDemoBrand(gap.normalizedQuestion).slice(0, 120));
         setAnswer("");
         setSourceNote("");
         onOpenGap(gap.id);
@@ -573,7 +574,7 @@ export function KnowledgeGapWorkspace({
                                                 </span>
                                             </div>
                                             <p className="mt-2 line-clamp-3 text-sm font-semibold leading-5">
-                                                {gap.normalizedQuestion}
+                                                {normalizeVisibleDemoBrand(gap.normalizedQuestion)}
                                             </p>
                                             <p className="mt-2 text-xs text-slate-500">
                                                 {copy.lastSeenPrefix} {formatTime(gap.lastSeenAt)}
@@ -617,7 +618,7 @@ export function KnowledgeGapWorkspace({
                                             {detail.status}
                                         </span>
                                         <h3 className="mt-3 text-2xl font-bold tracking-tight">
-                                            {detail.normalizedQuestion}
+                                            {normalizeVisibleDemoBrand(detail.normalizedQuestion)}
                                         </h3>
                                         <p className="mt-2 text-sm text-slate-500">
                                             {copy.seen(detail.occurrenceCount)} · {copy.lastSeenPrefix} {formatTime(detail.lastSeenAt)}
@@ -654,13 +655,13 @@ export function KnowledgeGapWorkspace({
                                         <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                                             {copy.exampleQuestion}
                                         </p>
-                                        <p className="mt-2 text-sm leading-6">{detail.exampleQuestion}</p>
+                                        <p className="mt-2 text-sm leading-6">{normalizeVisibleDemoBrand(detail.exampleQuestion)}</p>
                                     </article>
                                     <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                                         <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                                             {copy.gapReason}
                                         </p>
-                                        <p className="mt-2 text-sm leading-6">{detail.reason}</p>
+                                        <p className="mt-2 text-sm leading-6">{normalizeVisibleDemoBrand(detail.reason)}</p>
                                         {detail.firstConversationId === null
                                             ? null
                                             : (
@@ -684,7 +685,7 @@ export function KnowledgeGapWorkspace({
                                                     <p className="text-xs font-bold uppercase tracking-wide text-sky-700">
                                                         {copy.manualSource}
                                                     </p>
-                                                    <p className="mt-1 font-semibold">{detail.resolutionSource.name}</p>
+                                                    <p className="mt-1 font-semibold">{normalizeVisibleDemoBrand(detail.resolutionSource.name)}</p>
                                                 </div>
                                                 <span className="rounded-full border border-sky-200 bg-white px-2.5 py-1 text-xs font-bold capitalize text-sky-800">
                                                     {detail.resolutionSource.status}
@@ -740,13 +741,13 @@ export function KnowledgeGapWorkspace({
                                                             <MessageSquareText aria-hidden="true" className="size-4" />
                                                             {retest.decision}
                                                         </div>
-                                                        <p className="mt-3 text-sm leading-6">{retest.answer}</p>
+                                                        <p className="mt-3 text-sm leading-6">{normalizeVisibleDemoBrand(retest.answer)}</p>
                                                         <div className="mt-4 space-y-2">
                                                             {retest.citations.map((citation) => (
                                                                 <div className="rounded-lg bg-slate-50 p-3 text-xs" key={citation.citationId}>
-                                                                    <p className="font-bold">{citation.label}</p>
+                                                                    <p className="font-bold">{normalizeVisibleDemoBrand(citation.label)}</p>
                                                                     <p className="mt-1 leading-5 text-slate-600">
-                                                                        {citation.supportingExcerpt}
+                                                                        {normalizeVisibleDemoBrand(citation.supportingExcerpt)}
                                                                     </p>
                                                                 </div>
                                                             ))}

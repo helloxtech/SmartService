@@ -251,8 +251,8 @@ export function TeamWorkspace({
 
     return (
         <>
-            <nav aria-label={language === "zh-CN" ? "团队工作台" : "Team workspace"} className="mx-auto mb-7 max-w-[118rem] px-6 lg:px-8">
-                <div className="flex flex-wrap gap-2 rounded-[1.5rem] border border-white/70 bg-white/78 p-2 shadow-[0_18px_50px_rgb(15_23_42/0.08)] backdrop-blur-2xl">
+            <nav aria-label={language === "zh-CN" ? "团队工作台" : "Team workspace"} className="mx-auto mb-4 mt-4 max-w-[118rem] px-6 lg:px-8">
+                <div className="flex flex-wrap gap-1.5 rounded-2xl border border-white/70 bg-white/78 p-1.5 shadow-[0_12px_35px_rgb(15_23_42/0.07)] backdrop-blur-2xl">
                     {navigation.map((item) =>
                     {
                         const Icon = item.icon;
@@ -262,8 +262,8 @@ export function TeamWorkspace({
                             <a
                                 aria-current={active ? "page" : undefined}
                                 className={active
-                                    ? "flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-950/15"
-                                    : "flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-white hover:text-slate-950"}
+                                    ? "flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-2 text-sm font-semibold text-white shadow-lg shadow-slate-950/15"
+                                    : "flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-600 hover:bg-white hover:text-slate-950"}
                                 href={item.path}
                                 key={item.path}
                                 onClick={(event) => handleNavigation(event, item.path)}

@@ -403,30 +403,46 @@ function WorkspaceApp({
 
     return (
         <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_#dff6ff_0,_transparent_35rem),linear-gradient(135deg,_#f8fafc_0%,_#eef4ff_48%,_#f8fafc_100%)] text-slate-950">
-            <header className="sticky top-0 z-20 border-b border-white/70 bg-white/75 backdrop-blur-2xl">
-                <div className="mx-auto flex max-w-[118rem] items-center justify-between px-6 py-4 lg:px-8">
+            <header className="sticky top-0 z-20 border-b border-white/70 bg-white/82 backdrop-blur-2xl">
+                <div className="mx-auto flex max-w-[118rem] items-center justify-between gap-4 px-6 py-2.5 lg:px-8">
                     <div className="flex items-center gap-3">
-                        <div className="flex size-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-slate-950/15">
+                        <div className="flex size-9 items-center justify-center rounded-xl bg-slate-950 text-white shadow-lg shadow-slate-950/15">
                             <Headphones aria-hidden="true" className="size-5" />
                         </div>
                         <div>
-                            <p className="text-base font-semibold tracking-tight">Smart Service</p>
-                            <p className="text-xs text-slate-500">{copy.workspaceSubtitle}</p>
+                            <p className="text-sm font-semibold tracking-tight">Smart Service</p>
+                            <p className="text-[11px] text-slate-500">{copy.workspaceSubtitle}</p>
                         </div>
                     </div>
-                    <LanguageSwitch
-                        language={language}
-                        onLanguageChange={onLanguageChange}
-                    />
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        {authentication.kind === "signed-in"
+                            ? (
+                                <div className="hidden items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50/80 px-3 py-1.5 text-xs font-medium text-emerald-900 shadow-sm sm:flex">
+                                    <span className="size-1.5 rounded-full bg-emerald-500" />
+                                    <span className="max-w-56 truncate">{authentication.session.user.email}</span>
+                                    <span className="text-emerald-700">· {formatMembershipRole(authentication.membership.role, language)}</span>
+                                </div>
+                            )
+                            : null}
+                        <LanguageSwitch
+                            language={language}
+                            onLanguageChange={onLanguageChange}
+                        />
+                        {authentication.kind === "signed-in"
+                            ? (
+                                <Button onClick={handleSignOut} size="sm" variant="outline">
+                                    {copy.signOut}
+                                </Button>
+                            )
+                            : null}
+                    </div>
                 </div>
             </header>
 
-            <section className={authentication.kind === "signed-in"
-                ? "mx-auto max-w-[118rem] px-6 py-5 lg:px-8"
-                : "mx-auto grid max-w-[92rem] gap-10 px-6 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:px-8"}>
-                {authentication.kind === "signed-in"
-                    ? null
-                    : (
+            {authentication.kind === "signed-in"
+                ? null
+                : (
+                    <section className="mx-auto grid max-w-[92rem] gap-10 px-6 py-14 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:px-8">
                         <div>
                             <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">
                                 {copy.heroEyebrow}
@@ -464,100 +480,71 @@ function WorkspaceApp({
                                 </div>
                             </div>
                         </div>
-                    )}
+                        <div className="rounded-[2rem] border border-white/70 bg-white/82 p-7 shadow-[0_24px_80px_rgb(15_23_42/0.12)] backdrop-blur-2xl">
+                            <p className="text-sm font-semibold text-sky-700">{copy.teamAccess}</p>
+                            <h2 className="mt-2 text-2xl font-bold">{copy.signInHeading}</h2>
+                            <p className="mt-2 text-sm leading-6 text-slate-500">
+                                {copy.signInIntro}
+                            </p>
 
-                <div className={authentication.kind === "signed-in"
-                    ? "rounded-2xl border border-white/70 bg-white/78 px-4 py-3 shadow-[0_18px_50px_rgb(15_23_42/0.08)] backdrop-blur-2xl"
-                    : "rounded-[2rem] border border-white/70 bg-white/82 p-7 shadow-[0_24px_80px_rgb(15_23_42/0.12)] backdrop-blur-2xl"}>
-                    {authentication.kind === "signed-in"
-                        ? (
-                            <div
-                                aria-live="polite"
-                                className="flex flex-wrap items-center justify-between gap-3"
-                            >
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                                        {copy.workspaceReady}
-                                    </p>
-                                    <p className="mt-1 text-sm font-medium">
-                                        {authentication.session.user.email}
-                                        <span className="ml-2 text-slate-500">
-                                            · {formatMembershipRole(authentication.membership.role, language)}
-                                        </span>
-                                    </p>
-                                </div>
-                                <Button onClick={handleSignOut} size="sm" variant="outline">
-                                    {copy.signOut}
+                            <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+                                <label className="block text-sm font-medium" htmlFor="email">
+                                    {copy.email}
+                                </label>
+                                <input
+                                    autoComplete="username"
+                                    className="h-11 w-full rounded-xl border border-slate-200 bg-white/90 px-3 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-200/70"
+                                    id="email"
+                                    onChange={(event) => setEmail(event.target.value)}
+                                    required
+                                    type="email"
+                                    value={email}
+                                />
+
+                                <label className="block text-sm font-medium" htmlFor="password">
+                                    {copy.password}
+                                </label>
+                                <input
+                                    autoComplete="current-password"
+                                    className="h-11 w-full rounded-xl border border-slate-200 bg-white/90 px-3 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-200/70"
+                                    id="password"
+                                    onChange={(event) => setPassword(event.target.value)}
+                                    required
+                                    type="password"
+                                    value={password}
+                                />
+
+                                {client === undefined
+                                    ? (
+                                        <p className="rounded-lg bg-sky-50 p-3 text-sm text-sky-900" role="status">
+                                            {copy.configurationLoading}
+                                        </p>
+                                    )
+                                    : null}
+
+                                {client === null
+                                    ? (
+                                        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900" role="status">
+                                            {copy.configurationMissing}
+                                        </p>
+                                    )
+                                    : null}
+
+                                {message === null
+                                    ? null
+                                    : (
+                                        <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800" role="alert">
+                                            {message}
+                                        </p>
+                                    )}
+
+                                <Button className="w-full" disabled={submitting || client === undefined} size="lg" type="submit">
+                                    {submitting ? copy.signInLoading : copy.signIn}
                                 </Button>
-                            </div>
-                        )
-                        : (
-                            <>
-                                <p className="text-sm font-semibold text-sky-700">{copy.teamAccess}</p>
-                                <h2 className="mt-2 text-2xl font-bold">{copy.signInHeading}</h2>
-                                <p className="mt-2 text-sm leading-6 text-slate-500">
-                                    {copy.signInIntro}
-                                </p>
-
-                                <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-                                    <label className="block text-sm font-medium" htmlFor="email">
-                                        {copy.email}
-                                    </label>
-                                    <input
-                                        autoComplete="username"
-                                        className="h-11 w-full rounded-xl border border-slate-200 bg-white/90 px-3 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-200/70"
-                                        id="email"
-                                        onChange={(event) => setEmail(event.target.value)}
-                                        required
-                                        type="email"
-                                        value={email}
-                                    />
-
-                                    <label className="block text-sm font-medium" htmlFor="password">
-                                        {copy.password}
-                                    </label>
-                                    <input
-                                        autoComplete="current-password"
-                                        className="h-11 w-full rounded-xl border border-slate-200 bg-white/90 px-3 outline-none focus:border-slate-400 focus:ring-4 focus:ring-slate-200/70"
-                                        id="password"
-                                        onChange={(event) => setPassword(event.target.value)}
-                                        required
-                                        type="password"
-                                        value={password}
-                                    />
-
-                                    {client === undefined
-                                        ? (
-                                            <p className="rounded-lg bg-sky-50 p-3 text-sm text-sky-900" role="status">
-                                                {copy.configurationLoading}
-                                            </p>
-                                        )
-                                        : null}
-
-                                    {client === null
-                                        ? (
-                                            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900" role="status">
-                                                {copy.configurationMissing}
-                                            </p>
-                                        )
-                                        : null}
-
-                                    {message === null
-                                        ? null
-                                        : (
-                                            <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800" role="alert">
-                                                {message}
-                                            </p>
-                                        )}
-
-                                    <Button className="w-full" disabled={submitting || client === undefined} size="lg" type="submit">
-                                        {submitting ? copy.signInLoading : copy.signIn}
-                                    </Button>
-                                </form>
-                            </>
-                        )}
-                </div>
-            </section>
+                            </form>
+                        </div>
+                    </section>
+                )}
 
             {authentication.kind === "signed-in"
                 ? (

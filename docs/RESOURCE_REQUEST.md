@@ -1,6 +1,6 @@
 # SmartService Gate 0 Resource Request
 
-**Last audited:** July 27, 2026 PDT
+**Last audited:** July 31, 2026 PDT
 **Secret values stored here:** None
 **Current decision:** Gate 0 was approved by Forrest Zhang on July 26, 2026. Product implementation may proceed within the approved scope and budget boundaries below.
 
@@ -52,7 +52,7 @@ Priority values:
 | macOS | BLOCKING-NOW | READY | macOS `26.5.1`, Apple silicon |
 | Supported browsers | BLOCKING-P1 | READY | Chrome, Edge, and Safari are installed |
 | Microphone/headset and browser permission | BLOCKING-P1 | VERIFY | Must be tested interactively on the final demo device |
-| Local secret file | BLOCKING-NOW | READY | Ignored mode-`0600` `.env.local` contains local Supabase/demo/signing values plus locally verified OpenAI, LiveKit, Deepgram, and ElevenLabs credentials; values were not displayed |
+| Local secret file | BLOCKING-NOW | READY | Ignored mode-`0600` `.env.local` contains local Supabase/demo/signing values plus locally verified OpenAI, LiveKit, Deepgram, and ElevenLabs credentials; P0 Cloudflare Browser Run, R2 signer, and Turnstile values are still missing; values were not displayed |
 | Product/provider code | BLOCKING-NOW | READY | Days 1–10 are implemented; fresh three-run Day 10 local demos passed at zero local provider cost |
 | Cost-bearing project provider calls | BLOCKING-NOW | READY | Bounded OpenAI and Deepgram live smokes were made under the approved USD 50 cap; no paid upgrade or subscription change |
 
@@ -94,10 +94,10 @@ Provision these before a live P0 integration can pass G1. If a missing item is e
 | Demo identities and tenant-isolation seed | READY | Fictional admin and agent in tenant A plus a fictional admin in tenant B; demo passwords only in ignored storage | Hosted Auth users and memberships are ready; demo access verification passed and cross-tenant organization visibility remained isolated |
 | Cloudflare account | READY | Account ID with Workers, Queues, R2, Browser Run, and Turnstile access | `wrangler whoami`, R2 list, Queue list, and Worker dry run passed under the signed-in Cloudflare account |
 | Cloudflare deployment token | READY | Least-privilege token for development Worker, Queue, and R2 management | Wrangler OAuth works locally; Cloudflare native Workers Builds is connected to `helloxtech/SmartService` on `main`, and the Git-triggered deployment path has been verified |
-| Browser Run token | MISSING | Separate least-privilege token with `Browser Rendering - Edit` | One bounded Markdown crawl against an approved fixture site |
+| Browser Run token | MISSING | Separate least-privilege token with `Browser Rendering - Edit`; use the Free plan if the account permits it | One bounded Markdown crawl against an approved fixture site; do not deploy a broad Wrangler/OAuth token as an app secret |
 | Worker/static preview | READY DEV | Permission to create the single-origin `smartservice-dev` Worker with Static Assets under `workers.dev` | `smartservice-dev` is deployed at `https://smartservice-dev.hurryupgo-b2d.workers.dev`; Git-triggered deployment, health, hosted admin login, public conversation creation, and public message smoke passed in DEV/mock-provider mode |
 | R2 bucket and upload CORS | READY | `smartservice-knowledge-dev` and `smartservice-knowledge-preview` | Both buckets were created and listed; CORS/signed object round trip still belongs to hosted P0 smoke |
-| R2 signed-URL credentials | MISSING | Bucket-scoped R2 S3 Access Key ID/Secret Access Key for the Worker signer; distinct from the Cloudflare deployment token | Generate a short-expiry single-object PUT URL, upload/HEAD/delete a fictional object, and never print the URL/query or credentials |
+| R2 signed-URL credentials | MISSING | Bucket-scoped R2 S3 Access Key ID/Secret Access Key for the Worker signer; distinct from the Cloudflare deployment token. Cloudflare documentation says R2 S3 API credentials are generated from the R2 API Tokens flow | Generate a short-expiry single-object PUT URL, upload/HEAD/delete a fictional object, and never print the URL/query or credentials |
 | Queues | READY | `smartservice-ingest-dev`, `smartservice-finalize-dev`, `smartservice-ingest-dlq-dev`, and `smartservice-finalize-dlq-dev` | All four Queues were created and listed in Cloudflare |
 | Cloudflare Browser Run `/crawl` access | MISSING | Workers Free is sufficient for the bounded demo; verify account entitlement and quotas | One job with same-origin/page/depth bounds and redirect checks |
 | OpenAI project/account | READY | API project with billing/credit and a project-scoped server key | Minimal authenticated Responses API call passed without logging the key |
@@ -108,7 +108,7 @@ Provision these before a live P0 integration can pass G1. If a missing item is e
 | Conversation signing secret (preview) | READY DEV | Provision a distinct high-entropy value with `wrangler secret put` before an externally reachable preview | `CONVERSATION_TOKEN_SECRET` is set as a Cloudflare Worker secret; hosted conversation creation issued scoped tokens without printing token values |
 | Voice-to-API internal token placeholder | READY LOCAL | A high-entropy local value is generated into ignored storage; preview/deployed Agent provisioning remains missing | Authorized and unauthorized local Agent service calls passed without displaying the value |
 | G1 preview/runtime location | READY DEV | Default is one Cloudflare Worker with Static Assets plus Hono API to avoid cross-origin drift | HTTPS page load, `/health`, hosted Admin login, public conversation creation, and public message smoke passed; live G1 still requires live Turnstile, R2 signer, Browser Run, and live chat/ingestion modes |
-| Public Turnstile keys | CAN-MOCK | Deterministic local verification is implemented; real hostname-bound widget/secret keys are required before an externally reachable preview | Local success/failure/action tests passed; complete one hostname-bound live challenge before public use |
+| Public Turnstile keys | MISSING | Deterministic local verification is implemented; real hostname-bound widget/secret keys are required before an externally reachable preview. Current Wrangler OAuth lacks `challenge-widgets.write`, so create/use keys from the Cloudflare dashboard or refresh Cloudflare auth with that scope | Local success/failure/action tests passed; complete one hostname-bound live challenge before public use |
 | Demo ingestion corpus | READY | Deterministic real text-layer PDF, no-text PDF, heading-aware DOCX, and SHA-256 manifest are committed; negative browser/unit cases cover empty, no-text, malformed, unsupported, and oversized boundaries | Real Chromium extraction plus full local signed-upload/R2/Queue/Supabase ingestion passed; hosted fictional fixture seed produced 3 Ready sources and 23 embedded chunks through the shared deterministic pipeline |
 | Bounded demo website | READY | Deterministic three-page same-origin mini-site with a cross-origin exclusion link is committed; advanced redirect/DNS fixtures remain part of pre-G1 hardening | Local bounded crawl passed and hosted URL fixture is seeded for mock-provider smoke; one live Browser Run crawl remains required before G1 |
 | Fixed bilingual text acceptance set | READY | The committed 12 in-scope and 8 out-of-scope cases are exercised without changing expected outcomes | Local Worker/Supabase smoke passed: 12/12 cited answers, 8/8 handoffs, 12 persisted citations, and 8 open gaps; live-model evidence remains required before G1 |
@@ -121,9 +121,9 @@ These may be provisioned during P0, but must be ready before Day 6 and live-veri
 | Provider/resource | Status | Required account, plan, permission, or asset | Safe verification |
 |---|---:|---|---|
 | LiveKit Cloud project | READY | Development project with Agent deployment permission; Build plan is acceptable | Development project exists; API authentication passed without logging credentials |
-| LiveKit CLI | MISSING | Install/authenticate `lk` before Agent deployment; not required for P0 | Version/auth status without token output |
+| LiveKit CLI | READY | Local user-bin install of `lk` 2.18.2; project can be addressed non-interactively with existing LiveKit URL/API credentials | `lk project list` is not cloud-auth linked, but `lk agent list --url/--api-key/--api-secret` returned the current project without printing credentials |
 | LiveKit API key/secret | READY | Server/Agent-only credentials | Exposed development key was revoked; replacement key was stored locally; authenticated room list and short-lived token generation passed |
-| LiveKit Agent deployment | VERIFY | Local worker registered with LiveKit Cloud and handled a browser-dispatched room join; deployed Agent hosting is still missing | Local `/voice` join reached Agent config and Ready; deploy-hosted worker health remains required before hosted G2 |
+| LiveKit Agent deployment | MISSING | Agent Docker packaging and non-secret `livekit.toml` are ready; LiveKit created Agent `CA_bifEfej5s7Di`, but Cloud Agent deployment returned `early access not yet enabled for this project` | Enable LiveKit Cloud Agent deployments for this project, or provide another LiveKit project with Agent deployment enabled; then run deploy-hosted worker health before hosted G2 |
 | LiveKit budget/minute boundary | READY | Approved development Agent/WebRTC minutes remain inside the aggregate USD 50 cap and free allowance target | Usage dashboard check still required after real Agent/WebRTC tests |
 | Deepgram account/API key | READY | Nova-3 streaming access; use explicit `zh-CN` or `en` sessions because current `multi` does not include Chinese | Short English and Chinese transcription passed without logging the key/audio |
 | Deepgram budget/minute boundary | READY | Approved live STT usage remains inside the aggregate USD 50 cap; account has available credit | Provider usage check still required after longer live voice tests |
@@ -133,7 +133,7 @@ These may be provisioned during P0, but must be ready before Day 6 and live-veri
 | ElevenLabs budget boundary | READY | Approved character usage remains inside the aggregate USD 50 cap and proposed USD 15 TTS allowance | Provider usage check still required after longer live voice tests |
 | Final demo browser/device | MISSING | Identify Chrome or Edge version, macOS device, microphone/headset, and network | Automated browser reached Ready but denied microphone; run interactive WebRTC/microphone/STT/TTS/audio-playback test |
 | Audio utility | OPTIONAL | `ffmpeg`/`ffprobe` is useful for bounded prerecorded fixtures and is not required for browser live audio | Version only |
-| HTTPS voice URL | MISSING | An approved non-production `workers.dev` URL is acceptable; microphone APIs require HTTPS outside localhost, and access control is separate | Permission prompt, token, room, and audio playback check |
+| HTTPS voice URL | READY DEV | The hosted Worker URL is HTTPS and can mint room tokens when `VOICE_PROVIDER_MODE=live`; final P1 still needs the deployed Agent path and real microphone/audio evidence | Permission prompt, token, room, and audio playback check |
 | Final demo region alignment | VERIFY | Browser, Supabase, LiveKit Agent, STT, and TTS should use the closest practical North American regions | Record region and latency-stage evidence |
 | Voice privacy notice | READY | Use the specification wording; recording remains off | UI review and network/storage check proving no audio object is retained |
 
@@ -243,7 +243,7 @@ Current official free tiers are sufficient for most infrastructure, but only the
 
 2. Provision or select the P0 Supabase, Cloudflare, and OpenAI development resources above. Put values only in `.env.local` and provider secret stores; do not send them in chat.
 3. Confirm the `BLOCKING-NOW` approvals: total USD cap and subscription treatment, dev resource creation, small live smoke tests, dev database reset/migrations, externally reachable preview deployment, generated development secrets, initial GitHub push, 30-day retention, and the Supabase region.
-4. Confirm that the fictional XFlow fixture data and neutral SmartService branding are acceptable, or place optional logo assets in a local path and provide only the path.
+4. Confirm that the fictional Smart Service fixture data and neutral SmartService branding are acceptable, or place optional logo assets in a local path and provide only the path.
 5. Before Day 6, provision LiveKit, Deepgram, and ElevenLabs; select a Chinese-capable voice; identify the final Chrome/Edge demo device and microphone/headset; approve voice-minute/character caps.
 6. After storing credentials, report only which variable groups are present, for example: `Supabase P0 ready; Cloudflare P0 ready; OpenAI P0 ready; P1 deferred.` Do not report values.
 7. Reply with explicit Gate 0 approval only after the approvals and resource state are accurate.
@@ -262,6 +262,6 @@ Current official free tiers are sufficient for most infrastructure, but only the
 - Approved Supabase region: Closest available North American west region to Vancouver
 - Approved 30-day retention: Yes
 - Monthly subscriptions inside/outside cap: Inside the aggregate cap; every paid upgrade still requires separate approval
-- P0 credential groups present: Local Supabase and fictional demo identities are ready; OpenAI is locally verified; hosted Supabase, Cloudflare, Browser Run, R2, Queue, Turnstile, and preview secret placement remain missing, so G1 live integration remains blocked
-- P1 credential groups present or deferred: LiveKit, Deepgram, and ElevenLabs are locally verified; deployed Agent/device evidence and ElevenLabs commercial-use confirmation remain missing, so live G2 remains blocked
+- P0 credential groups present: Supabase, fictional demo identities, OpenAI, Cloudflare Worker/Queues/R2 buckets, and hosted DEV smoke are ready; Browser Run token, R2 S3 signer credentials, and Turnstile site/secret keys are missing, so G1 live integration remains blocked
+- P1 credential groups present or deferred: LiveKit API credentials, Deepgram, and ElevenLabs are locally verified; LiveKit CLI and Agent packaging are ready; Cloud Agent deployment is blocked because Agent deployments are early access and not enabled for the project; final device evidence and ElevenLabs commercial-use confirmation remain missing, so live G2 remains blocked
 - Remaining exceptions: Local/provider credentials are stored only in ignored local files or provider stores. Production deployment, production data, destructive production actions, and paid upgrades remain outside this approval.

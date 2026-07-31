@@ -1,13 +1,16 @@
 # Smart Service Project Status
 
-**Last updated:** July 30, 2026 PDT
+**Last updated:** July 31, 2026 PDT
 **Current gate:** Local P0/P1 UAT evidence complete; hosted DEV mock-provider text smoke complete
 **Current phase:** Day 10 integrated local acceptance and UAT bundle complete; hosted Supabase, Cloudflare Worker/Git deployment, and hosted fictional knowledge smoke are ready
-**Active step:** Run Forrest's hosted DEV product UAT, collect feedback, and provision the remaining live G1/G2 provider resources only when approved
-**Overall state:** Days 1–10 are green locally; fresh three-run full P0/P1 local demos passed; OpenAI, LiveKit, Deepgram, and ElevenLabs local live smokes passed; correct browser-created Supabase project is migrated, seeded, browser-visible, and verified; Cloudflare DEV R2/Queues exist; hosted Worker deploy and Git-triggered deploy are active, although the July 29 handoff fix used a Wrangler fallback because a new Git deployment did not appear promptly; deployed Agent, final device evidence, and ElevenLabs commercial-use confirmation remain pending
+**Active step:** Keep hosted DEV available for UAT while leaving explicit placeholders for provider capabilities that are missing from the current free/account setup
+**Overall state:** Days 1–10 are green locally; fresh three-run full P0/P1 local demos passed; OpenAI, LiveKit, Deepgram, and ElevenLabs local live smokes passed; correct browser-created Supabase project is migrated, seeded, browser-visible, and verified; Cloudflare DEV R2/Queues exist; hosted Worker deploy and Git-triggered deploy are active; P0 live G1 remains blocked by missing Cloudflare Browser Run token, R2 S3 signer credentials, and hostname Turnstile keys; P1 Agent packaging is ready, but LiveKit Cloud Agent deployment is blocked because Agent deployments are early access and not enabled for this project; final device evidence and ElevenLabs commercial-use confirmation remain pending
 
 ## Recent hosted UAT fixes
 
+- July 31, 2026 PDT: Applied Forrest's free-plan/placeholder instruction. Current official provider checks show Cloudflare Browser Run is available on Free/Paid plans, LiveKit Build has a free tier but Cloud Agent deployment is early-access gated on this project, Deepgram can remain in free-credit/test mode, and ElevenLabs Free still cannot support commercial/sales-facing generated speech. Missing paid/permission items remain placeholders rather than being bypassed with broad credentials.
+- July 31, 2026 PDT: Installed `lk` 2.18.2 into Forrest's local user bin path, added non-secret LiveKit Agent deployment packaging (`Dockerfile`, `.dockerignore`, `livekit.toml`), built the `smartservice-voice-agent:local` container, and verified the container Agent configuration schema with existing local secrets without printing values.
+- July 31, 2026 PDT: LiveKit Cloud created Agent `CA_bifEfej5s7Di`, but deployment did not complete. The BYOC image path returned an Enterprise-only error, and the free Build-service source path returned `Agent deployments are in early access and not yet enabled for this project`. No live G2 claim is made.
 - July 30, 2026 PDT: Reworked the team workspace after hosted UAT feedback. Authenticated pages now use a wider workspace container; Dashboard, Inbox, Knowledge, Knowledge gaps, and Guardrails receive the selected UI language; the language switch uses fixed `English` / `中文` labels; the Agent handoff panel now separates customer card, summary, suggested reply, deterministic suggested actions, useful citations, and source links without making additional AI/provider calls.
 - July 30, 2026 PDT: Removed Flow-style browser-visible branding. Public chat now shows Smart Service Support, the first AI greeting is `Hello, I'm the Smart Service Assistant. How can I help?`, the workspace subtitle is `AI Assistant Workspace` / `AI 助手工作台`, stale hosted answer/citation text is normalized to Smart Service, and the Chat/Portal shell received an Apple-inspired translucent layout pass.
 - July 30, 2026 PDT: Replaced simultaneous bilingual demo labels with a visible UI language switch. English and Chinese modes now render separate copy on the sign-in shell, public chat, voice page, and team navigation; a follow-up UAT patch extends this into the deeper admin workspaces.
@@ -265,13 +268,17 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Hosted DEV Worker smoke | Passed after Git deploy: `smartservice-dev` `/health` returned `200`, hosted Admin login passed, public conversation creation returned `201`, and public message send returned `200` |
 | Hosted DEV text UAT smoke | Passed after fixture seed: 3 Ready fictional sources, 23 embedded chunks, 2/2 cited answers, and 1/1 safe missing-knowledge handoff |
 | Local Smart Service and Chinese UI update checkpoint | Passed: format, lint, typecheck, unit tests, build, 4/4 Playwright tests, P0 evaluation, guardrail evaluation, 121/121 database assertions, ingestion/conversation/Days 4–10 smokes, local same-origin Supabase browser configuration, and targeted web type/unit/browser tests for the hosted public-key fallback |
+| July 31 Cloudflare P0 live-secret audit | Blocked: `.env.local` does not contain `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_BROWSER_RUN_API_TOKEN`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_S3_ENDPOINT`, `TURNSTILE_SECRET_KEY`, or `VITE_TURNSTILE_SITE_KEY`; Wrangler OAuth works locally but is not deployed as an app secret |
+| LiveKit CLI install | Passed: `lk` 2.18.2 installed to `/Volumes/Forrest/Users/Forrest/.local/bin/lk`; `lk agent list` authenticated with existing LiveKit URL/API credentials and found Agent `CA_bifEfej5s7Di` |
+| LiveKit Agent container packaging | Passed: root Agent `Dockerfile` and `.dockerignore` built `smartservice-voice-agent:local`; non-network container config validation returned `voice agent config ok`; `pnpm format:check` and `pnpm --filter @smartservice/voice-agent typecheck` passed |
+| LiveKit Cloud Agent deployment | Blocked: local-image deployment returned Enterprise-only BYOC error; source/Dockerfile deployment returned `Agent deployments are in early access and not yet enabled for this project`; no deployed Agent or G2 evidence is claimed |
 | Cost-bearing provider calls | Bounded live smokes only: three OpenAI Responses/Embeddings calls, two Deepgram STT calls, one ElevenLabs TTS call, and a LiveKit authentication/token check |
 
 ## Current blockers
 
 - Hosted Supabase uses current Smart Service display values where local hosted credentials allow updates. A narrow legacy public-key fallback remains temporarily because existing deployed widgets may still reference the older non-secret key.
-- Hosted P0 no longer blocks on basic Supabase schema, demo identities, Cloudflare Worker deployment, core Worker secrets, or DEV smoke. It still blocks on Browser Run token/access verification, live Turnstile hostname keys, R2 signer credentials, and switching ingestion/chat/auxiliary/Turnstile provider modes from mock to live for G1 evidence.
-- P1 live acceptance remains blocked on ElevenLabs commercial-use confirmation, deployed LiveKit Agent configuration, and final microphone/device/network verification. Provider credentials and local smokes are verified, but they do not by themselves satisfy live G2.
+- Hosted P0 no longer blocks on basic Supabase schema, demo identities, Cloudflare Worker deployment, core Worker secrets, Queues/R2 buckets, or DEV smoke. It still blocks on missing Cloudflare Browser Run token, R2 S3 signer credentials, hostname Turnstile site/secret keys, and switching ingestion/chat/auxiliary/Turnstile provider modes from mock to live for G1 evidence.
+- P1 live acceptance remains blocked on LiveKit Cloud Agent deployment enablement, ElevenLabs commercial-use confirmation, and final microphone/device/network verification. Provider credentials, local smokes, local Agent packaging, and a pending LiveKit Agent record are verified, but they do not by themselves satisfy live G2.
 
 See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact non-secret actions.
 
@@ -295,7 +302,7 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 
 ## Next step
 
-Provision the remaining Browser Run, R2 signer, and live Turnstile credentials before running hosted G1. After G1, configure the deployed LiveKit Agent path and final browser/device G2 acceptance. R11 remains gated.
+Provision the remaining Browser Run, R2 signer, and live Turnstile credentials before running hosted G1. For G2, enable LiveKit Cloud Agent deployments on the current project or provide another LiveKit project with Agent deployments enabled, then confirm an ElevenLabs commercial-use eligible plan before final sales-facing voice UAT. R11 remains gated.
 
 ## Resume instruction
 

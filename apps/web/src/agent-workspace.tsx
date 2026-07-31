@@ -658,30 +658,9 @@ export function AgentWorkspace({
 
     return (
         <section aria-labelledby="inbox-heading" className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/70 bg-white/80 px-4 py-3 shadow-[0_12px_35px_rgba(15,23,42,0.07)] backdrop-blur">
-                <div className="flex min-w-0 items-center gap-3">
-                    <span className="shrink-0 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
-                        {copy.humanHandoff}
-                    </span>
-                    <div className="min-w-0">
-                        <h2 className="text-xl font-bold tracking-tight" id="inbox-heading">
-                            {copy.inbox}
-                        </h2>
-                        <p className="mt-0.5 max-w-4xl truncate text-xs leading-5 text-slate-600">
-                            {copy.titleBody}
-                        </p>
-                    </div>
-                </div>
-                <label className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm">
-                    <input
-                        checked={includeClosed}
-                        className="mr-2 size-3.5 rounded border-slate-300 align-middle"
-                        onChange={(event) => setIncludeClosed(event.target.checked)}
-                        type="checkbox"
-                    />
-                    {copy.includeClosed}
-                </label>
-            </div>
+            <h2 className="sr-only" id="inbox-heading">
+                {copy.humanHandoff} · {copy.inbox}
+            </h2>
 
             {message === null
                 ? null
@@ -691,11 +670,22 @@ export function AgentWorkspace({
                     </div>
                 )}
 
-            <div className="grid min-h-[calc(100vh-13rem)] overflow-hidden rounded-[2rem] border border-white/70 bg-white/90 shadow-[0_28px_90px_rgba(15,23,42,0.12)] backdrop-blur lg:grid-cols-[360px_minmax(0,1fr)]">
+            <div className="grid min-h-[calc(100vh-9rem)] overflow-hidden rounded-[2rem] border border-white/70 bg-white/90 shadow-[0_28px_90px_rgba(15,23,42,0.12)] backdrop-blur lg:grid-cols-[360px_minmax(0,1fr)]">
                 <aside className="border-b border-slate-200 bg-slate-50/80 lg:border-b-0 lg:border-r">
-                    <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
                         <p className="text-sm font-bold">{copy.conversations}</p>
-                        <RefreshCw aria-hidden="true" className="size-4 text-slate-400" />
+                        <div className="flex items-center gap-2">
+                            <label className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 shadow-sm">
+                                <input
+                                    checked={includeClosed}
+                                    className="mr-1.5 size-3 rounded border-slate-300 align-middle"
+                                    onChange={(event) => setIncludeClosed(event.target.checked)}
+                                    type="checkbox"
+                                />
+                                {copy.includeClosed}
+                            </label>
+                            <RefreshCw aria-hidden="true" className="size-4 text-slate-400" />
+                        </div>
                     </div>
 
                     {loading
@@ -713,7 +703,7 @@ export function AgentWorkspace({
                                 </div>
                             )
                             : (
-                                <div className="max-h-[calc(100vh-17rem)] min-h-[560px] overflow-y-auto">
+                                <div className="max-h-[calc(100vh-13rem)] min-h-[560px] overflow-y-auto">
                                     {conversations.map((conversation) => (
                                         <button
                                             className={conversation.conversationId === selectedId
@@ -848,7 +838,7 @@ export function AgentWorkspace({
                                 </div>
                             </div>
 
-                            <aside className="max-h-[calc(100vh-13rem)] space-y-5 overflow-y-auto bg-slate-50/80 p-6">
+                            <aside className="max-h-[calc(100vh-9rem)] space-y-5 overflow-y-auto bg-slate-50/80 p-6">
                                 <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                                     <h3 className="text-sm font-bold">{copy.customerCard}</h3>
                                     <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2 2xl:grid-cols-1">

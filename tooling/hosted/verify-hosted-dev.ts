@@ -8,6 +8,11 @@ import { z } from "zod";
 
 const baseUrl = process.env.SMARTSERVICE_HOSTED_URL
     ?? "https://smartservice-dev.hurryupgo-b2d.workers.dev";
+const hostedDemoPublicKeys = [
+    "smart-service-public-demo",
+    "xflow-public-demo",
+    "novaflow-public-demo",
+] as const;
 const organizationId = "00000000-0000-4000-a000-000000000001";
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDirectory, "../..");
@@ -22,6 +27,13 @@ const environmentSchema = z.object({
 const createResponseSchema = z.object({
     conversationId: z.uuid(),
     conversationToken: z.string().min(32),
+});
+
+const publicErrorResponseSchema = z.object({
+    error: z.object({
+        code: z.string(),
+        message: z.string(),
+    }),
 });
 
 const sendResponseSchema = z.object({
@@ -236,29 +248,46 @@ async function verifyKnowledgeState(environment: Environment): Promise<void>
  */
 async function sendHostedQuestion(testCase: HostedQuestionCase): Promise<z.infer<typeof sendResponseSchema>>
 {
-    const create = await fetch(`${baseUrl}/api/v1/public/conversations`, {
-        body: JSON.stringify({
-            channel: "text",
-            customer: {
-                language: testCase.language,
-            },
-            publicKey: "smart-service-public-demo",
-            turnstileToken: "local-demo-turnstile",
-        }),
-        headers: {
-            "content-type": "application/json",
-            "idempotency-key": crypto.randomUUID(),
-        },
-        method: "POST",
-    });
-    const createPayload = await create.json();
+    let conversation: z.infer<typeof createResponseSchema> | null = null;
 
-    if (!create.ok)
+    for (const publicKey of hostedDemoPublicKeys)
     {
-        throw new Error(`Hosted conversation creation failed with HTTP ${create.status}.`);
+        const create = await fetch(`${baseUrl}/api/v1/public/conversations`, {
+            body: JSON.stringify({
+                channel: "text",
+                customer: {
+                    language: testCase.language,
+                },
+                publicKey,
+                turnstileToken: "local-demo-turnstile",
+            }),
+            headers: {
+                "content-type": "application/json",
+                "idempotency-key": crypto.randomUUID(),
+            },
+            method: "POST",
+        });
+        const createPayload: unknown = await create.json();
+
+        if (create.ok)
+        {
+            conversation = createResponseSchema.parse(createPayload);
+            break;
+        }
+
+        const parsedError = publicErrorResponseSchema.safeParse(createPayload);
+
+        if (create.status !== 404 || parsedError.data?.error.code !== "WIDGET_NOT_FOUND")
+        {
+            throw new Error(`Hosted conversation creation failed with HTTP ${create.status}.`);
+        }
     }
 
-    const conversation = createResponseSchema.parse(createPayload);
+    if (conversation === null)
+    {
+        throw new Error("Hosted conversation creation failed for every configured demo public key.");
+    }
+
     const send = await fetch(
         `${baseUrl}/api/v1/public/conversations/${conversation.conversationId}/messages`,
         {

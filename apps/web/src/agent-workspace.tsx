@@ -658,15 +658,19 @@ export function AgentWorkspace({
 
     return (
         <section aria-labelledby="inbox-heading" className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/70 bg-white/80 px-5 py-4 shadow-[0_12px_35px_rgba(15,23,42,0.07)] backdrop-blur">
-                <div>
-                    <p className="text-xs font-semibold text-sky-700">{copy.humanHandoff}</p>
-                    <h2 className="mt-0.5 text-2xl font-bold tracking-tight" id="inbox-heading">
-                        {copy.inbox}
-                    </h2>
-                    <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600">
-                        {copy.titleBody}
-                    </p>
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/70 bg-white/80 px-4 py-3 shadow-[0_12px_35px_rgba(15,23,42,0.07)] backdrop-blur">
+                <div className="flex min-w-0 items-center gap-3">
+                    <span className="shrink-0 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+                        {copy.humanHandoff}
+                    </span>
+                    <div className="min-w-0">
+                        <h2 className="text-xl font-bold tracking-tight" id="inbox-heading">
+                            {copy.inbox}
+                        </h2>
+                        <p className="mt-0.5 max-w-4xl truncate text-xs leading-5 text-slate-600">
+                            {copy.titleBody}
+                        </p>
+                    </div>
                 </div>
                 <label className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm">
                     <input

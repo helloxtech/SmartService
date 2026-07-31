@@ -50,9 +50,9 @@ interface SourceFixture
 /**
  * parseEnvironment
  * ----------------
- * Reads the ignored local environment file into validated nonprinted hosted connection settings.
+ * Reads the ignored local environment file into validated nonprinted hosted connection settings, allowing explicit process environment overrides for hosted seeding.
  *
- * July 28, 2026: Created by Forrest Zhang for Hosted DEV UAT
+ * July 31, 2026: Updated by Forrest Zhang for Hosted DEV UAT
  */
 function parseEnvironment(text: string): Environment
 {
@@ -73,6 +73,16 @@ function parseEnvironment(text: string): Environment
         if (name !== undefined && value !== undefined)
         {
             values[name] = value.trim().replace(/^"(.*)"$/u, "$1");
+        }
+    }
+
+    for (const name of Object.keys(environmentSchema.shape))
+    {
+        const override = process.env[name];
+
+        if (override !== undefined && override.length > 0)
+        {
+            values[name] = override;
         }
     }
 

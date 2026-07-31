@@ -184,7 +184,7 @@ async function createVoiceCase(environment, language, question, fixtureIp)
                 customer: {
                     language,
                 },
-                publicKey: "novaflow-public-demo",
+                publicKey: "xflow-public-demo",
                 turnstileToken: "local-demo-turnstile",
             }),
             headers: {

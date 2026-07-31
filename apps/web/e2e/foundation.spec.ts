@@ -34,19 +34,19 @@ test("renders the SmartService foundation shell", async ({ page }) =>
     await page.goto("/");
 
     await expect(page).toHaveTitle("SmartService");
-    await expect(page.getByRole("heading", { name: "Sign in to SmartService" })).toBeVisible();
-    await expect(page.getByText("Tenant isolated")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Sign in to SmartService/u })).toBeVisible();
+    await expect(page.getByText(/Tenant isolated/u)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Sign in/u })).toBeVisible();
 });
 
 test("renders the responsive public customer chat and evidence panel", async ({ page }) =>
 {
     await page.goto("/chat");
 
-    await expect(page.getByRole("heading", { name: "NovaFlow Support" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /XFlow Support/u })).toBeVisible();
     await expect(page.getByText("AI ready · AI 已就绪")).toBeVisible();
-    await expect(page.getByLabel("Ask NovaFlow support")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Supporting source" })).toBeVisible();
+    await expect(page.getByLabel(/Ask XFlow support/u)).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Supporting source/u })).toBeVisible();
     await expect(page.getByRole("button", { name: /Need human help/u })).toHaveCount(0);
 
     await page.setViewportSize({
@@ -94,9 +94,9 @@ test("starts voice only after click and falls back cleanly when microphone is de
             body: JSON.stringify({
                 conversationId,
                 conversationToken: "x".repeat(32),
-                displayName: "NovaFlow",
+                displayName: "XFlow",
                 expiresAt: "2099-07-27T08:00:00.000Z",
-                welcomeMessage: "您好，欢迎联系 NovaFlow。",
+                welcomeMessage: "您好，欢迎联系 XFlow。",
             }),
             contentType: "application/json",
             status: 201,
@@ -132,14 +132,14 @@ test("starts voice only after click and falls back cleanly when microphone is de
 
     await page.goto("/voice");
     await expect(page.getByRole("heading", {
-        name: "Talk when the agent is Ready",
+        name: /Talk when the agent is Ready/u,
     })).toBeVisible();
     expect(startupRequests).toBe(0);
 
-    await page.getByRole("button", { name: "Start voice" }).click();
+    await page.getByRole("button", { name: /Start voice/u }).click();
 
     await expect(page.getByText(/Microphone access was denied/u)).toBeVisible();
-    await expect(page.getByRole("link", { name: "Continue by text" })).toHaveAttribute("href", "/chat");
+    await expect(page.getByRole("link", { name: /Continue by text/u })).toHaveAttribute("href", "/chat");
     expect(startupRequests).toBe(2);
 });
 
@@ -278,10 +278,10 @@ test("runs the authenticated dashboard and one-click gap repair flow", async ({ 
 
     const credentials = await readDemoAdminCredentials();
     await page.goto("/");
-    await page.getByLabel("Email").fill(credentials.email);
-    await page.getByLabel("Password").fill(credentials.password);
-    await page.getByRole("button", { name: "Sign in" }).click();
-    await page.getByRole("link", { name: "Dashboard" }).click();
+    await page.getByLabel(/Email/u).fill(credentials.email);
+    await page.getByLabel(/Password/u).fill(credentials.password);
+    await page.getByRole("button", { name: /Sign in/u }).click();
+    await page.getByRole("link", { name: /Dashboard/u }).click();
 
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
     await expect(page.getByText("75%").first()).toBeVisible();

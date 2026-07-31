@@ -75,7 +75,7 @@ describe("knowledge chunking", () =>
             documents: [{
                 sections: [{
                     heading: "Overview",
-                    text: "NovaFlow builds fictional industrial pumps for this demo.",
+                    text: "XFlow builds fictional industrial pumps for this demo.",
                 }],
                 title: "FAQ",
             }],

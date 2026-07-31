@@ -50,7 +50,7 @@ export interface VoiceExperienceProps
  * ----------------
  * Requests one audio track only after the connector reports that the Agent is Ready, then immediately releases the permission probe.
  *
- * July 27, 2026: Created by Forrest Zhang for SmartService Day 6 Voice Foundation
+ * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
  */
 async function requestBrowserMicrophone(): Promise<void>
 {
@@ -74,20 +74,20 @@ async function requestBrowserMicrophone(): Promise<void>
  * ----------------
  * Maps each lifecycle state to concise bilingual-ready customer guidance.
  *
- * July 27, 2026: Created by Forrest Zhang for SmartService Day 6 Voice Foundation
+ * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
  */
 function describeVoiceState(state: VoiceUiState): string
 {
     const descriptions: Record<VoiceUiState, string> = {
-        denied: "Microphone access was denied. You can continue securely by text.",
-        ended: "Voice session ended. No audio recording was stored.",
-        failed: "Voice could not start. Please use text chat or try again.",
-        handoff: "AI voice has stopped. Your handoff package is ready for a human agent.",
-        idle: "Click Start voice to create a private session. Nothing connects before your click.",
-        listening: "Listening now. Ask your question in Chinese or English.",
-        ready: "Agent Ready. Requesting microphone access…",
-        reconnecting: "Connection interrupted. Refreshing the secure token and reconnecting…",
-        warming: "Warming the voice agent…",
+        denied: "Microphone access was denied. You can continue securely by text. · 麦克风权限被拒绝，您可以继续使用文字聊天。",
+        ended: "Voice session ended. No audio recording was stored. · 语音会话已结束，未保存录音。",
+        failed: "Voice could not start. Please use text chat or try again. · 语音暂时无法启动，请使用文字聊天或稍后重试。",
+        handoff: "AI voice has stopped. Your handoff package is ready for a human agent. · AI 语音已停止，人工客服可查看转接摘要。",
+        idle: "Click Start voice to create a private session. Nothing connects before your click. · 点击开始语音后才会创建私密会话。",
+        listening: "Listening now. Ask your question in Chinese or English. · 正在聆听，请用中文或英文提问。",
+        ready: "Agent Ready. Requesting microphone access… · 坐席已就绪，正在请求麦克风权限…",
+        reconnecting: "Connection interrupted. Refreshing the secure token and reconnecting… · 连接中断，正在刷新安全令牌并重连…",
+        warming: "Warming the voice agent… · 正在预热语音坐席…",
     };
 
     return descriptions[state];
@@ -127,7 +127,7 @@ export function VoiceExperience({
     const handoffActive = useRef(false);
     const cursor = useRef<string | null>(null);
     const etag = useRef<string | null>(null);
-    const publicKey = import.meta.env.VITE_DEMO_PUBLIC_KEY ?? "novaflow-public-demo";
+    const publicKey = import.meta.env.VITE_DEMO_PUBLIC_KEY ?? "xflow-public-demo";
 
     useEffect(() =>
     {
@@ -478,13 +478,13 @@ export function VoiceExperience({
             <section className="mx-auto max-w-3xl rounded-[2rem] border border-white/10 bg-slate-900 p-7 shadow-2xl">
                 <div className="flex items-center gap-3 text-cyan-300">
                     <Headphones aria-hidden="true" />
-                    <span className="text-sm font-semibold uppercase tracking-[0.18em]">NovaFlow voice support</span>
+                    <span className="text-sm font-semibold uppercase tracking-[0.18em]">XFlow voice support · XFlow 语音客服</span>
                 </div>
-                <h1 className="mt-5 text-4xl font-semibold">Talk when the agent is Ready</h1>
+                <h1 className="mt-5 text-4xl font-semibold">Talk when the agent is Ready · 坐席就绪后开始说话</h1>
                 <p className="mt-3 text-slate-300">{describeVoiceState(state)}</p>
 
                 <div className="mt-7 flex flex-wrap gap-3">
-                    <label className="sr-only" htmlFor="voice-language">Voice language</label>
+                    <label className="sr-only" htmlFor="voice-language">Voice language · 语音语言</label>
                     <select
                         className="rounded-xl border border-white/15 bg-slate-950 px-4 py-3"
                         disabled={state === "warming" || state === "ready" || state === "listening"}
@@ -502,27 +502,27 @@ export function VoiceExperience({
                         ? (
                             <Button onClick={() => void startVoice()}>
                                 <Mic aria-hidden="true" className="mr-2 size-4" />
-                                Start voice
+                                Start voice · 开始语音
                             </Button>
                         )
                         : (
                             <Button onClick={() => void endVoice()} variant="outline">
                                 <MicOff aria-hidden="true" className="mr-2 size-4" />
-                                End voice
+                                End voice · 结束语音
                             </Button>
                         )}
                     <a
                         className="inline-flex items-center rounded-xl border border-white/15 px-4 py-2 text-sm font-medium"
                         href="/chat"
                     >
-                        Continue by text
+                        Continue by text · 继续文字聊天
                     </a>
                 </div>
 
                 <div aria-live="polite" className="mt-8 min-h-32 rounded-2xl bg-slate-950 p-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Live transcript</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Live transcript · 实时文字</p>
                     <p className="mt-3 text-lg text-slate-100">
-                        {transcript || "Your transcript will appear here after you speak."}
+                        {transcript || "Your transcript will appear here after you speak. · 开始说话后，这里会显示实时文字。"}
                     </p>
                 </div>
 
@@ -530,6 +530,7 @@ export function VoiceExperience({
                     ? (
                         <div className="mt-5 rounded-2xl border border-amber-300/30 bg-amber-950/40 p-5 text-amber-100" role="status">
                             A human agent can now review the transcript and handoff package. Voice AI will not reply again.
+                            人工客服现在可以查看文字记录和转接摘要；AI 语音不会继续回复。
                         </div>
                     )
                     : null}
@@ -563,7 +564,7 @@ export function VoiceExperience({
 
                 <p className="mt-5 flex items-center gap-2 text-sm text-slate-400">
                     <ShieldCheck aria-hidden="true" className="size-4" />
-                    Browser microphone only. Audio recording is off by default.
+                    Browser microphone only. Audio recording is off by default. · 仅使用浏览器麦克风，默认不录音。
                 </p>
                 <p className="sr-only" data-testid="voice-playback-clock">
                     {lastPlaybackStartedAt ?? "No browser playback observed"}

@@ -237,7 +237,7 @@ async function verifyDatabaseResults(environment)
  * ----------------
  * Runs real-browser PDF, DOCX, and URL intake through the local Worker, Queue, R2 binding, Supabase, and mock embeddings.
  *
- * July 27, 2026: Updated by Forrest Zhang for SmartService Day 5 Navigation Regression
+ * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
  */
 async function main()
 {
@@ -269,14 +269,13 @@ async function main()
         await page.goto("http://127.0.0.1:8787", {
             waitUntil: "networkidle",
         });
-        await page.getByLabel("Email").fill(environment.DEMO_ADMIN_EMAIL);
-        await page.getByLabel("Password").fill(environment.DEMO_ADMIN_PASSWORD);
+        await page.getByLabel(/Email/u).fill(environment.DEMO_ADMIN_EMAIL);
+        await page.getByLabel(/Password/u).fill(environment.DEMO_ADMIN_PASSWORD);
         await page.getByRole("button", {
-            name: "Sign in",
+            name: /Sign in/u,
         }).click();
         await page.getByRole("link", {
-            exact: true,
-            name: "Knowledge",
+            name: /^Knowledge ·/u,
         }).click();
         await expect(page.getByRole("heading", {
             name: "Knowledge",
@@ -289,23 +288,23 @@ async function main()
 
         verificationStage = "ingesting the real PDF fixture";
         await page.locator('input[type="file"]').setInputFiles(resolve(
-            "docs/spec/fixtures/generated/ingestion/novaflow-nf-series-manual.pdf",
+            "docs/spec/fixtures/generated/ingestion/xflow-nf-series-manual.pdf",
         ));
         await extractButton.click();
         await expect(page.getByText("Document queued for chunking and embedding.")).toBeVisible({
             timeout: 30_000,
         });
-        await waitForReadySource(page, "novaflow-nf-series-manual.pdf");
+        await waitForReadySource(page, "xflow-nf-series-manual.pdf");
 
         verificationStage = "ingesting the real DOCX fixture";
         await page.locator('input[type="file"]').setInputFiles(resolve(
-            "docs/spec/fixtures/generated/ingestion/novaflow-support-faq.docx",
+            "docs/spec/fixtures/generated/ingestion/xflow-support-faq.docx",
         ));
         await expect(extractButton).toBeEnabled({
             timeout: 10_000,
         });
         await extractButton.click();
-        await waitForReadySource(page, "novaflow-support-faq.docx");
+        await waitForReadySource(page, "xflow-support-faq.docx");
 
         verificationStage = "ingesting the bounded URL fixture";
         await page.getByLabel("Website URL").fill("https://example.com");

@@ -1,10 +1,10 @@
-# NovaFlow NF-Series Product Manual
+# XFlow NF-Series Product Manual
 
 > Fictional demo manual. Revision 1.2, July 2026.
 
 ## 1. Product overview
 
-The NovaFlow NF-Series consists of two industrial liquid-transfer pump models: NF-200 and NF-500. Both models are designed for non-potable, non-flammable industrial liquids within the operating limits stated in this manual.
+The XFlow NF-Series consists of two industrial liquid-transfer pump models: NF-200 and NF-500. Both models are designed for non-potable, non-flammable industrial liquids within the operating limits stated in this manual.
 
 ## 2. NF-200 specifications
 

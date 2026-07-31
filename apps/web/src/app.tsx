@@ -56,7 +56,7 @@ const VoiceExperience = lazy(async () =>
  * ----------------
  * Converts an unknown operational failure into safe user-facing text without exposing credentials or response bodies.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 1 Foundation
+ * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
  */
 function describeError(error: unknown): string
 {
@@ -65,7 +65,7 @@ function describeError(error: unknown): string
         return error.message;
     }
 
-    return "The request could not be completed.";
+    return "The request could not be completed. · 请求未完成。";
 }
 
 /**
@@ -86,7 +86,7 @@ async function loadMembership(client: SupabaseClient, session: Session): Promise
 
     if (error !== null)
     {
-        throw new Error("Your organization membership could not be loaded.");
+        throw new Error("Your organization membership could not be loaded. · 无法加载组织权限。");
     }
 
     return organizationMembershipSchema.parse(data);
@@ -97,7 +97,7 @@ async function loadMembership(client: SupabaseClient, session: Session): Promise
  * ----------------
  * Renders the authenticated SmartService shell and role-aware operations workspace.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 5 P0 Operations
+ * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
  */
 function WorkspaceApp(): JSX.Element
 {
@@ -217,7 +217,7 @@ function WorkspaceApp(): JSX.Element
 
         if (client === null || client === undefined)
         {
-            setMessage("Supabase configuration is required before sign-in.");
+            setMessage("Supabase configuration is required before sign-in. · 登录前需要 Supabase 配置。");
             return;
         }
 
@@ -232,7 +232,7 @@ function WorkspaceApp(): JSX.Element
 
             if (error !== null)
             {
-                throw new Error("The email or password is not valid.");
+                throw new Error("The email or password is not valid. · 邮箱或密码不正确。");
             }
 
             const membership = await loadMembership(client, data.session);
@@ -280,11 +280,11 @@ function WorkspaceApp(): JSX.Element
                         </div>
                         <div>
                             <p className="text-base font-bold tracking-tight">SmartService</p>
-                            <p className="text-xs text-slate-500">NovaFlow demonstration workspace</p>
+                            <p className="text-xs text-slate-500">XFlow demo workspace · XFlow 演示工作台</p>
                         </div>
                     </div>
                     <span className="rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
-                        Day 5 P0 insights
+                        P0 insights · P0 数据洞察
                     </span>
                 </div>
             </header>
@@ -297,19 +297,20 @@ function WorkspaceApp(): JSX.Element
                     : (
                         <div>
                             <p className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">
-                                Bilingual service, grounded answers
+                                Bilingual service · 中英文客服
                             </p>
                             <h1 className="max-w-2xl text-4xl font-bold tracking-tight sm:text-5xl">
-                                A secure workspace for customer conversations and human handoff.
+                                Secure customer conversations with AI and human handoff.
                             </h1>
                             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
                                 SmartService keeps company answers tied to approved knowledge, routes uncertain requests to people, and gives agents the context they need.
+                                支持中文和英文咨询；证据不足时自动转交人工客服。
                             </p>
                             <div className="mt-7">
                                 <Button asChild size="lg">
                                     <a href="/chat">
                                         <MessageCircle aria-hidden="true" className="size-4" />
-                                        Try customer chat
+                                        Try customer chat · 体验客户聊天
                                     </a>
                                 </Button>
                             </div>
@@ -318,17 +319,17 @@ function WorkspaceApp(): JSX.Element
                                 <div className="rounded-xl border border-slate-200 bg-white p-4">
                                     <Languages aria-hidden="true" className="mb-3 size-5 text-sky-700" />
                                     <p className="font-semibold">中文 + English</p>
-                                    <p className="mt-1 text-sm text-slate-500">One shared service path.</p>
+                                    <p className="mt-1 text-sm text-slate-500">One shared service path. 一个客服流程。</p>
                                 </div>
                                 <div className="rounded-xl border border-slate-200 bg-white p-4">
                                     <LockKeyhole aria-hidden="true" className="mb-3 size-5 text-sky-700" />
-                                    <p className="font-semibold">Tenant isolated</p>
-                                    <p className="mt-1 text-sm text-slate-500">RLS is enforced from Day 1.</p>
+                                    <p className="font-semibold">Tenant isolated · 租户隔离</p>
+                                    <p className="mt-1 text-sm text-slate-500">RLS is enforced from Day 1. 从第一天启用行级安全。</p>
                                 </div>
                                 <div className="rounded-xl border border-slate-200 bg-white p-4">
                                     <CheckCircle2 aria-hidden="true" className="mb-3 size-5 text-sky-700" />
-                                    <p className="font-semibold">Evidence first</p>
-                                    <p className="mt-1 text-sm text-slate-500">No unsupported answer.</p>
+                                    <p className="font-semibold">Evidence first · 证据优先</p>
+                                    <p className="mt-1 text-sm text-slate-500">No unsupported answer. 不编造答案。</p>
                                 </div>
                             </div>
                         </div>
@@ -345,7 +346,7 @@ function WorkspaceApp(): JSX.Element
                             >
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                                        Workspace ready
+                                        Workspace ready · 工作台已就绪
                                     </p>
                                     <p className="mt-1 text-sm font-medium">
                                         {authentication.session.user.email}
@@ -355,21 +356,22 @@ function WorkspaceApp(): JSX.Element
                                     </p>
                                 </div>
                                 <Button onClick={handleSignOut} size="sm" variant="outline">
-                                    Sign out
+                                    Sign out · 退出
                                 </Button>
                             </div>
                         )
                         : (
                             <>
-                                <p className="text-sm font-semibold text-sky-700">Team access</p>
-                                <h2 className="mt-2 text-2xl font-bold">Sign in to SmartService</h2>
+                                <p className="text-sm font-semibold text-sky-700">Team access · 团队入口</p>
+                                <h2 className="mt-2 text-2xl font-bold">Sign in to SmartService · 登录 SmartService</h2>
                                 <p className="mt-2 text-sm leading-6 text-slate-500">
                                     Use a fictional demo Admin or Agent identity. Credentials remain in local secret storage.
+                                    使用演示管理员或客服账号登录；凭据只保存在本地安全配置中。
                                 </p>
 
                                 <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
                                     <label className="block text-sm font-medium" htmlFor="email">
-                                        Email
+                                        Email · 邮箱
                                     </label>
                                     <input
                                         autoComplete="username"
@@ -382,7 +384,7 @@ function WorkspaceApp(): JSX.Element
                                     />
 
                                     <label className="block text-sm font-medium" htmlFor="password">
-                                        Password
+                                        Password · 密码
                                     </label>
                                     <input
                                         autoComplete="current-password"
@@ -397,7 +399,7 @@ function WorkspaceApp(): JSX.Element
                                     {client === undefined
                                         ? (
                                             <p className="rounded-lg bg-sky-50 p-3 text-sm text-sky-900" role="status">
-                                                Loading hosted Supabase configuration…
+                                                Loading hosted Supabase configuration… · 正在加载 Supabase 配置…
                                             </p>
                                         )
                                         : null}
@@ -405,7 +407,8 @@ function WorkspaceApp(): JSX.Element
                                     {client === null
                                         ? (
                                             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900" role="status">
-                                                Supabase configuration is not present yet. The shell is ready; sign-in unlocks after hosted or local configuration is available.
+                                                Supabase configuration is not available yet. Sign-in unlocks after hosted or local configuration is ready.
+                                                Supabase 配置尚不可用；配置完成后即可登录。
                                             </p>
                                         )
                                         : null}
@@ -419,7 +422,7 @@ function WorkspaceApp(): JSX.Element
                                         )}
 
                                     <Button className="w-full" disabled={submitting || client === undefined} size="lg" type="submit">
-                                        {submitting ? "Signing in…" : "Sign in"}
+                                        {submitting ? "Signing in… · 登录中…" : "Sign in · 登录"}
                                     </Button>
                                 </form>
                             </>
@@ -432,7 +435,7 @@ function WorkspaceApp(): JSX.Element
                     <Suspense
                         fallback={(
                             <div className="mx-auto max-w-6xl px-6 pb-16 text-sm text-slate-500" role="status">
-                                Loading team workspace…
+                                Loading team workspace… · 正在加载团队工作台…
                             </div>
                         )}
                     >
@@ -452,7 +455,7 @@ function WorkspaceApp(): JSX.Element
  * ----------------
  * Routes public customer chat separately from the authenticated P0 operations workspace without exposing Supabase to customers.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 5 P0 Operations
+ * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
  */
 export function App(): JSX.Element
 {
@@ -462,7 +465,7 @@ export function App(): JSX.Element
             <Suspense
                 fallback={(
                     <main className="flex min-h-screen items-center justify-center bg-slate-950 text-sm text-slate-400">
-                        Loading secure voice support…
+                        Loading secure voice support… · 正在加载安全语音客服…
                     </main>
                 )}
             >
@@ -477,7 +480,7 @@ export function App(): JSX.Element
             <Suspense
                 fallback={(
                     <main className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-500">
-                        Loading secure customer chat…
+                        Loading secure customer chat… · 正在加载安全客户聊天…
                     </main>
                 )}
             >

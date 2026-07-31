@@ -33,7 +33,7 @@ type WorkspaceView = "dashboard" | "gaps" | "guardrails" | "inbox" | "knowledge"
  * ----------------
  * Maps the current same-origin path to a bounded workspace view and optional conversation identifier.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 5 Dashboard and Knowledge Gaps
+ * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
  */
 function readWorkspaceRoute(pathname: string): {
     conversationId: string | null;
@@ -193,20 +193,20 @@ export function TeamWorkspace({
         ...(membership.role === "admin"
             ? [{
                 icon: LayoutDashboard,
-                label: "Dashboard",
+                label: "Dashboard · 数据看板",
                 path: "/app/dashboard",
                 view: "dashboard" as const,
             }]
             : []),
         {
             icon: Inbox,
-            label: "Inbox",
+            label: "Inbox · 会话",
             path: "/app/inbox",
             view: "inbox" as const,
         },
         {
             icon: BookOpenCheck,
-            label: "Knowledge",
+            label: "Knowledge · 知识库",
             path: "/app/knowledge",
             view: "knowledge" as const,
         },
@@ -214,13 +214,13 @@ export function TeamWorkspace({
             ? [
                 {
                     icon: CircleHelp,
-                    label: "Knowledge gaps",
+                    label: "Knowledge gaps · 知识缺口",
                     path: "/app/knowledge-gaps",
                     view: "gaps" as const,
                 },
                 {
                     icon: ShieldCheck,
-                    label: "Guardrails",
+                    label: "Guardrails · 安全规则",
                     path: "/app/settings/guardrails",
                     view: "guardrails" as const,
                 },
@@ -230,7 +230,7 @@ export function TeamWorkspace({
 
     return (
         <>
-            <nav aria-label="Team workspace" className="mx-auto mb-7 max-w-6xl px-6">
+            <nav aria-label="Team workspace · 团队工作台" className="mx-auto mb-7 max-w-6xl px-6">
                 <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
                     {navigation.map((item) =>
                     {

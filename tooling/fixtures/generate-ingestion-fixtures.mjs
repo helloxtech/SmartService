@@ -100,7 +100,7 @@ async function createPdfFixture(markdown)
     const regular = await pdf.embedFont(StandardFonts.Helvetica);
     const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
     const fixedDate = new Date("2026-07-26T12:00:00.000Z");
-    pdf.setTitle("NovaFlow NF-Series Product Manual");
+    pdf.setTitle("XFlow NF-Series Product Manual");
     pdf.setAuthor("SmartService Fixture Generator");
     pdf.setCreationDate(fixedDate);
     pdf.setModificationDate(fixedDate);
@@ -211,7 +211,7 @@ async function createNoTextPdfFixture()
     const pdf = await PDFDocument.create();
     const fixedDate = new Date("2026-07-26T12:00:00.000Z");
     pdf.addPage([612, 792]);
-    pdf.setTitle("NovaFlow no-text rejection fixture");
+    pdf.setTitle("XFlow no-text rejection fixture");
     pdf.setAuthor("SmartService Fixture Generator");
     pdf.setCreationDate(fixedDate);
     pdf.setModificationDate(fixedDate);
@@ -289,12 +289,12 @@ async function createDocxFixture(markdown)
     const fixedDate = new Date("2026-07-26T12:00:00.000Z");
     const document = new Document({
         creator: "SmartService Fixture Generator",
-        description: "Fictional NovaFlow FAQ ingestion fixture",
+        description: "Fictional XFlow FAQ ingestion fixture",
         lastModifiedBy: "SmartService Fixture Generator",
         sections: [{
             children,
         }],
-        title: "NovaFlow Industrial Systems FAQ",
+        title: "XFlow Industrial Systems FAQ",
         created: fixedDate,
         modified: fixedDate,
     });
@@ -353,8 +353,8 @@ function createMiniSite()
 {
     return {
         "site/index.html": `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>NovaFlow Industrial Systems</title></head>
-<body><main><h1>NovaFlow Industrial Systems</h1><p>Fictional NF-Series industrial liquid-transfer pumps.</p>
+<html lang="en"><head><meta charset="utf-8"><title>XFlow Industrial Systems</title></head>
+<body><main><h1>XFlow Industrial Systems</h1><p>Fictional NF-Series industrial liquid-transfer pumps.</p>
 <nav><a href="/products.html">Products</a><a href="/support.html">Support</a><a href="https://external.example.invalid/">External link</a></nav>
 </main></body></html>
 `,
@@ -364,7 +364,7 @@ function createMiniSite()
 <a href="/support.html">Support</a></main></body></html>
 `,
         "site/support.html": `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>NovaFlow Support</title></head>
+<html lang="en"><head><meta charset="utf-8"><title>XFlow Support</title></head>
 <body><main><h1>Support</h1><p>Warranty review requires model, serial number, purchase date, and issue details.</p>
 <a href="/">Home</a></main></body></html>
 `,
@@ -390,9 +390,9 @@ async function main()
         createDocxFixture(faqMarkdown),
     ]);
     const files = {
-        "novaflow-nf-series-manual.pdf": Buffer.from(pdf.bytes),
-        "novaflow-no-text.pdf": Buffer.from(noTextPdf),
-        "novaflow-support-faq.docx": Buffer.from(docx),
+        "xflow-nf-series-manual.pdf": Buffer.from(pdf.bytes),
+        "xflow-no-text.pdf": Buffer.from(noTextPdf),
+        "xflow-support-faq.docx": Buffer.from(docx),
         ...createMiniSite(),
     };
     await mkdir(fixtureRoot, {
@@ -426,7 +426,7 @@ async function main()
             docxTitle: faqMarkdown
                 .split(/\r?\n/u)
                 .find((line) => line.startsWith("# "))
-                ?.slice(2) ?? "NovaFlow Industrial Systems FAQ",
+                ?.slice(2) ?? "XFlow Industrial Systems FAQ",
             pdfPages: pdf.pageCount,
             sitePages: 3,
         },

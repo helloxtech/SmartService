@@ -195,11 +195,11 @@ export class DeterministicConversationFinalizer implements ConversationFinalizer
         const firstQuestion = customerMessages[0]?.text.trim();
         const hasHumanMessage = input.messages.some((message) => message.senderType === "human");
         const summary = input.language === "zh-CN"
-            ? `客户就“${(firstQuestion ?? "未提供具体问题").slice(0, 300)}”联系 NovaFlow。会话已关闭，记录中未自动推断额外客户事实或承诺。`
-            : `The customer contacted NovaFlow about “${(firstQuestion ?? "no specific question provided").slice(0, 300)}.” The conversation was closed without inferring additional customer facts or commitments.`;
+            ? `客户就“${(firstQuestion ?? "未提供具体问题").slice(0, 300)}”联系 XFlow。会话已关闭，记录中未自动推断额外客户事实或承诺。`
+            : `The customer contacted XFlow about “${(firstQuestion ?? "no specific question provided").slice(0, 300)}.” The conversation was closed without inferring additional customer facts or commitments.`;
         const suggestedScript = input.language === "zh-CN"
-            ? "感谢您联系 NovaFlow。如需继续处理，请回复本次会话中尚未解决的具体问题。"
-            : "Thank you for contacting NovaFlow. If further help is needed, please reply with the specific unresolved item from this conversation.";
+            ? "感谢您联系 XFlow。如需继续处理，请回复本次会话中尚未解决的具体问题。"
+            : "Thank you for contacting XFlow. If further help is needed, please reply with the specific unresolved item from this conversation.";
 
         return {
             finalization: conversationFinalizationSchema.parse({

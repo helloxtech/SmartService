@@ -65,11 +65,11 @@ const dashboard: DashboardSummary = {
 };
 const openGap: KnowledgeGap = {
     createdAt: timestamp,
-    exampleQuestion: "What is the NovaFlow NF-500 warranty?",
+    exampleQuestion: "What is the XFlow NF-500 warranty?",
     firstConversationId: "20000000-0000-4000-a000-000000000001",
     id: gapId,
     lastSeenAt: timestamp,
-    normalizedQuestion: "what is the novaflow nf-500 warranty",
+    normalizedQuestion: "what is the xflow nf-500 warranty",
     occurrenceCount: 3,
     reason: "No sufficiently relevant approved evidence was retrieved.",
     resolutionSource: null,

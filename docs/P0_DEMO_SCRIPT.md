@@ -19,15 +19,15 @@ pnpm dev:api
 Open `http://127.0.0.1:8787` in two browser profiles:
 
 - Customer profile: `/chat`
-- Team profile: `/app/dashboard`, signed in as the fictional NovaFlow Admin
+- Team profile: `/app/dashboard`, signed in as the fictional XFlow Admin
 
-Keep the fictional NovaFlow Agent available in a third private profile. The HarborWorks Admin is the backup organization for the isolation proof.
+Keep the fictional XFlow Agent available in a third private profile. The HarborWorks Admin is the backup organization for the isolation proof.
 
 ## Main 5–7 minute flow
 
 ### 0:00–0:45 — Approved knowledge
 
-1. Open **Knowledge** as the NovaFlow Admin.
+1. Open **Knowledge** as the XFlow Admin.
 2. Show the Ready PDF, DOCX, and bounded same-origin website sources.
 3. State that source content is tenant-scoped, versioned, and treated as untrusted data.
 
@@ -56,7 +56,7 @@ Expected: SmartService refuses to invent an answer, creates one grouped open gap
 
 ### 2:15–3:15 — Human takeover and close
 
-1. Open **Inbox** as the NovaFlow Agent.
+1. Open **Inbox** as the XFlow Agent.
 2. Open the handoff and show the question, known customer fields, trigger, next step, transcript, and citations.
 3. Select **Take over**.
 4. Send: `I have taken over and will confirm the approved policy for you.`
@@ -66,7 +66,7 @@ Expected: AI writes stop after takeover; public polling still receives human and
 
 ### 3:15–4:15 — Exact dashboard
 
-1. Return to **Dashboard** as the NovaFlow Admin.
+1. Return to **Dashboard** as the XFlow Admin.
 2. Apply a date range containing today.
 3. Show total closed conversations, AI containment, handoff rate, and unresolved knowledge gaps.
 4. Explain that rates use closed conversations as the denominator and that the date range is inclusive in the UI.
@@ -88,7 +88,7 @@ Expected: a manual source is queued through the shared ingestion pipeline; the g
 
 1. Sign in as the HarborWorks Admin in the backup profile.
 2. Open Dashboard and Knowledge gaps.
-3. Confirm the NovaFlow conversation, metrics, and gap are absent.
+3. Confirm the XFlow conversation, metrics, and gap are absent.
 4. State that the run used deterministic local providers and made no paid calls.
 
 Expected: the second organization sees only its own empty/demo state.
@@ -109,5 +109,5 @@ All three runs were executed by Codex with `SMARTSERVICE_DEMO_CASE=<case> pnpm d
 
 - If the local state is unclear, stop the demo and rerun Preparation. Do not repair rows manually.
 - If a source remains Processing for 60 seconds, use its visible failure state and retain Worker diagnostics; do not claim success.
-- If the main NovaFlow profile cannot sign in, use the HarborWorks profile only to demonstrate isolation, then stop. It is not a substitute for the primary P0 flow.
+- If the main XFlow profile cannot sign in, use the HarborWorks profile only to demonstrate isolation, then stop. It is not a substitute for the primary P0 flow.
 - If a live-provider demo is later approved, retain this local deterministic path as the zero-cost fallback and label it clearly.

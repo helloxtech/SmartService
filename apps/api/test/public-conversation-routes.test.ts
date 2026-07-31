@@ -30,7 +30,7 @@ function createPublicService(): PublicConversationService
         create: vi.fn().mockResolvedValue({
             conversationId,
             conversationToken: "x".repeat(32),
-            displayName: "NovaFlow",
+            displayName: "XFlow",
             expiresAt: "2026-07-26T22:00:00.000Z",
             welcomeMessage: "您好，请问有什么可以帮您？",
         }),
@@ -101,7 +101,7 @@ describe("public conversation routes", () =>
                     customer: {
                         language: "zh-CN",
                     },
-                    publicKey: "novaflow-public-demo",
+                    publicKey: "xflow-public-demo",
                     turnstileToken: "local-demo-turnstile",
                 }),
                 headers: {

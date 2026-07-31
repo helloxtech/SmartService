@@ -164,7 +164,7 @@ function describeStatus(status: ConversationStatus): string
  * ----------------
  * Allows customer updates while AI is active, while waiting for human support, and after a human operator connects.
  *
- * July 29, 2026: Created by Forrest Zhang for SmartService Pending Handoff Customer Messages
+ * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
  */
 function canCustomerSend(status: ConversationStatus): boolean
 {
@@ -189,10 +189,10 @@ function describeComposerPlaceholder(status: ConversationStatus): string
 
     if (status === "closed")
     {
-        return "Conversation is closed.";
+        return "Conversation is closed. · 会话已结束。";
     }
 
-    return "Add details for human support…";
+    return "Add details for human support… · 补充信息给人工客服…";
 }
 
 /**
@@ -222,7 +222,7 @@ function describeHumanSupportFooter(status: ConversationStatus): string
  * ----------------
  * Shows the exact supporting excerpt and customer-safe source locator for one selected citation.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Customer Citations
+ * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
  */
 function CitationPanel({
     citation,
@@ -234,7 +234,7 @@ function CitationPanel({
 {
     return (
         <aside
-            aria-label="Supporting source"
+            aria-label="Supporting source · 引用来源"
             className={`rounded-2xl border bg-white p-5 shadow-sm lg:sticky lg:top-6 lg:self-start ${
                 citation === null ? "border-dashed border-slate-300" : "border-sky-200"
             }`}
@@ -242,13 +242,13 @@ function CitationPanel({
             <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <BookOpen aria-hidden="true" className="size-4 text-sky-700" />
-                    <h2 className="text-sm font-bold">Supporting source</h2>
+                    <h2 className="text-sm font-bold">Supporting source · 引用来源</h2>
                 </div>
                 {citation === null
                     ? null
                     : (
                         <button
-                            aria-label="Close source"
+                            aria-label="Close source · 关闭来源"
                             className="rounded-md p-1 text-slate-500 hover:bg-slate-100"
                             onClick={onClose}
                             type="button"
@@ -262,6 +262,7 @@ function CitationPanel({
                 ? (
                     <p className="mt-4 text-sm leading-6 text-slate-500">
                         Select a source below an answer to inspect the approved excerpt.
+                        点击答案下方的来源，可查看已批准的证据片段。
                     </p>
                 )
                 : (
@@ -282,7 +283,7 @@ function CitationPanel({
                                     rel="noreferrer"
                                     target="_blank"
                                 >
-                                    Open webpage
+                                    Open webpage · 打开网页
                                     <ExternalLink aria-hidden="true" className="size-3.5" />
                                 </a>
                             )}
@@ -297,7 +298,7 @@ function CitationPanel({
  * ----------------
  * Renders the responsive bilingual customer chat with grounded citations, scoped polling, automatic escalation, and contextual human support.
  *
- * July 27, 2026: Updated by Forrest Zhang for SmartService Conditional Human Support
+ * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
  */
 export function PublicChat(): JSX.Element
 {
@@ -308,7 +309,7 @@ export function PublicChat(): JSX.Element
         id: "local-welcome",
         sender: "ai",
         text: initialSession?.welcomeMessage
-            ?? "您好！我是 NovaFlow 智能客服。您也可以用 English 提问。",
+            ?? "您好！我是 XFlow 智能客服。您也可以用 English 提问。",
     }]);
     const [input, setInput] = useState("");
     const [busy, setBusy] = useState(false);
@@ -324,7 +325,7 @@ export function PublicChat(): JSX.Element
     const seenMessageIds = useRef(new Set<string>());
     const retryMessage = useRef<{ clientMessageId: string; text: string } | null>(null);
     const transcriptEnd = useRef<HTMLDivElement>(null);
-    const publicKey = import.meta.env.VITE_DEMO_PUBLIC_KEY ?? "novaflow-public-demo";
+    const publicKey = import.meta.env.VITE_DEMO_PUBLIC_KEY ?? "xflow-public-demo";
 
     const handleTurnstileToken = useCallback((token: string) =>
     {
@@ -564,7 +565,7 @@ export function PublicChat(): JSX.Element
         {
             setError(caught instanceof Error
                 ? caught.message
-                : "The message could not be sent.");
+                : "The message could not be sent. · 消息未发送。");
             setHumanSupportOfferReason("request_error");
         }
         finally
@@ -611,7 +612,7 @@ export function PublicChat(): JSX.Element
         {
             setError(caught instanceof Error
                 ? caught.message
-                : "Human support could not be requested.");
+                : "Human support could not be requested. · 暂时无法请求人工客服。");
             setHumanSupportOfferReason("request_error");
         }
         finally
@@ -636,9 +637,9 @@ export function PublicChat(): JSX.Element
                             <Headphones aria-hidden="true" className="size-5" />
                         </div>
                         <div className="min-w-0">
-                            <h1 className="truncate font-bold">{session?.displayName ?? "NovaFlow"} Support</h1>
+                            <h1 className="truncate font-bold">{session?.displayName ?? "XFlow"} Support · 客服</h1>
                             <p className="hidden truncate text-xs text-slate-500 sm:block">
-                                Grounded bilingual customer service
+                                Grounded bilingual customer service · 有依据的中英文客服
                             </p>
                         </div>
                     </div>
@@ -648,7 +649,7 @@ export function PublicChat(): JSX.Element
                             : "bg-amber-50 text-amber-800"
                     }`}>
                         <span className="sm:hidden">
-                            {status === "active_ai" ? "AI ready" : "Human support"}
+                            {status === "active_ai" ? "AI · 就绪" : "Human · 人工"}
                         </span>
                         <span className="hidden sm:inline">{describeStatus(status)}</span>
                     </span>
@@ -662,7 +663,8 @@ export function PublicChat(): JSX.Element
                         className="flex-1 space-y-5 overflow-y-auto p-4 sm:p-6"
                     >
                         <div className="mx-auto max-w-3xl rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm leading-6 text-sky-900">
-                            Answers use approved NovaFlow knowledge. If evidence is missing, the assistant will request human support.
+                            Answers use approved XFlow knowledge. If evidence is missing, the assistant will request human support.
+                            回答只使用已批准的 XFlow 知识；证据不足时会请求人工客服。
                         </div>
 
                         {messages.map((message) => (
@@ -709,7 +711,7 @@ export function PublicChat(): JSX.Element
                                                         type="button"
                                                     >
                                                         <BookOpen aria-hidden="true" className="size-3.5" />
-                                                        Source {index + 1}: {citation.label}
+                                                        Source {index + 1} · 来源 {index + 1}: {citation.label}
                                                     </button>
                                                 ))}
                                             </div>
@@ -722,7 +724,7 @@ export function PublicChat(): JSX.Element
                             ? (
                                 <div className="mx-auto flex max-w-3xl items-center gap-3 text-sm text-slate-500" role="status">
                                     <LoaderCircle aria-hidden="true" className="size-4 animate-spin text-sky-700" />
-                                    Checking approved knowledge…
+                                    Checking approved knowledge… · 正在检查已批准知识…
                                 </div>
                             )
                             : null}
@@ -735,7 +737,7 @@ export function PublicChat(): JSX.Element
                             : (
                                 <p className="mb-2 flex items-center gap-1.5 text-xs text-emerald-700">
                                     <CheckCircle2 aria-hidden="true" className="size-3.5" />
-                                    Secure conversation session active
+                                    Secure conversation session active · 安全会话已开启
                                 </p>
                             )}
 
@@ -749,7 +751,7 @@ export function PublicChat(): JSX.Element
 
                         <form className="mx-auto max-w-3xl" onSubmit={handleSubmit}>
                             <label className="sr-only" htmlFor="customer-message">
-                                Ask NovaFlow support
+                                Ask XFlow support · 咨询 XFlow 客服
                             </label>
                             <div className="flex items-end gap-2 rounded-xl border border-slate-300 bg-white p-2 focus-within:border-sky-600 focus-within:ring-2 focus-within:ring-sky-100">
                                 <textarea
@@ -771,7 +773,7 @@ export function PublicChat(): JSX.Element
                                     value={input}
                                 />
                                 <Button
-                                    aria-label="Send message"
+                                    aria-label="Send message · 发送消息"
                                     disabled={
                                         busy
                                         || input.trim().length === 0
@@ -788,7 +790,7 @@ export function PublicChat(): JSX.Element
 
                         <div className="mx-auto mt-3 flex max-w-3xl items-center justify-between gap-3">
                             <p className="text-xs text-slate-500">
-                                Enter to send · Shift + Enter for a new line
+                                Enter to send · Shift + Enter for a new line · 回车发送，Shift + 回车换行
                             </p>
                             {status === "active_ai" && humanSupportOfferReason !== null
                                 ? (

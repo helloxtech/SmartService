@@ -188,7 +188,7 @@ async function createConversation(language, fixtureIp)
             customer: {
                 language,
             },
-            publicKey: "novaflow-public-demo",
+            publicKey: "xflow-public-demo",
             turnstileToken: "local-demo-turnstile",
         }),
         headers: {

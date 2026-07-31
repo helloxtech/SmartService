@@ -54,7 +54,7 @@ on commit drop
 as
 select *
 from public.create_public_conversation(
-    'novaflow-public-demo',
+    'xflow-public-demo',
     'voice',
     'Voice Fixture',
     null,

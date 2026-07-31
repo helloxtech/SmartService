@@ -1,10 +1,10 @@
-# NovaFlow Industrial Systems — FAQ
+# XFlow Industrial Systems — FAQ
 
 > Fictional demo company. This file is test data, not a real product specification.
 
 ## Company and support
 
-NovaFlow Industrial Systems supplies industrial liquid-transfer pumps to customers in Canada and the United States.
+XFlow Industrial Systems supplies industrial liquid-transfer pumps to customers in Canada and the United States.
 
 Standard technical support hours are Monday to Friday, 9:00 a.m. to 5:00 p.m. Pacific Time, excluding statutory holidays in British Columbia.
 
@@ -30,7 +30,7 @@ Public pricing is not included in this knowledge base. Prices vary by configurat
 
 ## Returns
 
-Unopened standard products may be eligible for return within 30 calendar days of delivery, subject to an approved Return Material Authorization, or RMA. Custom-configured products are not returnable unless NovaFlow confirms a manufacturing defect.
+Unopened standard products may be eligible for return within 30 calendar days of delivery, subject to an approved Return Material Authorization, or RMA. Custom-configured products are not returnable unless XFlow confirms a manufacturing defect.
 
 Customers must not ship a return before receiving an RMA number.
 
@@ -46,4 +46,4 @@ When a customer reports smoke, sparks, severe leakage, an electrical smell or an
 
 ## Competitors
 
-NovaFlow does not provide comparative judgments about competitors through the AI assistant. The assistant may describe documented NovaFlow features but must not claim that a competitor is unsafe, inferior or unsuitable.
+XFlow does not provide comparative judgments about competitors through the AI assistant. The assistant may describe documented XFlow features but must not claim that a competitor is unsafe, inferior or unsuitable.

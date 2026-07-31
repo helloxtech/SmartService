@@ -190,9 +190,9 @@ function createWebsitePayload(): ExtractedKnowledgePayload
                 canonicalUrl: "https://example.com/support",
                 sections: [{
                     heading: "Support",
-                    text: "NovaFlow support can help with troubleshooting, warranty routing, and safe escalation when approved knowledge is insufficient.",
+                    text: "XFlow support can help with troubleshooting, warranty routing, and safe escalation when approved knowledge is insufficient.",
                 }],
-                title: "NovaFlow Support",
+                title: "XFlow Support",
             },
         ],
         schemaVersion: 1,
@@ -205,7 +205,7 @@ function createWebsitePayload(): ExtractedKnowledgePayload
 /**
  * getAdminUserId
  * ----------------
- * Finds one active NovaFlow Admin user id so hosted fixture sources keep an auditable creator.
+ * Finds one active XFlow Admin user id so hosted fixture sources keep an auditable creator.
  *
  * July 28, 2026: Created by Forrest Zhang for Hosted DEV UAT
  */
@@ -231,14 +231,14 @@ async function getAdminUserId(environment: Environment): Promise<string>
 
     if (error !== null || data === null || data.length !== 1)
     {
-        throw new Error("No active NovaFlow Admin membership was found for hosted fixture seeding.");
+        throw new Error("No active XFlow Admin membership was found for hosted fixture seeding.");
     }
 
     const userId = data[0]?.user_id;
 
     if (typeof userId !== "string" || userId.length === 0)
     {
-        throw new Error("The NovaFlow Admin membership did not contain a valid user id.");
+        throw new Error("The XFlow Admin membership did not contain a valid user id.");
     }
 
     return userId;
@@ -256,32 +256,32 @@ function getSourceFixtures(): SourceFixture[]
     return [
         {
             createPayload: () => createMarkdownPayload({
-                fileName: "novaflow-nf-series-manual.pdf",
+                fileName: "xflow-nf-series-manual.pdf",
                 pageCount: 5,
                 path: "docs/spec/fixtures/knowledge/demo_company_product_manual.md",
                 sourceType: "pdf",
-                title: "NovaFlow NF-Series Product Manual",
+                title: "XFlow NF-Series Product Manual",
             }),
-            extractedObjectKey: `org/${organizationId}/hosted-fixtures/extracted/novaflow-nf-series-manual.json`,
+            extractedObjectKey: `org/${organizationId}/hosted-fixtures/extracted/xflow-nf-series-manual.json`,
             idempotencyKey: "hosted-dev-fixture-product-manual-v1",
-            name: "novaflow-nf-series-manual.pdf",
-            originalObjectKey: `org/${organizationId}/hosted-fixtures/original/novaflow-nf-series-manual.pdf`,
+            name: "xflow-nf-series-manual.pdf",
+            originalObjectKey: `org/${organizationId}/hosted-fixtures/original/xflow-nf-series-manual.pdf`,
             pageCount: 5,
             sourceType: "pdf",
             sourceUrl: null,
         },
         {
             createPayload: () => createMarkdownPayload({
-                fileName: "novaflow-support-faq.docx",
+                fileName: "xflow-support-faq.docx",
                 pageCount: 3,
                 path: "docs/spec/fixtures/knowledge/demo_company_faq.md",
                 sourceType: "docx",
-                title: "NovaFlow Support FAQ",
+                title: "XFlow Support FAQ",
             }),
-            extractedObjectKey: `org/${organizationId}/hosted-fixtures/extracted/novaflow-support-faq.json`,
+            extractedObjectKey: `org/${organizationId}/hosted-fixtures/extracted/xflow-support-faq.json`,
             idempotencyKey: "hosted-dev-fixture-support-faq-v1",
-            name: "novaflow-support-faq.docx",
-            originalObjectKey: `org/${organizationId}/hosted-fixtures/original/novaflow-support-faq.docx`,
+            name: "xflow-support-faq.docx",
+            originalObjectKey: `org/${organizationId}/hosted-fixtures/original/xflow-support-faq.docx`,
             pageCount: 3,
             sourceType: "docx",
             sourceUrl: null,
@@ -421,7 +421,7 @@ async function summarizeKnowledge(environment: Environment): Promise<{
 /**
  * main
  * ----------------
- * Seeds hosted DEV with fictional approved NovaFlow knowledge for mock-provider UAT smoke testing.
+ * Seeds hosted DEV with fictional approved XFlow knowledge for mock-provider UAT smoke testing.
  *
  * July 28, 2026: Created by Forrest Zhang for Hosted DEV UAT
  */

@@ -391,10 +391,10 @@ export class MockWebsiteCrawlProvider implements CrawlProvider
             {
                 canonicalUrl: `${origin}/`,
                 sections: [{
-                    heading: "NovaFlow Industrial Systems",
-                    text: "NovaFlow supplies fictional NF-Series industrial liquid-transfer pumps in Canada and the United States.",
+                    heading: "XFlow Industrial Systems",
+                    text: "XFlow supplies fictional NF-Series industrial liquid-transfer pumps in Canada and the United States.",
                 }],
-                title: "NovaFlow Industrial Systems",
+                title: "XFlow Industrial Systems",
             },
             {
                 canonicalUrl: `${origin}/products`,
@@ -422,7 +422,7 @@ export class MockWebsiteCrawlProvider implements CrawlProvider
             schemaVersion: 1,
             sourceType: "url",
             standardPageCount: calculateStandardPages(combinedText),
-            title: "NovaFlow demo website",
+            title: "XFlow demo website",
         });
     }
 }

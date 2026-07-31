@@ -242,7 +242,7 @@ async function sendHostedQuestion(testCase: HostedQuestionCase): Promise<z.infer
             customer: {
                 language: testCase.language,
             },
-            publicKey: "novaflow-public-demo",
+            publicKey: "xflow-public-demo",
             turnstileToken: "local-demo-turnstile",
         }),
         headers: {

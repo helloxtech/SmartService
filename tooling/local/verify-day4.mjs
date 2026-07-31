@@ -41,6 +41,14 @@ const sendResponseSchema = z.object({
     messageId: z.uuid(),
 });
 
+const humanRoutedResponseSchema = z.object({
+    answer: z.string().min(1),
+    citations: z.array(z.unknown()).length(0),
+    decision: z.literal("human"),
+    handoff: z.null(),
+    messageId: z.uuid(),
+});
+
 const inboxResponseSchema = z.object({
     conversations: z.array(z.object({
         conversationId: z.uuid(),
@@ -221,7 +229,7 @@ async function createConversation(language, fixtureIp)
                 language,
                 name: "Day 4 Customer",
             },
-            publicKey: "novaflow-public-demo",
+            publicKey: "xflow-public-demo",
             turnstileToken: "local-demo-turnstile",
         }),
         headers: {
@@ -330,13 +338,14 @@ async function teamRequest(session, path, schema, init = {})
 /**
  * waitForPublicMessage
  * ----------------
- * Polls the scoped public endpoint for a target human/system message and enforces the three-second visibility objective.
+ * Polls the scoped public endpoint for target human/system copy and enforces the three-second visibility objective.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Local Verification
+ * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
  */
 async function waitForPublicMessage(conversation, targetText)
 {
     const startedAt = Date.now();
+    const targetTexts = Array.isArray(targetText) ? targetText : [targetText];
 
     for (let attempt = 0; attempt < 6; attempt += 1)
     {
@@ -350,7 +359,7 @@ async function waitForPublicMessage(conversation, targetText)
         );
         const poll = await readJson(response, pollResponseSchema, "Public message polling");
 
-        if (poll.messages.some((entry) => entry.text === targetText))
+        if (poll.messages.some((entry) => targetTexts.includes(entry.text)))
         {
             return {
                 elapsedMs: Date.now() - startedAt,
@@ -364,7 +373,7 @@ async function waitForPublicMessage(conversation, targetText)
         });
     }
 
-    throw new Error("The human message was not visible to the public client within three seconds.");
+    throw new Error("The target public message was not visible to the public client within three seconds.");
 }
 
 /**
@@ -401,9 +410,9 @@ async function waitForFinalSummary(session, conversationId)
 /**
  * main
  * ----------------
- * Runs all six guardrails plus handoff, takeover, public human polling, closure, and finalization with zero live-provider cost.
+ * Runs all six guardrails plus handoff, takeover, human-routed customer updates, public human polling, closure, and finalization with zero live-provider cost.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Local Verification
+ * July 30, 2026: Updated by Forrest Zhang for SmartService Pending Handoff Customer Messages
  */
 async function main()
 {
@@ -555,7 +564,7 @@ async function main()
             throw new Error("The Agent detail invented customer data or exposed a withheld candidate.");
         }
 
-        verificationStage = "claiming the handoff and proving the AI path stops";
+        verificationStage = "claiming the handoff and proving customer updates route to humans";
         await teamRequest(
             agentSession,
             `/v1/admin/conversations/${primary.conversationId}/takeover`,
@@ -567,7 +576,7 @@ async function main()
                 method: "POST",
             },
         );
-        const stoppedResponse = await fetch(
+        const humanRoutedResponse = await fetch(
             `http://127.0.0.1:8787/api/v1/public/conversations/${primary.conversationId}/messages`,
             {
                 body: JSON.stringify({
@@ -581,11 +590,7 @@ async function main()
                 method: "POST",
             },
         );
-
-        if (stoppedResponse.status !== 409)
-        {
-            throw new Error("The public AI write path remained active after human takeover.");
-        }
+        await readJson(humanRoutedResponse, humanRoutedResponseSchema, "Human-routed customer update");
 
         verificationStage = "sending and polling one human message";
         const humanText = "Hello, I have taken over and will help you safely.";
@@ -638,9 +643,10 @@ async function main()
 
         const publicClosed = await waitForPublicMessage(
             primary,
-            primary.language === "zh-CN"
-                ? "此会话已由人工客服结束。"
-                : "This conversation was closed by the human support specialist.",
+            [
+                "此会话已由人工客服结束。",
+                "This conversation was closed by the human support specialist.",
+            ],
         );
 
         if (publicClosed.poll.status !== "closed")
@@ -712,7 +718,7 @@ async function main()
         }
 
         process.stdout.write(
-            "Day 4 local smoke passed: 6/6 guardrails, handoff <3s, AI stopped, human poll <3s, close/finalize complete, no provider cost.\n",
+            "Day 4 local smoke passed: 6/6 guardrails, handoff <3s, customer updates routed to humans without AI, human poll <3s, close/finalize complete, no provider cost.\n",
         );
     }
     finally

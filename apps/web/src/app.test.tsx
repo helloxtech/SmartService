@@ -16,9 +16,9 @@ describe("App", () =>
     {
         render(<App />);
 
-        expect(screen.getByRole("heading", { name: "Sign in to SmartService" })).toBeInTheDocument();
-        expect(await screen.findByText(/Supabase configuration is not present yet/)).toBeInTheDocument();
-        expect(screen.getByLabelText("Email")).toBeInTheDocument();
-        expect(screen.getByLabelText("Password")).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: /Sign in to SmartService/u })).toBeInTheDocument();
+        expect(await screen.findByText(/Supabase configuration is not available yet/u)).toBeInTheDocument();
+        expect(screen.getByLabelText(/Email/u)).toBeInTheDocument();
+        expect(screen.getByLabelText(/Password/u)).toBeInTheDocument();
     });
 });

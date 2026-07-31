@@ -49,9 +49,9 @@ function createFetchMock(
             return new Response(JSON.stringify({
                 conversationId,
                 conversationToken: "x".repeat(32),
-                displayName: "NovaFlow",
+                displayName: "XFlow",
                 expiresAt: "2099-07-27T08:00:00.000Z",
-                welcomeMessage: "您好，欢迎联系 NovaFlow。",
+                welcomeMessage: "您好，欢迎联系 XFlow。",
             }), {
                 headers: {
                     "content-type": "application/json",
@@ -133,13 +133,12 @@ describe("VoiceExperience", () =>
             />,
         );
 
-        await user.click(screen.getByRole("button", { name: "Start voice" }));
+        await user.click(screen.getByRole("button", { name: /Start voice/u }));
 
         expect(await screen.findByText("NF-500 的最大流量是每分钟 300 升。")).toBeInTheDocument();
         expect(screen.getByText("NF-Series Product Manual, p. 4")).toBeInTheDocument();
-        expect(screen.getByText(
-            "Your transcript will appear here after you speak.",
-        )).toBeInTheDocument();
+        expect(screen.getByText(/Your transcript will appear here after you speak/u))
+            .toBeInTheDocument();
     });
 
     it("creates no session before click and requests microphone only after Ready", async () =>
@@ -185,7 +184,7 @@ describe("VoiceExperience", () =>
         );
 
         expect(fetchMock).not.toHaveBeenCalled();
-        await user.click(screen.getByRole("button", { name: "Start voice" }));
+        await user.click(screen.getByRole("button", { name: /Start voice/u }));
 
         expect(await screen.findByText(/Listening now/u)).toBeInTheDocument();
         expect(requestMicrophone).toHaveBeenCalledOnce();
@@ -235,10 +234,10 @@ describe("VoiceExperience", () =>
             />,
         );
 
-        await user.click(screen.getByRole("button", { name: "Start voice" }));
+        await user.click(screen.getByRole("button", { name: /Start voice/u }));
 
         expect(await screen.findByText(/Microphone access was denied/u)).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: "Continue by text" })).toHaveAttribute("href", "/chat");
+        expect(screen.getByRole("link", { name: /Continue by text/u })).toHaveAttribute("href", "/chat");
     });
 
     it("refreshes the room token once after an unrecoverable disconnect", async () =>
@@ -284,7 +283,7 @@ describe("VoiceExperience", () =>
             />,
         );
 
-        await user.click(screen.getByRole("button", { name: "Start voice" }));
+        await user.click(screen.getByRole("button", { name: /Start voice/u }));
         expect(await screen.findByText(/Listening now/u)).toBeInTheDocument();
         (forceDisconnect as (() => void) | null)?.();
 
@@ -308,7 +307,7 @@ describe("VoiceExperience", () =>
             />,
         );
 
-        await user.click(screen.getByRole("button", { name: "Start voice" }));
+        await user.click(screen.getByRole("button", { name: /Start voice/u }));
 
         expect(await screen.findByText(/AI voice has stopped/u)).toBeInTheDocument();
         expect(screen.getByText(/Voice AI will not reply again/u)).toBeInTheDocument();

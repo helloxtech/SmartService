@@ -1,6 +1,6 @@
 # SmartService Project Status
 
-**Last updated:** July 29, 2026 PDT
+**Last updated:** July 30, 2026 PDT
 **Current gate:** Local P0/P1 UAT evidence complete; hosted DEV mock-provider text smoke complete
 **Current phase:** Day 10 integrated local acceptance and UAT bundle complete; hosted Supabase, Cloudflare Worker/Git deployment, and hosted fictional knowledge smoke are ready
 **Active step:** Run Forrest's hosted DEV product UAT, collect feedback, and provision the remaining live G1/G2 provider resources only when approved
@@ -8,7 +8,9 @@
 
 ## Recent hosted UAT fixes
 
-- July 30, 2026 PDT: Updated the hosted and local NovaFlow Admin login email to `info@smartservice.ca`; the password was reset in Supabase Auth and ignored `.env.local` only. No password value was committed.
+- July 30, 2026 PDT: Renamed the fictional demo tenant and all generated fixture/verification references to XFlow, changed the non-secret demo public key to `xflow-public-demo`, and added visible Chinese/English UI copy to the main login, public chat, team navigation, and browser voice surfaces.
+- July 30, 2026 PDT: The XFlow/Chinese UI update is validated locally only. Hosted Supabase data and the hosted Cloudflare deployment still require the browser-owned Supabase project access path or restored hosted service credentials before `smartservice.ca` can be claimed current for this change.
+- July 30, 2026 PDT: Updated the hosted and local XFlow Admin login email to `info@smartservice.ca`; the password was reset in Supabase Auth and ignored `.env.local` only. No password value was committed.
 - July 29, 2026 PDT: Fixed pending human handoff UX so opening a conversation in the Agent portal does not imply a claim. Customers can add details while waiting for human support or after a human connects; these messages persist for the Agent and do not trigger AI/provider calls. Agent replies remain disabled until the conversation is claimed. Hosted Supabase migration and Cloudflare Worker version `bee3c1c4-4813-455c-ad2d-0f14230b8ca2` were verified with temporary smoke data that was deleted after validation.
 
 ## Original goal
@@ -49,7 +51,7 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Added the React/Vite/Tailwind/shadcn-style authentication shell, responsive desktop/mobile layout, shared UI package, browser-safe configuration validation, and role-aware membership display.
 - Added the Hono Cloudflare Worker health contract, generated Wrangler bindings, structured request logs, safe JSON errors, Static Assets configuration, Worker-runtime tests, and a successful deployment dry run.
 - Split the P0 data blueprint into four ordered Supabase migrations with `vector(1024)`, HNSW/trigram indexes, composite tenant foreign keys, explicit privileges, forced RLS, immutable audit links, and no P1/R11 tables.
-- Created fictional NovaFlow Admin and Agent identities plus an isolation-tenant Admin in ignored local storage; verified all three real Auth login paths without displaying credentials.
+- Created fictional XFlow Admin and Agent identities plus an isolation-tenant Admin in ignored local storage; verified all three real Auth login paths without displaying credentials.
 - Proved tenant and role isolation with 16 pgTAP assertions, including cross-tenant denial, Agent/Admin boundaries, blocked-candidate privacy, human-sender enforcement, and anonymous permission denial.
 - Added deterministic fixture-integrity checks for the fixed P0 and guardrail sets without making provider calls.
 - Visually inspected the built shell at 2560×1440 and 390-pixel mobile width and corrected shared Tailwind source discovery before acceptance.
@@ -127,7 +129,7 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Created the Cloudflare DEV storage and queue resources required by `apps/api/wrangler.jsonc`: `smartservice-knowledge-dev`, `smartservice-knowledge-preview`, `smartservice-ingest-dev`, `smartservice-finalize-dev`, `smartservice-ingest-dlq-dev`, and `smartservice-finalize-dlq-dev`.
 - Deployed the `smartservice-dev` Cloudflare Worker/Static Assets preview at `https://smartservice-dev.hurryupgo-b2d.workers.dev`, set the currently available Worker secrets without printing values, and verified `/health`, hosted Admin login, public conversation creation, and one public message smoke in DEV/mock-provider mode.
 - Connected Cloudflare native Workers Builds for `smartservice-dev` to `helloxtech/SmartService` on production branch `main`; commit `d5f9d1c` triggered the first Git-based Cloudflare build/deploy and activated version `d90cf5c8`.
-- Added repeatable hosted DEV tooling: `pnpm hosted:seed-demo-knowledge` seeds the fictional NovaFlow PDF/DOCX/URL fixtures through the shared deterministic ingestion pipeline, and `pnpm verify:hosted-dev` checks routes, health, ready knowledge, cited answers, and missing-knowledge handoff.
+- Added repeatable hosted DEV tooling: `pnpm hosted:seed-demo-knowledge` seeds the fictional XFlow PDF/DOCX/URL fixtures through the shared deterministic ingestion pipeline, and `pnpm verify:hosted-dev` checks routes, health, ready knowledge, cited answers, and missing-knowledge handoff.
 - Seeded hosted DEV with 3 Ready fictional sources and 23 embedded chunks; hosted public text smoke now returns cited answers for the UAT guide's sample in-scope questions and safe handoff for missing warehouse-stock knowledge.
 - Narrowed public human support UX so the customer does not see a standing transfer button on first load; the UI offers human help only after customer frustration, repeated clarification, or request failure, while explicit handoff requests remain server-owned.
 - Verified the user-signed browser can access the correct Supabase project `SmartService` / `ibuvpregltbvxsxhivrg`; the Supabase connector remains attached to the wrong hidden organization and must not be used for this hosted DEV project.
@@ -205,7 +207,7 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | `supabase db lint --schema public` | Passed; no schema errors |
 | RLS posture query | Passed: 18/18 public tables have RLS enabled and forced; `anon` has 0 table privileges |
 | Foreign-key index audit | Passed: every public foreign key has an exact leading-column index, including tenant-qualified composite keys |
-| Local Auth verification | Passed: NovaFlow Admin, NovaFlow Agent, and isolation-tenant Admin; each sees exactly one tenant |
+| Local Auth verification | Passed: XFlow Admin, XFlow Agent, and isolation-tenant Admin; each sees exactly one tenant |
 | Worker Static Assets dry run | Passed with Static Assets, Queue, and R2 bindings; no deployment performed |
 | Cloudflare hosted resource creation | Passed: two SmartService R2 buckets and four SmartService Queues created and listed |
 | SmartService Worker packaging dry run | Passed: `wrangler deploy --dry-run` read 16 Static Assets files and resolved Queue/R2/Assets bindings |
@@ -259,10 +261,12 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Live provider smoke tests | Passed locally: OpenAI chat/supervisor/embeddings, LiveKit authenticated API/token generation, Deepgram English/Chinese STT, and ElevenLabs Chinese TTS. Hosted DEV health/admin/public-chat smoke passed with mock provider modes; hosted/deployed live G1/G2 evidence remains pending |
 | Hosted DEV Worker smoke | Passed after Git deploy: `smartservice-dev` `/health` returned `200`, hosted Admin login passed, public conversation creation returned `201`, and public message send returned `200` |
 | Hosted DEV text UAT smoke | Passed after fixture seed: 3 Ready fictional sources, 23 embedded chunks, 2/2 cited answers, and 1/1 safe missing-knowledge handoff |
+| Local XFlow and Chinese UI update checkpoint | Passed: format, lint, typecheck, unit tests, build, 4/4 Playwright tests, P0 evaluation, guardrail evaluation, 121/121 database assertions, ingestion/conversation/Days 4–10 smokes, and local same-origin Supabase browser configuration |
 | Cost-bearing provider calls | Bounded live smokes only: three OpenAI Responses/Embeddings calls, two Deepgram STT calls, one ElevenLabs TTS call, and a LiveKit authentication/token check |
 
 ## Current blockers
 
+- This XFlow/Chinese UI change is not yet hosted on `smartservice.ca`: the Supabase connector still sees only the wrong inactive project `wfkheempcfislbaonkiz`, not the browser-owned hosted project `ibuvpregltbvxsxhivrg`, and the hosted database needs the XFlow public key/display/fixture refresh before deployment.
 - Hosted P0 no longer blocks on basic Supabase schema, demo identities, Cloudflare Worker deployment, core Worker secrets, or DEV smoke. It still blocks on Browser Run token/access verification, live Turnstile hostname keys, R2 signer credentials, and switching ingestion/chat/auxiliary/Turnstile provider modes from mock to live for G1 evidence.
 - P1 live acceptance remains blocked on ElevenLabs commercial-use confirmation, deployed LiveKit Agent configuration, and final microphone/device/network verification. Provider credentials and local smokes are verified, but they do not by themselves satisfy live G2.
 

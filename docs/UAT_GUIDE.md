@@ -36,7 +36,7 @@ Hosted DEV currently uses mock provider modes for text answering, ingestion, aux
 
 ### Hosted demo knowledge
 
-The hosted smoke database currently contains fictional NovaFlow support knowledge from three approved sources:
+The hosted smoke database currently contains fictional XFlow support knowledge from three approved sources:
 
 - NF-Series product manual: model voltage, max flow, installation, maintenance, and warranty boundaries.
 - Support FAQ: troubleshooting, return/repair policy, escalation limits, and bilingual support wording.
@@ -58,7 +58,7 @@ Good unsupported/handoff questions:
 
 ### 1. Knowledge ingestion
 
-1. Sign in at `/app/knowledge` as the NovaFlow Admin.
+1. Sign in at `/app/knowledge` as the XFlow Admin.
 2. Confirm the PDF, DOCX, and URL sources are Ready and have non-zero chunks.
 3. Disable and re-enable one source.
 
@@ -106,7 +106,7 @@ Expected: dashboard counts reflect closed conversations; the gap resolves only a
 
 Sign in as the fictional HarborWorks Admin in another profile.
 
-Expected: NovaFlow conversations, sources, dashboard values, guardrails, and gaps are absent.
+Expected: XFlow conversations, sources, dashboard values, guardrails, and gaps are absent.
 
 ## Voice orchestration UAT
 

@@ -21,7 +21,7 @@ const runtimePublicConfigurationSchema = z.object({
  * ----------------
  * Creates the browser Supabase client from validated browser-safe project URL and anon key values.
  *
- * July 29, 2026: Created by Forrest Zhang for SmartService hosted DEV Supabase sign-in
+ * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
  */
 function createConfiguredClient(supabaseUrl: string, supabaseAnonKey: string): SupabaseClient
 {
@@ -43,19 +43,26 @@ function createConfiguredClient(supabaseUrl: string, supabaseAnonKey: string): S
 async function fetchRuntimePublicConfiguration(): Promise<{
     supabaseAnonKey: string | null;
     supabaseUrl: string | null;
-}>
+} | null>
 {
-    const response = await fetch("/api/public-config", {
-        cache: "no-store",
-        signal: AbortSignal.timeout(10_000),
-    });
-
-    if (!response.ok)
+    try
     {
-        throw new Error("Runtime public configuration could not be loaded.");
-    }
+        const response = await fetch("/api/public-config", {
+            cache: "no-store",
+            signal: AbortSignal.timeout(10_000),
+        });
 
-    return runtimePublicConfigurationSchema.parse(await response.json());
+        if (!response.ok)
+        {
+            return null;
+        }
+
+        return runtimePublicConfigurationSchema.parse(await response.json());
+    }
+    catch
+    {
+        return null;
+    }
 }
 
 /**
@@ -63,7 +70,7 @@ async function fetchRuntimePublicConfiguration(): Promise<{
  * ----------------
  * Creates one browser Supabase client when public configuration exists and returns null for an intentionally unconfigured local shell.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 1 Foundation
+ * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
  */
 export async function getSupabaseClient(): Promise<SupabaseClient | null>
 {
@@ -79,14 +86,14 @@ export async function getSupabaseClient(): Promise<SupabaseClient | null>
 
     supabaseClientPromise = (async () =>
     {
-        let supabaseUrl = publicEnvironment.VITE_SUPABASE_URL;
-        let supabaseAnonKey = publicEnvironment.VITE_SUPABASE_ANON_KEY;
+        const runtimeConfiguration = await fetchRuntimePublicConfiguration();
+        let supabaseUrl = runtimeConfiguration?.supabaseUrl ?? undefined;
+        let supabaseAnonKey = runtimeConfiguration?.supabaseAnonKey ?? undefined;
 
         if (supabaseUrl === undefined || supabaseAnonKey === undefined)
         {
-            const runtimeConfiguration = await fetchRuntimePublicConfiguration();
-            supabaseUrl = runtimeConfiguration.supabaseUrl ?? undefined;
-            supabaseAnonKey = runtimeConfiguration.supabaseAnonKey ?? undefined;
+            supabaseUrl = publicEnvironment.VITE_SUPABASE_URL;
+            supabaseAnonKey = publicEnvironment.VITE_SUPABASE_ANON_KEY;
         }
 
         if (supabaseUrl === undefined || supabaseAnonKey === undefined)

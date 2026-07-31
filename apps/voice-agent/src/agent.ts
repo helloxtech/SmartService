@@ -126,7 +126,7 @@ async function runVoiceJob(
         const stt = new deepgram.STT({
             apiKey: configuration.DEEPGRAM_API_KEY,
             interimResults: true,
-            keyterm: ["NovaFlow", "NF-200", "NF-500"],
+            keyterm: ["XFlow", "NF-200", "NF-500"],
             language: sessionConfiguration.language,
             model: "nova-3",
             noDelay: true,

@@ -73,8 +73,8 @@ These decisions and actions were approved on July 26, 2026. Missing P0/P1 creden
 | Supabase project region | READY | Use the closest available North American west region to the Vancouver demo location |
 | Generated development secrets | READY | High-entropy development secrets may be generated and stored only in ignored/provider secret stores |
 | Subscription treatment | READY | Approved subscriptions count inside the aggregate cap and each paid upgrade still requires separate approval |
-| Demo data boundary | READY | Fixed default: fictional NovaFlow data only; no customer, production, regulated, or sensitive personal data |
-| Demo branding/default company | READY | Fixed default: SmartService product branding, neutral visual theme, and NovaFlow as the fictional demo tenant unless optional assets are supplied |
+| Demo data boundary | READY | Fixed default: fictional XFlow data only; no customer, production, regulated, or sensitive personal data |
+| Demo branding/default company | READY | Fixed default: SmartService product branding, neutral visual theme, and XFlow as the fictional demo tenant unless optional assets are supplied |
 | P0 business rules | READY | Defaults in the specification apply: no price, discount, exact delivery, competitor, unsupported certification/claim, secret-disclosure, or unsafe repair commitment |
 | Handoff customer-card fields | READY | Name, company, email, phone, preferred language, intent, confirmed facts, channel, summary, risk reason, and next action; unknown values display as not provided |
 | Audio recording | READY | Disabled by default; enabling it requires a separate privacy/retention approval |
@@ -243,7 +243,7 @@ Current official free tiers are sufficient for most infrastructure, but only the
 
 2. Provision or select the P0 Supabase, Cloudflare, and OpenAI development resources above. Put values only in `.env.local` and provider secret stores; do not send them in chat.
 3. Confirm the `BLOCKING-NOW` approvals: total USD cap and subscription treatment, dev resource creation, small live smoke tests, dev database reset/migrations, externally reachable preview deployment, generated development secrets, initial GitHub push, 30-day retention, and the Supabase region.
-4. Confirm that the fictional NovaFlow fixture data and neutral SmartService branding are acceptable, or place optional logo assets in a local path and provide only the path.
+4. Confirm that the fictional XFlow fixture data and neutral SmartService branding are acceptable, or place optional logo assets in a local path and provide only the path.
 5. Before Day 6, provision LiveKit, Deepgram, and ElevenLabs; select a Chinese-capable voice; identify the final Chrome/Edge demo device and microphone/headset; approve voice-minute/character caps.
 6. After storing credentials, report only which variable groups are present, for example: `Supabase P0 ready; Cloudflare P0 ready; OpenAI P0 ready; P1 deferred.` Do not report values.
 7. Reply with explicit Gate 0 approval only after the approvals and resource state are accurate.

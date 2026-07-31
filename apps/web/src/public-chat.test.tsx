@@ -47,9 +47,9 @@ describe("PublicChat", () =>
                 return new Response(JSON.stringify({
                     conversationId,
                     conversationToken: "x".repeat(32),
-                    displayName: "NovaFlow",
+                    displayName: "XFlow",
                     expiresAt: "2099-07-26T22:00:00.000Z",
-                    welcomeMessage: "您好，欢迎联系 NovaFlow。",
+                    welcomeMessage: "您好，欢迎联系 XFlow。",
                 }), {
                     headers: {
                         "content-type": "application/json",
@@ -100,14 +100,14 @@ describe("PublicChat", () =>
         expect(screen.queryByRole("button", { name: /Need human help/u }))
             .not.toBeInTheDocument();
         await user.type(
-            screen.getByLabelText("Ask NovaFlow support"),
+            screen.getByLabelText(/Ask XFlow support/u),
             "NF-500 的保修期多久？",
         );
-        await user.click(screen.getByRole("button", { name: "Send message" }));
+        await user.click(screen.getByRole("button", { name: /Send message/u }));
 
         expect(await screen.findByText(/36 months/u)).toBeInTheDocument();
         await user.click(screen.getByRole("button", {
-            name: /Source 1: NF-Series Product Manual/u,
+            name: /Source 1.*NF-Series Product Manual/u,
         }));
         expect(screen.getByText(
             "NF-500 limited warranty: 36 months from shipment date.",
@@ -130,9 +130,9 @@ describe("PublicChat", () =>
                 return new Response(JSON.stringify({
                     conversationId,
                     conversationToken: "x".repeat(32),
-                    displayName: "NovaFlow",
+                    displayName: "XFlow",
                     expiresAt: "2099-07-26T22:00:00.000Z",
-                    welcomeMessage: "您好，欢迎联系 NovaFlow。",
+                    welcomeMessage: "您好，欢迎联系 XFlow。",
                 }), {
                     headers: {
                         "content-type": "application/json",
@@ -191,14 +191,14 @@ describe("PublicChat", () =>
         render(<PublicChat />);
 
         await screen.findByText("Local demo verification is ready.");
-        await user.type(screen.getByLabelText("Ask NovaFlow support"), "First unclear question");
-        await user.click(screen.getByRole("button", { name: "Send message" }));
+        await user.type(screen.getByLabelText(/Ask XFlow support/u), "First unclear question");
+        await user.click(screen.getByRole("button", { name: /Send message/u }));
         await screen.findByText("Clarification 1");
         expect(screen.queryByRole("button", { name: /Need human help/u }))
             .not.toBeInTheDocument();
 
-        await user.type(screen.getByLabelText("Ask NovaFlow support"), "Second unclear question");
-        await user.click(screen.getByRole("button", { name: "Send message" }));
+        await user.type(screen.getByLabelText(/Ask XFlow support/u), "Second unclear question");
+        await user.click(screen.getByRole("button", { name: /Send message/u }));
         await screen.findByText("Clarification 2");
 
         await user.click(screen.getByRole("button", { name: /Need human help/u }));
@@ -213,9 +213,9 @@ describe("PublicChat", () =>
         sessionStorage.setItem("smartservice.publicConversation.v1", JSON.stringify({
             conversationId,
             conversationToken: "x".repeat(32),
-            displayName: "NovaFlow",
+            displayName: "XFlow",
             expiresAt: "2099-07-26T22:00:00.000Z",
-            welcomeMessage: "您好，欢迎联系 NovaFlow。",
+            welcomeMessage: "您好，欢迎联系 XFlow。",
         }));
         const fetchMock = vi.fn(async (
             input: RequestInfo | URL,
@@ -263,11 +263,11 @@ describe("PublicChat", () =>
 
         expect(await screen.findByText("Waiting for human support · 等待人工客服接入"))
             .toBeInTheDocument();
-        const composer = screen.getByLabelText("Ask NovaFlow support");
+        const composer = screen.getByLabelText(/Ask XFlow support/u);
         expect(composer).toBeEnabled();
 
         await user.type(composer, "I can share my preferred model.");
-        await user.click(screen.getByRole("button", { name: "Send message" }));
+        await user.click(screen.getByRole("button", { name: /Send message/u }));
 
         expect(await screen.findByText("I can share my preferred model."))
             .toBeInTheDocument();

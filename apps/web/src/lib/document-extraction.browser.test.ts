@@ -6,19 +6,19 @@ import { sha256Bytes } from "@smartservice/ingestion";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import docxFixtureUrl from "../../../../docs/spec/fixtures/generated/ingestion/novaflow-support-faq.docx?url";
+import docxFixtureUrl from "../../../../docs/spec/fixtures/generated/ingestion/xflow-support-faq.docx?url";
 import manifestFixtureUrl from "../../../../docs/spec/fixtures/generated/ingestion/manifest.json?url";
-import pdfFixtureUrl from "../../../../docs/spec/fixtures/generated/ingestion/novaflow-nf-series-manual.pdf?url";
-import noTextPdfFixtureUrl from "../../../../docs/spec/fixtures/generated/ingestion/novaflow-no-text.pdf?url";
+import pdfFixtureUrl from "../../../../docs/spec/fixtures/generated/ingestion/xflow-nf-series-manual.pdf?url";
+import noTextPdfFixtureUrl from "../../../../docs/spec/fixtures/generated/ingestion/xflow-no-text.pdf?url";
 import siteIndexFixtureUrl from "../../../../docs/spec/fixtures/generated/ingestion/site/index.html?url";
 import siteProductsFixtureUrl from "../../../../docs/spec/fixtures/generated/ingestion/site/products.html?url";
 import siteSupportFixtureUrl from "../../../../docs/spec/fixtures/generated/ingestion/site/support.html?url";
 import { prepareKnowledgeFile } from "./document-extraction";
 
 const fixtureUrls: Record<string, string> = {
-    "novaflow-nf-series-manual.pdf": pdfFixtureUrl,
-    "novaflow-no-text.pdf": noTextPdfFixtureUrl,
-    "novaflow-support-faq.docx": docxFixtureUrl,
+    "xflow-nf-series-manual.pdf": pdfFixtureUrl,
+    "xflow-no-text.pdf": noTextPdfFixtureUrl,
+    "xflow-support-faq.docx": docxFixtureUrl,
     "site/index.html": siteIndexFixtureUrl,
     "site/products.html": siteProductsFixtureUrl,
     "site/support.html": siteSupportFixtureUrl,
@@ -122,7 +122,7 @@ describe("real browser document extraction fixtures", () =>
     {
         const manifest = await loadManifest();
         const prepared = await prepareKnowledgeFile(await loadFixtureFile(
-            "novaflow-nf-series-manual.pdf",
+            "xflow-nf-series-manual.pdf",
             pdfMimeType,
         ));
 
@@ -140,7 +140,7 @@ describe("real browser document extraction fixtures", () =>
     {
         const manifest = await loadManifest();
         const prepared = await prepareKnowledgeFile(await loadFixtureFile(
-            "novaflow-support-faq.docx",
+            "xflow-support-faq.docx",
             docxMimeType,
         ));
 
@@ -154,7 +154,7 @@ describe("real browser document extraction fixtures", () =>
     it("rejects a real no-text PDF without attempting out-of-scope OCR", async () =>
     {
         await expect(prepareKnowledgeFile(await loadFixtureFile(
-            "novaflow-no-text.pdf",
+            "xflow-no-text.pdf",
             pdfMimeType,
         ))).rejects.toMatchObject({
             code: "PDF_NO_EXTRACTABLE_TEXT",

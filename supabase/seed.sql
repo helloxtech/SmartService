@@ -7,9 +7,9 @@ insert into public.organizations (
 values
     (
         '00000000-0000-4000-a000-000000000001',
-        'NovaFlow Industrial Systems',
-        'novaflow-demo',
-        'novaflow-public-demo'
+        'XFlow Industrial Systems',
+        'xflow-demo',
+        'xflow-public-demo'
     ),
     (
         '00000000-0000-4000-a000-000000000002',
@@ -30,9 +30,9 @@ insert into public.organization_settings (
 values
     (
         '00000000-0000-4000-a000-000000000001',
-        'NovaFlow',
+        'XFlow',
         'zh-CN',
-        '您好，欢迎联系 NovaFlow。请问有什么可以帮您？',
+        '您好，欢迎联系 XFlow。请问有什么可以帮您？',
         30,
         true
     ),

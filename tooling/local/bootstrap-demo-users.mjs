@@ -25,7 +25,7 @@ let bootstrapStage = "initializing";
  * ----------------
  * Parses a simple KEY=value environment document while rejecting malformed variable names.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 1 Foundation
+ * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Admin Email
  */
 function parseEnvironmentText(text)
 {
@@ -153,14 +153,15 @@ async function updateLocalEnvironment(filePath, currentText, updates)
 /**
  * writeWorkerDevelopmentVariables
  * ----------------
- * Writes only local Supabase server values plus generated upload and conversation signers to Wrangler's ignored secret file.
+ * Writes local Worker Supabase bindings plus generated upload and conversation signers to Wrangler's ignored secret file.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 3 Grounded Text Chat
+ * July 30, 2026: Updated by Forrest Zhang for SmartService XFlow Chinese UI
  */
 async function writeWorkerDevelopmentVariables(filePath, localStatus, voiceServiceToken)
 {
     const values = [
         `SUPABASE_URL=${localStatus.API_URL}`,
+        `SUPABASE_ANON_KEY=${localStatus.ANON_KEY}`,
         `SUPABASE_SERVICE_ROLE_KEY=${localStatus.SERVICE_ROLE_KEY}`,
         `LOCAL_UPLOAD_SIGNING_SECRET=${randomBytes(32).toString("base64url")}`,
         `CONVERSATION_TOKEN_SECRET=${randomBytes(32).toString("base64url")}`,
@@ -194,7 +195,8 @@ async function ensureAuthUser(client, email, password, displayName)
         throw new Error("Local Auth users could not be listed.");
     }
 
-    const existingUser = listData.users.find((user) => user.email === email);
+    const normalizedEmail = email.toLowerCase();
+    const existingUser = listData.users.find((user) => user.email?.toLowerCase() === normalizedEmail);
 
     if (existingUser !== undefined)
     {
@@ -314,7 +316,7 @@ async function main()
             "DEMO_ADMIN_PASSWORD",
             generateLocalPassword,
         )],
-        ["DEMO_AGENT_EMAIL", "agent@novaflow.smartservice.local"],
+        ["DEMO_AGENT_EMAIL", "agent@xflow.smartservice.local"],
         ["DEMO_AGENT_PASSWORD", getConfiguredValue(
             currentValues,
             "DEMO_AGENT_PASSWORD",
@@ -331,7 +333,7 @@ async function main()
         ["SUPABASE_URL", localStatus.API_URL],
         ["VITE_SUPABASE_ANON_KEY", localStatus.ANON_KEY],
         ["VITE_SUPABASE_URL", localStatus.API_URL],
-        ["VITE_DEMO_PUBLIC_KEY", "novaflow-public-demo"],
+        ["VITE_DEMO_PUBLIC_KEY", "xflow-public-demo"],
         ["VOICE_INTERNAL_API_BASE_URL", "http://127.0.0.1:8787"],
         ["VOICE_INTERNAL_SERVICE_TOKEN", voiceServiceToken],
     ]);
@@ -355,19 +357,19 @@ async function main()
     bootstrapStage = "waiting for local Auth readiness";
     await waitForLocalAuth(client);
 
-    bootstrapStage = "creating the NovaFlow Admin";
+    bootstrapStage = "creating the XFlow Admin";
     const adminUserId = await ensureAuthUser(
         client,
         demoValues.get("DEMO_ADMIN_EMAIL"),
         demoValues.get("DEMO_ADMIN_PASSWORD"),
-        "NovaFlow Demo Admin",
+        "XFlow Demo Admin",
     );
-    bootstrapStage = "creating the NovaFlow Agent";
+    bootstrapStage = "creating the XFlow Agent";
     const agentUserId = await ensureAuthUser(
         client,
         demoValues.get("DEMO_AGENT_EMAIL"),
         demoValues.get("DEMO_AGENT_PASSWORD"),
-        "NovaFlow Demo Agent",
+        "XFlow Demo Agent",
     );
     bootstrapStage = "creating the isolation-tenant Admin";
     const otherAdminUserId = await ensureAuthUser(

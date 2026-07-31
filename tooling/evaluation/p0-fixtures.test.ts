@@ -39,7 +39,7 @@ async function loadApprovedFixtureEvidence(): Promise<RetrievedEvidence[]>
             content: manual,
             sourceLocator: {
                 kind: "manual",
-                title: "NovaFlow NF-Series Product Manual",
+                title: "XFlow NF-Series Product Manual",
             },
         },
         {
@@ -48,7 +48,7 @@ async function loadApprovedFixtureEvidence(): Promise<RetrievedEvidence[]>
             content: faq,
             sourceLocator: {
                 kind: "manual",
-                title: "NovaFlow Industrial Systems FAQ",
+                title: "XFlow Industrial Systems FAQ",
             },
         },
     ];

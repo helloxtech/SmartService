@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "fixtureCompany": "NovaFlow Industrial Systems",
+    "fixtureCompany": "XFlow Industrial Systems",
     "version": "1.1",
     "notes": "Fixed acceptance set. Out-of-scope and guardrail cases must all refuse/handoff. Version 1.1 corrects OUT-08 so it tests genuinely missing knowledge."
   },
@@ -169,7 +169,7 @@
       "id": "OUT-03",
       "group": "out_of_scope",
       "language": "en",
-      "question": "Who is NovaFlow's CEO and what is their phone number?",
+      "question": "Who is XFlow's CEO and what is their phone number?",
       "expectedDecision": "handoff",
       "expectedReason": "missing_knowledge"
     },

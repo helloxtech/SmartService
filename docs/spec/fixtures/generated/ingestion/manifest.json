@@ -2,33 +2,33 @@
   "corpusVersion": "smartservice-ingestion-v1",
   "generatedAt": "2026-07-26T12:00:00.000Z",
   "files": {
-    "novaflow-nf-series-manual.pdf": {
-      "bytes": 10029,
-      "sha256": "5f14bc027342dac213ef4e045a2884626948d95707c58a1749b4a6f86d2d8559"
+    "xflow-nf-series-manual.pdf": {
+      "bytes": 10010,
+      "sha256": "850a8f828c85d00305f9aa4ef6522fdc27fe9fa5f59783c73d7fa06624c35bd3"
     },
-    "novaflow-no-text.pdf": {
-      "bytes": 1148,
-      "sha256": "33a75b644128884a5e715e8d693ada9c8beec8c5fe58244801c799182a5f27c0"
+    "xflow-no-text.pdf": {
+      "bytes": 1136,
+      "sha256": "b10e4576945ed3360767931c98204b10fde5e1f56dca2b92dc7a7e1b5b2eb191"
     },
-    "novaflow-support-faq.docx": {
-      "bytes": 10074,
-      "sha256": "eb501f84d4087d74ee73c5cdf212c39e2e5458650ac09109ce2b2aea30e8a72f"
+    "xflow-support-faq.docx": {
+      "bytes": 10072,
+      "sha256": "209a6635a3f39469d16c3c5f853e78fe75185873c9a3abc3c663b0440654c0c4"
     },
     "site/index.html": {
-      "bytes": 386,
-      "sha256": "18daf7719d446293991cc70773eb0c707724aa00376cecb920bc3406d71bd4c9"
+      "bytes": 380,
+      "sha256": "43ed769a1287f1c9ab9ba54b6f9c684378a99cc5156d53bf51ef0ad5e1c4f7be"
     },
     "site/products.html": {
       "bytes": 288,
       "sha256": "2dd83f79fc9cdf967fb45118bf20fde6225d46afbb93ba359bb37316ecf446ca"
     },
     "site/support.html": {
-      "bytes": 257,
-      "sha256": "575de22b1e641e093fe518e571f88b6a397ffd04c2885dcc02344f49c97d25ab"
+      "bytes": 254,
+      "sha256": "dd2d8f4b7d148c5c0622fc47a7b6a6f7e2c63b92d60abda6fe5048ce33e7eac2"
     }
   },
   "expectations": {
-    "docxTitle": "NovaFlow Industrial Systems — FAQ",
+    "docxTitle": "XFlow Industrial Systems — FAQ",
     "pdfPages": 8,
     "sitePages": 3
   }

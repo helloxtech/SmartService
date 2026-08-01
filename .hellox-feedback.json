@@ -5,6 +5,6 @@
   "mode": "both",
   "endpoint": "https://delivery.hellox.ca/api/feedback/v1/submissions",
   "package": "@helloxtech/feedback-widget",
-  "packageVersion": "0.2.0",
-  "vendorBundleSha256": "7864def1c7addb6ed80589e75cd6e98e975a0af2bb54a6a31c90e329682d7a63"
+  "packageVersion": "0.2.1",
+  "vendorBundleSha256": "ac06387840c33d8c4b9b5d76ea3cedb9f137278d8de7bcc3f41aa8cad91a0edb"
 }

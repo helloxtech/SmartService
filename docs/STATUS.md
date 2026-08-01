@@ -1,6 +1,6 @@
 # Smart Service Project Status
 
-**Last updated:** July 31, 2026 PDT
+**Last updated:** August 1, 2026 PDT
 **Current gate:** Local P0/P1 UAT evidence complete; hosted DEV mock-provider text smoke complete
 **Current phase:** Day 10 integrated local acceptance and UAT bundle complete; hosted Supabase, Cloudflare Worker/Git deployment, and hosted fictional knowledge smoke are ready
 **Active step:** Keep hosted DEV available for UAT while leaving explicit placeholders for provider capabilities that are missing from the current free/account setup
@@ -8,6 +8,7 @@
 
 ## Recent hosted UAT fixes
 
+- August 1, 2026 PDT: Prepared HelloX Feedback `0.2.1` in the isolated `codex/feedback-widget-0.2.1` worktree. The vendored bundle now supports automatic screenshots on Tailwind 4 `oklch()`/`oklab()` pages and explicit Marker 1 labeling/first-marker titles. This is locally prepared and verified only; it is not deployed.
 - July 31, 2026 PDT: Applied Forrest's free-plan/placeholder instruction. Current official provider checks show Cloudflare Browser Run is available on Free/Paid plans, LiveKit Build has a free tier but Cloud Agent deployment is early-access gated on this project, Deepgram can remain in free-credit/test mode, and ElevenLabs Free still cannot support commercial/sales-facing generated speech. Missing paid/permission items remain placeholders rather than being bypassed with broad credentials.
 - July 31, 2026 PDT: Installed `lk` 2.18.2 into Forrest's local user bin path, added non-secret LiveKit Agent deployment packaging (`Dockerfile`, `.dockerignore`, `livekit.toml`), built the `smartservice-voice-agent:local` container, and verified the container Agent configuration schema with existing local secrets without printing values.
 - July 31, 2026 PDT: LiveKit Cloud created Agent `CA_bifEfej5s7Di`, but deployment did not complete. The BYOC image path returned an Enterprise-only error, and the free Build-service source path returned `Agent deployments are in early access and not yet enabled for this project`. No live G2 claim is made.
@@ -268,7 +269,7 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Live provider smoke tests | Passed locally: OpenAI chat/supervisor/embeddings, LiveKit authenticated API/token generation, Deepgram English/Chinese STT, and ElevenLabs Chinese TTS. Hosted DEV health/admin/public-chat smoke passed with mock provider modes; hosted/deployed live G1/G2 evidence remains pending |
 | Hosted DEV Worker smoke | Passed after Git deploy: `smartservice-dev` `/health` returned `200`, hosted Admin login passed, public conversation creation returned `201`, and public message send returned `200` |
 | Hosted DEV text UAT smoke | Passed on July 31 against `https://smartservice.ca`: routes, health, runtime Supabase sign-in, public cited-answer knowledge proof, 2/2 cited answers, and 1/1 safe missing-knowledge handoff. Direct hosted service-role source/chunk count is skipped until the online service-role key is available locally. |
-| HelloX Feedback integration | Passed: vendored HelloX Feedback `0.2.0` bundle hash and byte count match the private plugin manifest; the one global widget supports anonymous and authenticated intake, anonymous attachments remain disabled, and the same-origin identity-session adapter requires a valid SmartService Supabase bearer session. |
+| HelloX Feedback integration | Passed for deployed `0.2.0`; isolated `0.2.1` upgrade prepared locally with exact bundle hash verification and upstream Tailwind 4 screenshot regression coverage. The one global widget supports anonymous and authenticated intake, anonymous attachments remain disabled, and the same-origin identity-session adapter requires a valid SmartService Supabase bearer session. |
 | Live HelloX Feedback smoke | Passed on August 1 against `https://smartservice.ca`: exact-origin CORS preflight returned `204`, the feedback button and dialog rendered in a real browser, `/chat` defaulted to anonymous intake without a file control, the authenticated session exchange returned `201` with only a short-lived token and expiry, and no feedback ticket was created during verification. |
 | HelloX Feedback security checks | Passed: exact CSP origins are deployed, Turnstile is configured for `smartservice.ca`, the server key is held only as a Cloudflare Worker secret, no server/Supabase secret appears in tracked source, and the plugin verifier reports all eight controls green. |
 | Local Smart Service and Chinese UI update checkpoint | Passed: format, lint, typecheck, unit tests, build, 4/4 Playwright tests, P0 evaluation, guardrail evaluation, 121/121 database assertions, ingestion/conversation/Days 4–10 smokes, local same-origin Supabase browser configuration, and targeted web type/unit/browser tests for the hosted public-key fallback |

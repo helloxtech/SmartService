@@ -16,6 +16,8 @@ interface HelloXFeedbackWidgetConfig
     endpoint: string;
     getIdentitySession(): Promise<string | undefined>;
     installationKey: string;
+    launcherCollapseDelayMs: number;
+    launcherInitialCollapseDelayMs: number;
     locale: FeedbackLocale;
     redactSelectors: string[];
     showPanelDescription: boolean;
@@ -200,6 +202,8 @@ export async function installHelloXFeedback(): Promise<void>
             endpoint: "https://delivery.hellox.ca/api/feedback/v1/submissions",
             getIdentitySession: getFeedbackIdentitySession,
             installationKey: configuration.feedbackInstallationKey,
+            launcherCollapseDelayMs: 2_000,
+            launcherInitialCollapseDelayMs: 5_000,
             locale: resolveFeedbackLocale(),
             redactSelectors: [
                 "[data-feedback-private]",

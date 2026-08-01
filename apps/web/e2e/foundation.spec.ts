@@ -93,6 +93,58 @@ test("never asks the browser reporter to enter an update email", async ({ page }
     await expect(feedback).not.toContainText("Email for updates");
 });
 
+test("keeps the Feedback launcher discoverable before compacting it", async ({ page }) =>
+{
+    await page.route("**/api/public-config", async (route) =>
+    {
+        await route.fulfill({
+            body: JSON.stringify({
+                feedbackInstallationKey: `hxf_live_${"a".repeat(48)}`,
+                feedbackTurnstileSiteKey: "0x4AAAAAA-feedback-browser-test",
+            }),
+            contentType: "application/json",
+            status: 200,
+        });
+    });
+
+    await page.goto("/chat");
+    const feedback = page.locator("hellox-feedback");
+    await feedback.evaluate((node) =>
+    {
+        const widget = node as HTMLElement & {
+            config: Record<string, unknown>;
+        };
+        widget.config = {
+            ...widget.config,
+            launcherCollapseDelayMs: 100,
+            launcherInitialCollapseDelayMs: 100,
+        };
+    });
+
+    const launcher = feedback.locator("[data-action='open']");
+    await expect(launcher).toHaveAttribute("aria-label", "Feedback");
+    await expect(launcher).toHaveAttribute("data-label-expanded", "true");
+    await expect(launcher).toHaveAttribute("data-label-expanded", "false");
+
+    await launcher.hover();
+    await expect(launcher).toHaveAttribute("data-label-expanded", "true");
+    await page.mouse.move(8, 8);
+    await expect(launcher).toHaveAttribute("data-label-expanded", "false");
+
+    await launcher.focus();
+    await expect(launcher).toHaveAttribute("data-label-expanded", "true");
+    await page.keyboard.press("Tab");
+    await expect(launcher).toHaveAttribute("data-label-expanded", "false");
+
+    await launcher.hover();
+    await launcher.click();
+    await feedback.locator("[data-action='minimize']").click();
+    const activeLauncher = feedback.locator("[data-action='open']");
+    await page.waitForTimeout(300);
+    await expect(activeLauncher).toHaveAttribute("data-label-expanded", "true");
+    await expect(activeLauncher).toContainText("Continue marking");
+});
+
 test("starts voice only after click and falls back cleanly when microphone is denied", async ({ page }) =>
 {
     const conversationId = "20000000-0000-4000-a000-000000000006";

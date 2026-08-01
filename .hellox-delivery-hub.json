@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "hubUrl": "https://delivery.hellox.ca",
+  "projectId": "e5063ed1-5fbb-4138-b287-689e4a75300c",
+  "projectCode": "HX-2000",
+  "source": {
+    "type": "git",
+    "repository": "https://github.com/helloxtech/SmartService",
+    "root": "."
+  },
+  "contract": "project-sync/v1"
+}

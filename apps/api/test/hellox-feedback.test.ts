@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createApp } from "../src/app";
-import type { HelloXFeedbackDependencies } from "../src/hellox-feedback-routes";
+import {
+    exchangeFeedbackIdentity,
+    type HelloXFeedbackDependencies,
+} from "../src/hellox-feedback-routes";
 import type { SmartServiceBindings } from "../src/types";
 
 const identitySessionToken = `hxf_session_${"a".repeat(64)}`;
@@ -12,6 +15,7 @@ describe("HelloX Feedback identity session", () =>
     it("returns only the short-lived token after same-origin host authentication", async () =>
     {
         const authenticate = vi.fn<HelloXFeedbackDependencies["authenticate"]>(async () => ({
+            email: "agent@smartservice.ca",
             organizationId: "11111111-1111-4111-8111-111111111111",
             role: "agent",
             userId: "22222222-2222-4222-8222-222222222222",
@@ -44,10 +48,49 @@ describe("HelloX Feedback identity session", () =>
         expect(authenticate).toHaveBeenCalledOnce();
         expect(exchange).toHaveBeenCalledWith(
             expect.objectContaining({
+                email: "agent@smartservice.ca",
                 userId: "22222222-2222-4222-8222-222222222222",
             }),
             expect.any(Object),
         );
+    });
+
+    it("sends account email only through the verified server identity exchange", async () =>
+    {
+        const fetchMock = vi.fn<typeof fetch>(async () => new Response(
+            JSON.stringify({
+                expiresAt: identitySessionExpiry,
+                token: identitySessionToken,
+            }),
+            { status: 201 },
+        ));
+        vi.stubGlobal("fetch", fetchMock);
+
+        await expect(exchangeFeedbackIdentity({
+            email: "agent@smartservice.ca",
+            organizationId: "11111111-1111-4111-8111-111111111111",
+            role: "agent",
+            userId: "22222222-2222-4222-8222-222222222222",
+        }, {
+            HELLOX_FEEDBACK_SERVER_KEY: `hxf_server_${"b".repeat(64)}`,
+            VERSION: "0.10.0",
+        } as SmartServiceBindings)).resolves.toEqual({
+            expiresAt: identitySessionExpiry,
+            token: identitySessionToken,
+        });
+
+        const request = fetchMock.mock.calls[0];
+        expect(request?.[0]).toBe(
+            "https://delivery.hellox.ca/api/feedback/v1/sessions",
+        );
+        expect(JSON.parse(String(request?.[1]?.body))).toEqual({
+            email: "agent@smartservice.ca",
+            issuer: "smartservice-supabase",
+            origin: "https://smartservice.ca",
+            subject: "22222222-2222-4222-8222-222222222222",
+        });
+        expect(String(request?.[1]?.body)).not.toContain("hxf_server_");
+        vi.unstubAllGlobals();
     });
 
     it("rejects a cross-origin identity-session request before authentication", async () =>

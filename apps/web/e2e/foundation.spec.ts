@@ -67,6 +67,32 @@ test("renders the responsive public customer chat and evidence panel", async ({ 
     expect(horizontalOverflow).toBeLessThanOrEqual(1);
 });
 
+test("never asks the browser reporter to enter an update email", async ({ page }) =>
+{
+    await page.route("**/api/public-config", async (route) =>
+    {
+        await route.fulfill({
+            body: JSON.stringify({
+                feedbackInstallationKey: `hxf_live_${"a".repeat(48)}`,
+                feedbackTurnstileSiteKey: "0x4AAAAAA-feedback-browser-test",
+            }),
+            contentType: "application/json",
+            status: 200,
+        });
+    });
+
+    await page.goto("/chat");
+    const feedback = page.locator("hellox-feedback");
+    await feedback.locator("[data-action='open']").click();
+
+    const anonymous = feedback.locator("[data-role='anonymous']");
+    await expect(anonymous).toBeChecked();
+    await anonymous.uncheck();
+
+    await expect(feedback.locator("[data-role='email']")).toHaveCount(0);
+    await expect(feedback).not.toContainText("Email for updates");
+});
+
 test("starts voice only after click and falls back cleanly when microphone is denied", async ({ page }) =>
 {
     const conversationId = "20000000-0000-4000-a000-000000000006";

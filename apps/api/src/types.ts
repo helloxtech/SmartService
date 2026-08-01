@@ -110,6 +110,7 @@ export interface AdminIdentity
 
 export interface MemberIdentity
 {
+    email: string;
     organizationId: string;
     role: "admin" | "agent";
     userId: string;

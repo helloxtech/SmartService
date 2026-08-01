@@ -9,6 +9,7 @@ const membershipRowSchema = z.object({
     role: z.enum(["admin", "agent"]),
     user_id: z.uuid(),
 });
+const memberEmailSchema = z.email().max(254);
 
 /**
  * readBearerToken
@@ -41,7 +42,7 @@ function readBearerToken(request: Request): string
  * ----------------
  * Validates the Supabase access token and resolves the authoritative active organization membership from the database.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 2 Knowledge Ingestion
+ * August 01, 2026: Updated by Forrest Zhang for verified Feedback identity
  */
 export async function authenticateMember(
     request: Request,
@@ -54,6 +55,12 @@ export async function authenticateMember(
     if (userError !== null || userData.user === null)
     {
         throw new ApiError(401, "AUTH_INVALID", "The sign-in session is not valid.");
+    }
+    const email = memberEmailSchema.safeParse(userData.user.email);
+
+    if (!email.success)
+    {
+        throw new ApiError(403, "AUTH_EMAIL_REQUIRED", "A verified account email is required.");
     }
 
     const { data, error } = await client
@@ -80,6 +87,7 @@ export async function authenticateMember(
     const membership = membershipRowSchema.parse(data[0]);
 
     return {
+        email: email.data,
         organizationId: membership.organization_id,
         role: membership.role,
         userId: membership.user_id,

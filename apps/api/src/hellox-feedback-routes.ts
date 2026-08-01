@@ -68,11 +68,11 @@ async function requireUser(
 /**
  * exchangeFeedbackIdentity
  * ----------------
- * Exchanges one verified SmartService user ID for a five-minute, single-use HelloX identity token without exposing the server key.
+ * Exchanges one verified SmartService user ID and account email for a five-minute, single-use HelloX identity token without exposing the server key.
  *
- * August 01, 2026: Created by Forrest Zhang for HelloX Feedback
+ * August 01, 2026: Updated by Forrest Zhang for verified Feedback identity
  */
-async function exchangeFeedbackIdentity(
+export async function exchangeFeedbackIdentity(
     identity: MemberIdentity,
     bindings: SmartServiceBindings,
 ): Promise<FeedbackIdentitySession>
@@ -94,6 +94,7 @@ async function exchangeFeedbackIdentity(
                 issuer: "smartservice-supabase",
                 origin: "https://smartservice.ca",
                 subject: identity.userId,
+                email: identity.email,
             }),
             headers: {
                 "content-type": "application/json",

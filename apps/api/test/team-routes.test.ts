@@ -25,6 +25,7 @@ const conversationId = "20000000-0000-4000-a000-000000000001";
 const eventId = "60000000-0000-4000-a000-000000000001";
 const timestamp = "2026-07-26T12:00:00.000Z";
 const identity: MemberIdentity = {
+    email: "agent@smartservice.ca",
     organizationId,
     role: "agent",
     userId,

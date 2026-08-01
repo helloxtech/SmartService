@@ -4,6 +4,10 @@ import { Hono } from "hono";
 
 import { ApiError } from "./errors";
 import { createAnalyticsRouter } from "./analytics-routes";
+import {
+    createHelloXFeedbackRouter,
+    type HelloXFeedbackDependencies,
+} from "./hellox-feedback-routes";
 import { createKnowledgeRouter } from "./knowledge-routes";
 import { createPublicConversationRouter } from "./public-conversation-routes";
 import { createRuntimeServices } from "./services";
@@ -22,25 +26,89 @@ import type {
  * July 29, 2026: Created by Forrest Zhang for SmartService hosted DEV Supabase sign-in
  */
 function createPublicConfigurationResponse(env: AppEnvironment["Bindings"]): {
+    feedbackInstallationKey: string | null;
+    feedbackTurnstileSiteKey: string | null;
     supabaseAnonKey: string | null;
     supabaseUrl: string | null;
 }
 {
+    const feedbackInstallationKey = env.HELLOX_FEEDBACK_INSTALLATION_KEY?.trim();
+    const feedbackTurnstileSiteKey = env.HELLOX_FEEDBACK_TURNSTILE_SITE_KEY?.trim();
     const supabaseUrl = env.SUPABASE_URL?.trim();
     const supabaseAnonKey = env.SUPABASE_ANON_KEY?.trim();
+
+    const safeFeedbackConfiguration = {
+        feedbackInstallationKey:
+            feedbackInstallationKey !== undefined
+            && /^hxf_live_[0-9a-f]{48}$/.test(feedbackInstallationKey)
+                ? feedbackInstallationKey
+                : null,
+        feedbackTurnstileSiteKey:
+            feedbackTurnstileSiteKey !== undefined
+            && feedbackTurnstileSiteKey.length >= 10
+                ? feedbackTurnstileSiteKey
+                : null,
+    };
 
     if (supabaseUrl === undefined || supabaseUrl.length === 0 || supabaseAnonKey === undefined || supabaseAnonKey.length === 0)
     {
         return {
+            ...safeFeedbackConfiguration,
             supabaseAnonKey: null,
             supabaseUrl: null,
         };
     }
 
     return {
+        ...safeFeedbackConfiguration,
         supabaseAnonKey,
         supabaseUrl,
     };
+}
+
+/**
+ * createContentSecurityPolicy
+ * ----------------
+ * Builds a narrow browser policy that permits the exact HelloX and Turnstile origins plus configured SmartService data providers.
+ *
+ * August 01, 2026: Created by Forrest Zhang for HelloX Feedback
+ */
+function createContentSecurityPolicy(env: AppEnvironment["Bindings"]): string
+{
+    const connectSources = new Set([
+        "'self'",
+        "https://challenges.cloudflare.com",
+        "https://delivery.hellox.ca",
+    ]);
+
+    for (const configuredUrl of [env.LIVEKIT_URL, env.R2_S3_ENDPOINT, env.SUPABASE_URL])
+    {
+        if (configuredUrl === undefined || configuredUrl.trim().length === 0)
+        {
+            continue;
+        }
+
+        try
+        {
+            const origin = new URL(configuredUrl).origin;
+            connectSources.add(origin);
+
+            if (origin.startsWith("https://"))
+            {
+                connectSources.add(`wss://${new URL(origin).host}`);
+            }
+        }
+        catch
+        {
+            continue;
+        }
+    }
+
+    return [
+        `connect-src ${[...connectSources].join(" ")}`,
+        "frame-src https://challenges.cloudflare.com",
+        "script-src 'self' https://challenges.cloudflare.com",
+    ].join("; ");
 }
 
 /**
@@ -52,6 +120,7 @@ function createPublicConfigurationResponse(env: AppEnvironment["Bindings"]): {
  */
 export function createApp(
     serviceFactory: RuntimeServiceFactory = createRuntimeServices,
+    helloXFeedbackDependencies?: HelloXFeedbackDependencies,
 ): Hono<AppEnvironment>
 {
     const app = new Hono<AppEnvironment>();
@@ -62,6 +131,7 @@ export function createApp(
         const startedAt = Date.now();
         context.set("requestId", requestId);
         context.header("x-request-id", requestId);
+        context.header("content-security-policy", createContentSecurityPolicy(context.env));
 
         console.log(JSON.stringify({
             event: "http.request.started",
@@ -118,12 +188,14 @@ export function createApp(
     });
 
     const analyticsRouter = createAnalyticsRouter(serviceFactory);
+    const helloXFeedbackRouter = createHelloXFeedbackRouter(helloXFeedbackDependencies);
     const knowledgeRouter = createKnowledgeRouter(serviceFactory);
     const publicConversationRouter = createPublicConversationRouter(serviceFactory);
     const teamRouter = createTeamRouter(serviceFactory);
     const voiceRouter = createVoiceRouter(serviceFactory);
     app.route("/api", analyticsRouter);
     app.route("/", analyticsRouter);
+    app.route("/api", helloXFeedbackRouter);
     app.route("/api", knowledgeRouter);
     app.route("/", knowledgeRouter);
     app.route("/api", publicConversationRouter);

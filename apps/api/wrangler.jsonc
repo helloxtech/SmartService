@@ -8,6 +8,8 @@
   "preview_urls": true,
   "vars": {
     "ENVIRONMENT": "development",
+    "HELLOX_FEEDBACK_INSTALLATION_KEY": "hxf_live_e239ef638778651b5e8e479ceee42b703fbbb4370d6a1a32",
+    "HELLOX_FEEDBACK_TURNSTILE_SITE_KEY": "0x4AAAAAAEDx-9ipx7TvTGQV",
     "AUXILIARY_PROVIDER_MODE": "mock",
     "CHAT_PROVIDER_MODE": "mock",
     "INGESTION_PROVIDER_MODE": "mock",

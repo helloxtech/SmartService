@@ -52,6 +52,8 @@ export type SmartServiceBindings = Omit<
     | "AUXILIARY_PROVIDER_MODE"
     | "ENVIRONMENT"
     | "FINALIZE_QUEUE"
+    | "HELLOX_FEEDBACK_INSTALLATION_KEY"
+    | "HELLOX_FEEDBACK_TURNSTILE_SITE_KEY"
     | "INGESTION_PROVIDER_MODE"
     | "INGEST_QUEUE"
     | "TURNSTILE_PROVIDER_MODE"
@@ -67,6 +69,9 @@ export type SmartServiceBindings = Omit<
     CONVERSATION_TOKEN_TTL_MINUTES?: string;
     ENVIRONMENT: string;
     FINALIZE_QUEUE: Queue<ConversationFinalizeMessage>;
+    HELLOX_FEEDBACK_INSTALLATION_KEY?: string;
+    HELLOX_FEEDBACK_SERVER_KEY?: string;
+    HELLOX_FEEDBACK_TURNSTILE_SITE_KEY?: string;
     INGESTION_PROVIDER_MODE?: "live" | "mock";
     INGEST_QUEUE: Queue<KnowledgeIngestMessage>;
     KNOWLEDGE_FILES: R2Bucket;

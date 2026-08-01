@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "projectId": "e5063ed1-5fbb-4138-b287-689e4a75300c",
+  "origin": "https://smartservice.ca",
+  "mode": "both",
+  "endpoint": "https://delivery.hellox.ca/api/feedback/v1/submissions",
+  "package": "@helloxtech/feedback-widget",
+  "packageVersion": "0.2.0",
+  "vendorBundleSha256": "7864def1c7addb6ed80589e75cd6e98e975a0af2bb54a6a31c90e329682d7a63"
+}

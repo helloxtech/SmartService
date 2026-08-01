@@ -29,6 +29,7 @@ export default defineConfig({
         react(),
         tailwindcss(),
     ],
+    publicDir: "../../public",
     resolve: {
         alias: {
             "@": fileURLToPath(new URL("./src", import.meta.url)),

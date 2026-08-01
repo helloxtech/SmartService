@@ -10,3 +10,4 @@ coverage/
 .env.local
 worker-configuration.d.ts
 pnpm-lock.yaml
+public/vendor/hellox-feedback/widget.js

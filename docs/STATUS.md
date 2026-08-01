@@ -268,6 +268,9 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | Live provider smoke tests | Passed locally: OpenAI chat/supervisor/embeddings, LiveKit authenticated API/token generation, Deepgram English/Chinese STT, and ElevenLabs Chinese TTS. Hosted DEV health/admin/public-chat smoke passed with mock provider modes; hosted/deployed live G1/G2 evidence remains pending |
 | Hosted DEV Worker smoke | Passed after Git deploy: `smartservice-dev` `/health` returned `200`, hosted Admin login passed, public conversation creation returned `201`, and public message send returned `200` |
 | Hosted DEV text UAT smoke | Passed on July 31 against `https://smartservice.ca`: routes, health, runtime Supabase sign-in, public cited-answer knowledge proof, 2/2 cited answers, and 1/1 safe missing-knowledge handoff. Direct hosted service-role source/chunk count is skipped until the online service-role key is available locally. |
+| HelloX Feedback integration | Passed: vendored HelloX Feedback `0.2.0` bundle hash and byte count match the private plugin manifest; the one global widget supports anonymous and authenticated intake, anonymous attachments remain disabled, and the same-origin identity-session adapter requires a valid SmartService Supabase bearer session. |
+| Live HelloX Feedback smoke | Passed on August 1 against `https://smartservice.ca`: exact-origin CORS preflight returned `204`, the feedback button and dialog rendered in a real browser, `/chat` defaulted to anonymous intake without a file control, the authenticated session exchange returned `201` with only a short-lived token and expiry, and no feedback ticket was created during verification. |
+| HelloX Feedback security checks | Passed: exact CSP origins are deployed, Turnstile is configured for `smartservice.ca`, the server key is held only as a Cloudflare Worker secret, no server/Supabase secret appears in tracked source, and the plugin verifier reports all eight controls green. |
 | Local Smart Service and Chinese UI update checkpoint | Passed: format, lint, typecheck, unit tests, build, 4/4 Playwright tests, P0 evaluation, guardrail evaluation, 121/121 database assertions, ingestion/conversation/Days 4–10 smokes, local same-origin Supabase browser configuration, and targeted web type/unit/browser tests for the hosted public-key fallback |
 | July 31 Cloudflare P0 live-secret audit | Blocked: `.env.local` does not contain `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_BROWSER_RUN_API_TOKEN`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_S3_ENDPOINT`, `TURNSTILE_SECRET_KEY`, or `VITE_TURNSTILE_SITE_KEY`; Wrangler OAuth works locally but is not deployed as an app secret |
 | LiveKit CLI install | Passed: `lk` 2.18.2 installed to `/Volumes/Forrest/Users/Forrest/.local/bin/lk`; `lk agent list` authenticated with existing LiveKit URL/API credentials and found Agent `CA_bifEfej5s7Di` |
@@ -300,6 +303,7 @@ See `docs/RESOURCE_REQUEST.md` for the complete one-message request and exact no
 
 - Project provider cost recorded before live smoke: **USD 0**.
 - Bounded live smoke calls have now been made under the approved USD 50 cap; no paid upgrade or subscription change was performed, and exact provider-side dollar cost has not been computed.
+- HelloX Feedback provisioning used the existing Cloudflare, Supabase, and Delivery Hub resources; verification created no feedback ticket and incurred no separately identified paid resource.
 
 ## Next step
 

@@ -1,0 +1,2 @@
+/*
+  Content-Security-Policy: connect-src 'self' https://delivery.hellox.ca https://challenges.cloudflare.com https://ibuvpregltbvxsxhivrg.supabase.co wss://ibuvpregltbvxsxhivrg.supabase.co https://smartservice-development-vbq3fq89.livekit.cloud wss://smartservice-development-vbq3fq89.livekit.cloud; frame-src https://challenges.cloudflare.com; script-src 'self' https://challenges.cloudflare.com

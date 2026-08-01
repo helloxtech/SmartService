@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./app";
+import { installHelloXFeedback } from "./hellox-feedback";
 import "./styles.css";
 
 const rootElement = document.getElementById("root");
@@ -16,3 +17,5 @@ createRoot(rootElement).render(
         <App />
     </StrictMode>,
 );
+
+void installHelloXFeedback();

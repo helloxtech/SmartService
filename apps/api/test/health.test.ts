@@ -21,6 +21,8 @@ describe("health endpoint", () =>
 
             expect(response.status).toBe(200);
             expect(response.headers.get("x-request-id")).toBe("health-test-request");
+            expect(response.headers.get("content-security-policy")).toContain("https://delivery.hellox.ca");
+            expect(response.headers.get("content-security-policy")).toContain("https://challenges.cloudflare.com");
             expect(health.environment).toBe("development");
             expect(health.requestId).toBe("health-test-request");
         },
@@ -57,8 +59,35 @@ describe("health endpoint", () =>
         expect(response.status).toBe(200);
         expect(response.headers.get("cache-control")).toBe("no-store");
         expect(body).toEqual({
+            feedbackInstallationKey: null,
+            feedbackTurnstileSiteKey: null,
             supabaseAnonKey: "public-anon-key",
             supabaseUrl: "https://example.supabase.co",
         });
+    });
+
+    it("serves browser-safe HelloX Feedback configuration without exposing the server key", async () =>
+    {
+        const app = createApp();
+        const response = await app.fetch(
+            new Request("https://smartservice.test/api/public-config"),
+            {
+                ENVIRONMENT: "development",
+                HELLOX_FEEDBACK_INSTALLATION_KEY: "hxf_live_1234567890abcdef1234567890abcdef1234567890abcdef",
+                HELLOX_FEEDBACK_SERVER_KEY: "hxf_server_must-not-leave-the-worker",
+                HELLOX_FEEDBACK_TURNSTILE_SITE_KEY: "turnstile-public-site-key",
+                VERSION: "0.10.0",
+            } as SmartServiceBindings,
+        );
+        const body: unknown = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(body).toEqual({
+            feedbackInstallationKey: "hxf_live_1234567890abcdef1234567890abcdef1234567890abcdef",
+            feedbackTurnstileSiteKey: "turnstile-public-site-key",
+            supabaseAnonKey: null,
+            supabaseUrl: null,
+        });
+        expect(JSON.stringify(body)).not.toContain("must-not-leave-the-worker");
     });
 });

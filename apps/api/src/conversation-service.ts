@@ -1,5 +1,6 @@
 import {
     buildRetrievalQuestion,
+    createApprovedManualAnswer,
     createSafeHandoff,
     detectConversationLanguage,
     evaluateDeterministicGuardrails,
@@ -871,15 +872,27 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 }
                 else
                 {
-                    const generated = await this.answers.generate({
+                    const generationInput = {
                         evidence,
                         language,
                         question: input.text,
                         recentMessages,
-                    });
-                    inputTokens = generated.inputTokens;
-                    outputTokens = generated.outputTokens;
-                    answer = validateGroundedAnswer(generated.answer, evidence);
+                    };
+                    const approvedManualAnswer = createApprovedManualAnswer(generationInput);
+
+                    if (approvedManualAnswer !== null)
+                    {
+                        provider = "deterministic";
+                        model = "approved-manual-v1";
+                        answer = approvedManualAnswer;
+                    }
+                    else
+                    {
+                        const generated = await this.answers.generate(generationInput);
+                        inputTokens = generated.inputTokens;
+                        outputTokens = generated.outputTokens;
+                        answer = validateGroundedAnswer(generated.answer, evidence);
+                    }
 
                     if (
                         answer.decision === "answer"

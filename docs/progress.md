@@ -13,13 +13,13 @@ current_phase:
 Hosted knowledge retrieval repair and live acceptance.
 
 active_step:
-Publish the verified GPT-5 reasoning-budget correction and rerun the live cited-answer/follow-up acceptance set.
+Publish the deterministic approved-manual path and complete the live confirmation and unsupported-question acceptance cases.
 
 completed_steps:
-Reproduced both hosted failures; proved the Worker was using deterministic mock chat/ingestion; implemented split provider modes, live OpenAI, a calibrated threshold, and bounded contextual follow-up retrieval; safely installed the least-privilege Browser Run secret; passed the complete repository check; deployed the repair and used credential-safe live crawl traces to normalize Cloudflare's current contract; completed website v3 with 10 real documents and 65 OpenAI-embedded chunks; then proved the first customer turn retrieved eight threshold-passing chunks but exhausted its 1,000-token GPT-5 reasoning/output budget before producing Structured Output, leading to explicit low reasoning effort, bounded larger output budgets, metadata-only incomplete diagnostics, and 56 green API tests.
+Reproduced both hosted failures; implemented and deployed split live providers, calibrated retrieval, contextual follow-ups, the current Browser Run contract, and bounded GPT-5 reasoning; completed website v3 with 10 real documents and 65 OpenAI-embedded chunks; live customer acceptance now answers the school name and course question with citations; the exact manual question retrieved its approved chunk at `0.881005` but GPT-5 returned a citation-format validation failure, so exact approved answers and their immediately following confirmations now use a deterministic cited path before the unchanged output guardrails, with assistant-core and API suites green.
 
 next_step:
-Deploy the reasoning-budget correction, then verify the two music-school questions and manual-answer confirmation follow-up with citations plus one unsupported-question handoff.
+Deploy the approved-manual path, verify the exact answer and `are you sure?` in one fresh conversation, then verify one unsupported-question handoff and finalize status/resource evidence.
 
 verification_evidence:
 The live conversation and knowledge pages reproduced the exact user report. `smartservice.ca/health` returned the hosted development Worker. The actual music-school corpus produced semantic similarity requiring the new calibrated threshold. The final `pnpm check` passed after the credential/configuration change: formatting, lint, every workspace typecheck, all 133 tests, the production web builds, and the Cloudflare Worker dry run.

@@ -365,33 +365,62 @@ function createEvidenceAnswer(
 }
 
 /**
+ * isApprovedAnswerConfirmation
+ * ----------------
+ * Identifies only confirmation follow-ups that can safely repeat a previously cited approved manual answer.
+ *
+ * August 02, 2026: Created by Forrest Zhang for SmartService Live Knowledge Retrieval Fix
+ */
+function isApprovedAnswerConfirmation(question: string): boolean
+{
+    const normalized = normalizeQuestion(question);
+
+    return /^(?:are you sure|really|is that (?:right|correct|true)|can you confirm(?: that)?|你?确定吗|真的吗|是吗|对吗|没错吗|能确认吗|可以确认吗)$/u.test(normalized);
+}
+
+/**
  * createApprovedManualAnswer
  * ----------------
- * Returns an exact Admin-authored Question/Answer section only when its normalized question matches the current request.
+ * Returns an Admin-authored answer for its exact question or a directly following confirmation, with the same manual citation.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 5 One-click Knowledge
+ * August 02, 2026: Updated by Forrest Zhang for SmartService Live Knowledge Retrieval Fix
  */
-function createApprovedManualAnswer(input: RagGenerationInput): RagAnswer | null
+export function createApprovedManualAnswer(input: RagGenerationInput): RagAnswer | null
 {
     const normalizedQuestion = normalizeQuestion(input.question);
+    const priorCustomerMessage = [...input.recentMessages]
+        .reverse()
+        .find((message) => message.senderType === "customer");
+    const confirmation = isApprovedAnswerConfirmation(input.question);
 
     for (const evidence of input.evidence)
     {
         const match = /^Question:\s*(.+?)\n\nAnswer:\s*([\s\S]+?)(?:\n\nSource note:|$)/iu
             .exec(evidence.content.trim());
 
-        if (
-            match?.[1] !== undefined
-            && match[2] !== undefined
-            && normalizeQuestion(match[1]) === normalizedQuestion
-        )
+        if (match?.[1] !== undefined && match[2] !== undefined)
         {
+            const approvedQuestion = normalizeQuestion(match[1]);
+            const exactMatch = approvedQuestion === normalizedQuestion;
+            const contextualConfirmation = confirmation
+                && priorCustomerMessage !== undefined
+                && normalizeQuestion(priorCustomerMessage.text) === approvedQuestion;
+
+            if (!exactMatch && !contextualConfirmation)
+            {
+                continue;
+            }
+
             const answer = match[2].replace(/\s+/gu, " ").trim().slice(0, 1_600);
 
             if (answer.length > 0)
             {
                 return {
-                    answer,
+                    answer: contextualConfirmation
+                        ? input.language === "zh-CN"
+                            ? `是的。根据已批准资料，${answer}`
+                            : `Yes. According to the approved knowledge, ${answer}`
+                        : answer,
                     citationChunkIds: [evidence.chunkId],
                     confidence: 0.95,
                     decision: "answer",

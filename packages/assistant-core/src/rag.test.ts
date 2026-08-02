@@ -102,6 +102,18 @@ describe("grounded RAG", () =>
             question: "What is the delivery time?",
             recentMessages: [],
         });
+        const confirmation = await provider.generate({
+            evidence: manualEvidence,
+            language: "en",
+            question: "Are you sure?",
+            recentMessages: [{
+                senderType: "customer",
+                text: "What is the diagnostic coverage window?",
+            }, {
+                senderType: "ai",
+                text: "The approved diagnostic coverage window is 14 days.",
+            }],
+        });
 
         expect(matching.answer).toMatchObject({
             answer: "The approved diagnostic coverage window is 14 days.",
@@ -109,6 +121,11 @@ describe("grounded RAG", () =>
             decision: "answer",
         });
         expect(different.answer.decision).toBe("handoff");
+        expect(confirmation.answer).toMatchObject({
+            answer: "Yes. According to the approved knowledge, The approved diagnostic coverage window is 14 days.",
+            citationChunkIds: [manualEvidence[0]?.chunkId],
+            decision: "answer",
+        });
     });
 
     it("rejects a structurally valid citation outside the retrieval set", () =>

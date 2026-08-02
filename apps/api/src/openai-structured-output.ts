@@ -3,6 +3,9 @@ import { z } from "zod";
 import { ApiError } from "./errors";
 
 const responsesApiSchema = z.object({
+    incomplete_details: z.object({
+        reason: z.string(),
+    }).nullable().optional(),
     output: z.array(z.object({
         content: z.array(z.object({
             text: z.string().optional(),
@@ -10,9 +13,13 @@ const responsesApiSchema = z.object({
         }).passthrough()).optional(),
         type: z.string(),
     }).passthrough()),
+    status: z.string().optional(),
     usage: z.object({
         input_tokens: z.number().int().nonnegative(),
         output_tokens: z.number().int().nonnegative(),
+        output_tokens_details: z.object({
+            reasoning_tokens: z.number().int().nonnegative().optional(),
+        }).optional(),
     }).optional(),
 }).passthrough();
 
@@ -31,6 +38,7 @@ export interface StructuredOutputRequest
         user: string;
     };
     promptVersion: string;
+    reasoningEffort?: "minimal" | "low" | "medium" | "high";
     schema: Record<string, unknown>;
     timeoutMs: number;
 }
@@ -76,7 +84,7 @@ async function waitForResponseRetry(): Promise<void>
  *
  * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Shared AI Adapters
  */
-function extractStructuredText(response: z.infer<typeof responsesApiSchema>): string
+function extractStructuredText(response: z.infer<typeof responsesApiSchema>): string | null
 {
     for (const output of response.output)
     {
@@ -94,11 +102,7 @@ function extractStructuredText(response: z.infer<typeof responsesApiSchema>): st
         }
     }
 
-    throw new ApiError(
-        502,
-        "STRUCTURED_OUTPUT_INVALID",
-        "The AI provider did not return a usable Structured Output.",
-    );
+    return null;
 }
 
 /**
@@ -134,6 +138,9 @@ export async function requestStructuredOutput(
                     ],
                     max_output_tokens: input.maxOutputTokens,
                     model: input.model,
+                    ...(input.reasoningEffort === undefined
+                        ? {}
+                        : { reasoning: { effort: input.reasoningEffort } }),
                     store: false,
                     text: {
                         format: {
@@ -170,11 +177,30 @@ export async function requestStructuredOutput(
         if (response.ok)
         {
             const payload = responsesApiSchema.parse(await response.json());
+            const structuredText = extractStructuredText(payload);
             let value: unknown;
+
+            if (structuredText === null)
+            {
+                console.error(JSON.stringify({
+                    contentTypes: payload.output.flatMap((output) =>
+                    {
+                        return (output.content ?? []).map((content) => content.type);
+                    }),
+                    event: "structured_output.missing",
+                    incompleteReason: payload.incomplete_details?.reason ?? null,
+                    model: input.model,
+                    outputTypes: payload.output.map((output) => output.type),
+                    reasoningTokens: payload.usage?.output_tokens_details?.reasoning_tokens ?? null,
+                    responseStatus: payload.status ?? null,
+                }));
+
+                throw new ApiError(502, input.errorCode, input.errorMessage);
+            }
 
             try
             {
-                value = JSON.parse(extractStructuredText(payload)) as unknown;
+                value = JSON.parse(structuredText) as unknown;
             }
             catch (error: unknown)
             {

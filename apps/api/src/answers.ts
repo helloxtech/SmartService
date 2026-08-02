@@ -52,11 +52,12 @@ export class OpenAiRagAnswerProvider implements RagAnswerProvider
             errorCode: "ANSWER_PROVIDER_FAILED",
             errorMessage: "The answer provider request failed.",
             eventName: "rag.answer.failed",
-            maxOutputTokens: 1_000,
+            maxOutputTokens: 2_500,
             model: this.model,
             name: "smartservice_rag_answer",
             prompt: buildRagPrompt(input),
             promptVersion: ragPromptVersion,
+            reasoningEffort: "low",
             schema: ragAnswerJsonSchema,
             timeoutMs: 15_000,
         });

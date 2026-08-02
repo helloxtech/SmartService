@@ -13,13 +13,13 @@ current_phase:
 Hosted knowledge retrieval repair and live acceptance.
 
 active_step:
-Publish the verified Browser Run contract correction, reprocess the music-school website, and run live cited-answer/follow-up acceptance.
+Publish the verified GPT-5 reasoning-budget correction and rerun the live cited-answer/follow-up acceptance set.
 
 completed_steps:
-Reproduced both hosted failures; proved the Worker was using deterministic mock chat/ingestion; identified the mock crawler, exact-only manual-answer behavior, context-free follow-up retrieval, and over-strict live threshold; implemented split upload/crawl/embedding modes, live OpenAI chat/auxiliary/embedding configuration, a calibrated threshold, and bounded contextual follow-up retrieval; created and safely installed the least-privilege Browser Run secret; passed the complete 133-test `pnpm check`; deployed commit `63ba207` as Worker version `07396bd6-8902-44bd-a3f7-c55a243b4ec9`; re-embedded the manual answer and recent Apple Seeds document; then used credential-safe live crawl traces to remove the unsupported request field and prove that Cloudflare includes incomplete queued records during `running`, leading to status-first normalization, per-completed-record validation, a passing contract test, and 55 green API tests.
+Reproduced both hosted failures; proved the Worker was using deterministic mock chat/ingestion; implemented split provider modes, live OpenAI, a calibrated threshold, and bounded contextual follow-up retrieval; safely installed the least-privilege Browser Run secret; passed the complete repository check; deployed the repair and used credential-safe live crawl traces to normalize Cloudflare's current contract; completed website v3 with 10 real documents and 65 OpenAI-embedded chunks; then proved the first customer turn retrieved eight threshold-passing chunks but exhausted its 1,000-token GPT-5 reasoning/output budget before producing Structured Output, leading to explicit low reasoning effort, bounded larger output budgets, metadata-only incomplete diagnostics, and 56 green API tests.
 
 next_step:
-Deploy the Browser Run contract correction, retry `canadaycmusicacademy.com`, then verify the two music-school questions and manual-answer confirmation follow-up with citations plus one unsupported-question handoff.
+Deploy the reasoning-budget correction, then verify the two music-school questions and manual-answer confirmation follow-up with citations plus one unsupported-question handoff.
 
 verification_evidence:
 The live conversation and knowledge pages reproduced the exact user report. `smartservice.ca/health` returned the hosted development Worker. The actual music-school corpus produced semantic similarity requiring the new calibrated threshold. The final `pnpm check` passed after the credential/configuration change: formatting, lint, every workspace typecheck, all 133 tests, the production web builds, and the Cloudflare Worker dry run.

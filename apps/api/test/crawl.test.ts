@@ -23,6 +23,12 @@ describe("CloudflareBrowserRunCrawlProvider", () =>
             }), { status: 200 }))
             .mockResolvedValueOnce(new Response(JSON.stringify({
                 result: {
+                    status: "running",
+                },
+                success: true,
+            }), { status: 200 }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({
+                result: {
                     finished: 1,
                     records: [{
                         markdown: "# Example Academy\nApproved course information.",

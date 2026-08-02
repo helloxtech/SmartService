@@ -45,11 +45,11 @@ const crawlRecordSchema = z.object({
 const crawlStatusResponseSchema = z.object({
     result: z.object({
         cursor: z.string().optional(),
-        finished: z.number().int().nonnegative(),
-        records: z.array(crawlRecordSchema),
+        finished: z.number().int().nonnegative().optional().default(0),
+        records: z.array(crawlRecordSchema).optional().default([]),
         skipped: z.number().int().nonnegative().optional().default(0),
         status: z.string(),
-        total: z.number().int().nonnegative(),
+        total: z.number().int().nonnegative().optional().default(0),
     }),
     success: z.literal(true),
 });

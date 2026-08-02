@@ -44,15 +44,20 @@ const crawlRecordSchema = z.object({
 
 const crawlStatusResponseSchema = z.object({
     result: z.object({
-        cursor: z.string().optional(),
-        finished: z.number().int().nonnegative().optional().default(0),
-        records: z.array(crawlRecordSchema).optional().default([]),
-        skipped: z.number().int().nonnegative().optional().default(0),
         status: z.string(),
-        total: z.number().int().nonnegative().optional().default(0),
-    }),
+    }).passthrough(),
     success: z.literal(true),
 });
+
+interface CrawlStatusResult
+{
+    cursor?: string;
+    finished: number;
+    records: z.infer<typeof crawlRecordSchema>[];
+    skipped: number;
+    status: string;
+    total: number;
+}
 
 /**
  * requireCrawlerBinding
@@ -214,7 +219,7 @@ export class CloudflareBrowserRunCrawlProvider implements CrawlProvider
     private async fetchStatus(
         jobId: string,
         cursor?: string,
-    ): Promise<z.infer<typeof crawlStatusResponseSchema>["result"]>
+    ): Promise<CrawlStatusResult>
     {
         const accountId = requireCrawlerBinding(this.bindings, "CLOUDFLARE_ACCOUNT_ID");
         const token = requireCrawlerBinding(
@@ -241,8 +246,32 @@ export class CloudflareBrowserRunCrawlProvider implements CrawlProvider
             crawlStatusResponseSchema,
             "status",
         );
+        const raw = payload.result;
+        const records = Array.isArray(raw.records)
+            ? raw.records.flatMap((record) =>
+            {
+                const parsed = crawlRecordSchema.safeParse(record);
 
-        return payload.result;
+                return parsed.success ? [parsed.data] : [];
+            })
+            : [];
+        const result = {
+            finished: typeof raw.finished === "number" && raw.finished >= 0
+                ? Math.trunc(raw.finished)
+                : 0,
+            records,
+            skipped: typeof raw.skipped === "number" && raw.skipped >= 0
+                ? Math.trunc(raw.skipped)
+                : 0,
+            status: raw.status,
+            total: typeof raw.total === "number" && raw.total >= 0
+                ? Math.trunc(raw.total)
+                : 0,
+        };
+
+        return typeof raw.cursor === "string"
+            ? { ...result, cursor: raw.cursor }
+            : result;
     }
 
     /**
@@ -257,7 +286,7 @@ export class CloudflareBrowserRunCrawlProvider implements CrawlProvider
         maxPages: number,
     ): Promise<z.infer<typeof crawlRecordSchema>[]>
     {
-        let completedResult: z.infer<typeof crawlStatusResponseSchema>["result"] | null = null;
+        let completedResult: CrawlStatusResult | null = null;
 
         for (let attempt = 0; attempt < 60; attempt += 1)
         {
@@ -272,7 +301,7 @@ export class CloudflareBrowserRunCrawlProvider implements CrawlProvider
 
             if (
                 normalizedStatus === "errored"
-                || normalizedStatus === "cancelled"
+                || normalizedStatus.startsWith("cancelled")
                 || normalizedStatus === "failed"
             )
             {

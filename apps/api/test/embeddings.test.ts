@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { OpenAiEmbeddingProvider } from "../src/embeddings";
+import {
+    createEmbeddingProvider,
+    OpenAiEmbeddingProvider,
+} from "../src/embeddings";
 import type { SmartServiceBindings } from "../src/types";
 
 afterEach(() =>
@@ -11,6 +14,14 @@ afterEach(() =>
 
 describe("OpenAiEmbeddingProvider", () =>
 {
+    it("can enable live embeddings independently from upload and crawl providers", () =>
+    {
+        expect(createEmbeddingProvider({
+            EMBEDDING_PROVIDER_MODE: "live",
+            INGESTION_PROVIDER_MODE: "mock",
+        } as SmartServiceBindings)).toBeInstanceOf(OpenAiEmbeddingProvider);
+    });
+
     it("retries one transient network failure and validates the 1024-dimension response", async () =>
     {
         vi.useFakeTimers();

@@ -181,7 +181,7 @@ export class OpenAiEmbeddingProvider implements EmbeddingProvider
  */
 export function createEmbeddingProvider(bindings: SmartServiceBindings): EmbeddingProvider
 {
-    return bindings.INGESTION_PROVIDER_MODE === "live"
+    return (bindings.EMBEDDING_PROVIDER_MODE ?? bindings.INGESTION_PROVIDER_MODE) === "live"
         ? new OpenAiEmbeddingProvider(bindings)
         : new DeterministicEmbeddingProvider();
 }

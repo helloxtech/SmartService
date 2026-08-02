@@ -610,7 +610,7 @@ export function createUploadIntentProvider(
     bindings: SmartServiceBindings,
 ): UploadIntentProvider
 {
-    return bindings.INGESTION_PROVIDER_MODE === "live"
+    return (bindings.UPLOAD_PROVIDER_MODE ?? bindings.INGESTION_PROVIDER_MODE) === "live"
         ? new LiveR2UploadIntentProvider(bindings)
         : new MockR2UploadIntentProvider(bindings);
 }

@@ -49,6 +49,8 @@ import type {
 export type SmartServiceBindings = Omit<
     Env,
     | "CHAT_PROVIDER_MODE"
+    | "CRAWL_PROVIDER_MODE"
+    | "EMBEDDING_PROVIDER_MODE"
     | "AUXILIARY_PROVIDER_MODE"
     | "ENVIRONMENT"
     | "FINALIZE_QUEUE"
@@ -57,6 +59,7 @@ export type SmartServiceBindings = Omit<
     | "INGESTION_PROVIDER_MODE"
     | "INGEST_QUEUE"
     | "TURNSTILE_PROVIDER_MODE"
+    | "UPLOAD_PROVIDER_MODE"
     | "VOICE_PROVIDER_MODE"
     | "VERSION"
 > & {
@@ -67,6 +70,8 @@ export type SmartServiceBindings = Omit<
     CHAT_PROVIDER_MODE?: "live" | "mock";
     CONVERSATION_TOKEN_SECRET?: string;
     CONVERSATION_TOKEN_TTL_MINUTES?: string;
+    CRAWL_PROVIDER_MODE?: "live" | "mock";
+    EMBEDDING_PROVIDER_MODE?: "live" | "mock";
     ENVIRONMENT: string;
     FINALIZE_QUEUE: Queue<ConversationFinalizeMessage>;
     HELLOX_FEEDBACK_INSTALLATION_KEY?: string;
@@ -92,6 +97,7 @@ export type SmartServiceBindings = Omit<
     TURNSTILE_EXPECTED_HOSTNAME?: string;
     TURNSTILE_PROVIDER_MODE?: "live" | "mock";
     TURNSTILE_SECRET_KEY?: string;
+    UPLOAD_PROVIDER_MODE?: "live" | "mock";
     LIVEKIT_AGENT_NAME?: string;
     LIVEKIT_API_KEY?: string;
     LIVEKIT_API_SECRET?: string;

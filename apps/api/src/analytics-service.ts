@@ -278,7 +278,7 @@ function createManualPayload(
 function parseThreshold(bindings: SmartServiceBindings): number
 {
     const value = bindings.RAG_MATCH_THRESHOLD === undefined
-        ? bindings.CHAT_PROVIDER_MODE === "live" ? 0.72 : 0
+        ? bindings.CHAT_PROVIDER_MODE === "live" ? 0.35 : 0
         : Number(bindings.RAG_MATCH_THRESHOLD);
 
     if (!Number.isFinite(value) || value < -1 || value > 1)

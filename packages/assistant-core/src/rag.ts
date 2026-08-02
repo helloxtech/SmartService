@@ -149,6 +149,59 @@ export function detectConversationLanguage(question: string): ConversationLangua
 }
 
 /**
+ * isContextDependentFollowUp
+ * ----------------
+ * Identifies short confirmation or elaboration prompts that require the preceding grounded turn to be searchable.
+ *
+ * August 02, 2026: Created by Forrest Zhang for SmartService Live Knowledge Retrieval Fix
+ */
+export function isContextDependentFollowUp(question: string): boolean
+{
+    const normalized = normalizeQuestion(question);
+
+    if (normalized.length === 0 || normalized.length > 80)
+    {
+        return false;
+    }
+
+    return /^(?:are you sure|really|is that (?:right|correct|true)|can you confirm(?: that)?|why|why is that|how so|tell me more|what do you mean|what about (?:that|it|this|those))$/u.test(normalized)
+        || /^(?:你?确定吗|真的吗|是吗|对吗|没错吗|为什么|怎么说|能确认吗|可以确认吗|请再说明|详细说说|然后呢|那(?:这个|它|些)?呢)$/u.test(normalized);
+}
+
+/**
+ * buildRetrievalQuestion
+ * ----------------
+ * Adds a bounded recent transcript only for context-dependent follow-ups so retrieval can recover the cited topic without polluting unrelated new questions.
+ *
+ * August 02, 2026: Created by Forrest Zhang for SmartService Live Knowledge Retrieval Fix
+ */
+export function buildRetrievalQuestion(
+    question: string,
+    recentMessages: readonly RecentConversationMessage[],
+): string
+{
+    const currentQuestion = question.trim().slice(0, 500);
+
+    if (!isContextDependentFollowUp(currentQuestion) || recentMessages.length === 0)
+    {
+        return currentQuestion;
+    }
+
+    const context = recentMessages
+        .slice(-4)
+        .map((message) => `${message.senderType}: ${message.text.replace(/\s+/gu, " ").trim()}`)
+        .filter((message) => message.length > 0)
+        .join("\n");
+
+    if (context.length === 0)
+    {
+        return currentQuestion;
+    }
+
+    return `${context}\ncustomer follow-up: ${currentQuestion}`.slice(-4_000);
+}
+
+/**
  * createSafeHandoff
  * ----------------
  * Builds a localized non-speculative fallback for missing evidence, conflicts, customer requests, or system failures.

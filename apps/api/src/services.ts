@@ -89,7 +89,9 @@ function assertSafeProviderMode(bindings: SmartServiceBindings): void
     if (
         bindings.ENVIRONMENT === "production"
         && (
-            bindings.INGESTION_PROVIDER_MODE !== "live"
+            (bindings.UPLOAD_PROVIDER_MODE ?? bindings.INGESTION_PROVIDER_MODE) !== "live"
+            || (bindings.CRAWL_PROVIDER_MODE ?? bindings.INGESTION_PROVIDER_MODE) !== "live"
+            || (bindings.EMBEDDING_PROVIDER_MODE ?? bindings.INGESTION_PROVIDER_MODE) !== "live"
             || bindings.CHAT_PROVIDER_MODE !== "live"
             || bindings.AUXILIARY_PROVIDER_MODE !== "live"
             || bindings.TURNSTILE_PROVIDER_MODE !== "live"
@@ -122,7 +124,7 @@ export function createRuntimeServices(bindings: SmartServiceBindings): RuntimeSe
     const team = new SupabaseTeamRepository(bindings, conversationRepository);
     const voiceRepository = new SupabaseVoiceRepository(bindings, conversationRepository);
     const objects = new R2KnowledgeObjectStore(bindings.KNOWLEDGE_FILES);
-    const crawl = bindings.INGESTION_PROVIDER_MODE === "live"
+    const crawl = (bindings.CRAWL_PROVIDER_MODE ?? bindings.INGESTION_PROVIDER_MODE) === "live"
         ? new CloudflareBrowserRunCrawlProvider(bindings, cloudflareDnsResolver)
         : new MockWebsiteCrawlProvider();
 

@@ -594,10 +594,11 @@ export class SupabaseConversationRepository
     public async listRecentMessages(
         organizationId: string,
         conversationId: string,
+        excludedMessageId?: string,
     ): Promise<RecentConversationMessage[]>
     {
         const client = createServiceClient(this.bindings);
-        const { data, error } = await client
+        let query = client
             .from("messages")
             .select("sender_type, text")
             .eq("organization_id", organizationId)
@@ -605,6 +606,13 @@ export class SupabaseConversationRepository
             .in("sender_type", ["customer", "ai", "human"])
             .order("created_at", { ascending: false })
             .limit(6);
+
+        if (excludedMessageId !== undefined)
+        {
+            query = query.neq("id", excludedMessageId);
+        }
+
+        const { data, error } = await query;
 
         if (error !== null)
         {

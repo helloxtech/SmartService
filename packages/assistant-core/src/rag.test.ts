@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    buildRetrievalQuestion,
     DeterministicRagAnswerProvider,
+    isContextDependentFollowUp,
     RagValidationError,
     validateGroundedAnswer,
     type RetrievedEvidence,
@@ -19,6 +21,28 @@ const evidence: RetrievedEvidence[] = [{
 
 describe("grounded RAG", () =>
 {
+    it("contextualizes short follow-ups without polluting unrelated questions", () =>
+    {
+        const recentMessages = [
+            {
+                senderType: "customer" as const,
+                text: "请问移动房屋公园的估值取决于什么？",
+            },
+            {
+                senderType: "ai" as const,
+                text: "移动房屋公园的估值取决于已批准的评估因素。",
+            },
+        ];
+        const followUp = buildRetrievalQuestion("Are you sure?", recentMessages);
+
+        expect(isContextDependentFollowUp("Are you sure?")).toBe(true);
+        expect(isContextDependentFollowUp("请问有什么课程？")).toBe(false);
+        expect(followUp).toContain("移动房屋公园的估值");
+        expect(followUp).toContain("customer follow-up: Are you sure?");
+        expect(buildRetrievalQuestion("请问有什么课程？", recentMessages))
+            .toBe("请问有什么课程？");
+    });
+
     it("answers a fixture question only with a retrieved supporting citation", async () =>
     {
         const provider = new DeterministicRagAnswerProvider();

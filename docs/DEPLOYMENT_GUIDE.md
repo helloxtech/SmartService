@@ -41,7 +41,7 @@ The correct browser-created online Supabase project, Cloudflare DEV R2/Queue res
 2. Apply all ordered migrations to the dedicated project and run `pnpm db:test` plus `pnpm db:lint` against that hosted schema. Connector-applied migrations are useful progress, but the final evidence still needs a repeatable migration status.
 3. Confirm the approved R2 buckets, ingestion/finalization Queues, and dead-letter Queues using the names in `apps/api/wrangler.jsonc`.
 4. Configure Worker secrets by name from `.env.example`; use `wrangler secret put` or the Cloudflare dashboard. Never place values in tracked Wrangler variables.
-5. Set `INGESTION_PROVIDER_MODE`, `CHAT_PROVIDER_MODE`, `AUXILIARY_PROVIDER_MODE`, `TURNSTILE_PROVIDER_MODE`, and `VOICE_PROVIDER_MODE` to `live` only after every corresponding binding is valid.
+5. Configure upload, crawl, and embedding independently with `UPLOAD_PROVIDER_MODE`, `CRAWL_PROVIDER_MODE`, and `EMBEDDING_PROVIDER_MODE`; `INGESTION_PROVIDER_MODE` remains their backward-compatible fallback. Set each provider, plus `CHAT_PROVIDER_MODE`, `AUXILIARY_PROVIDER_MODE`, `TURNSTILE_PROVIDER_MODE`, and `VOICE_PROVIDER_MODE`, to `live` only after its corresponding binding is valid.
 6. Build and deploy the Worker:
 
    ```bash

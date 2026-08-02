@@ -1,4 +1,5 @@
 import {
+    buildRetrievalQuestion,
     createSafeHandoff,
     detectConversationLanguage,
     evaluateDeterministicGuardrails,
@@ -288,7 +289,7 @@ function buildCitationWrites(
  */
 function parseThreshold(bindings: SmartServiceBindings): number
 {
-    const defaultThreshold = bindings.CHAT_PROVIDER_MODE === "live" ? 0.72 : 0;
+    const defaultThreshold = bindings.CHAT_PROVIDER_MODE === "live" ? 0.35 : 0;
     const threshold = bindings.RAG_MATCH_THRESHOLD === undefined
         ? defaultThreshold
         : Number(bindings.RAG_MATCH_THRESHOLD);
@@ -778,6 +779,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
 
         const startedAt = Date.now();
         let evidence: RetrievedEvidence[] = [];
+        let retrievalContextualized = false;
         let provider = this.answers.provider;
         let model = this.answers.model;
         let inputTokens: number | null = null;
@@ -835,7 +837,17 @@ export class DefaultPublicConversationService implements PublicConversationServi
                     });
                 }
 
-                const vectors = await this.embeddings.embed([input.text]);
+                const recentMessages = await this.repository.listRecentMessages(
+                    organizationId,
+                    conversationId,
+                    customerMessage.id,
+                );
+                const retrievalQuestion = buildRetrievalQuestion(
+                    input.text,
+                    recentMessages,
+                );
+                retrievalContextualized = retrievalQuestion !== input.text.trim();
+                const vectors = await this.embeddings.embed([retrievalQuestion]);
                 const queryEmbedding = vectors[0];
 
                 if (queryEmbedding === undefined)
@@ -845,7 +857,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
 
                 evidence = await this.repository.retrieveEvidence(
                     organizationId,
-                    input.text,
+                    retrievalQuestion,
                     queryEmbedding,
                     parseThreshold(this.bindings),
                     8,
@@ -859,10 +871,6 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 }
                 else
                 {
-                    const recentMessages = await this.repository.listRecentMessages(
-                        organizationId,
-                        conversationId,
-                    );
                     const generated = await this.answers.generate({
                         evidence,
                         language,
@@ -987,6 +995,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
             provider,
             requestId,
             retrievalMetadata: {
+                contextualized: retrievalContextualized,
                 count: evidence.length,
                 scores: evidence.map((item) => ({
                     chunkId: item.chunkId,

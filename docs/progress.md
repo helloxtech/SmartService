@@ -10,28 +10,28 @@ human_gates:
 On August 2, 2026, Forrest Zhang explicitly authorized the Project Lead to make all necessary product and technical decisions and complete the work. This authorizes one least-privilege Cloudflare Browser Run token, its Worker-secret storage, hosted-development deployment, source reprocessing, bounded provider calls, and live verification. Paid upgrades, production/customer data, destructive actions, and R11 remain outside this authorization.
 
 current_phase:
-Hosted knowledge retrieval repair and live acceptance.
+Hosted knowledge retrieval repair completed and accepted live.
 
 active_step:
-Publish the deterministic approved-manual path and complete the live confirmation and unsupported-question acceptance cases.
+None for this repair. Hold at the separate full-G1 R2 signer and Turnstile resource boundary.
 
 completed_steps:
-Reproduced both hosted failures; implemented and deployed split live providers, calibrated retrieval, contextual follow-ups, the current Browser Run contract, and bounded GPT-5 reasoning; completed website v3 with 10 real documents and 65 OpenAI-embedded chunks; live customer acceptance now answers the school name and course question with citations; the exact manual question retrieved its approved chunk at `0.881005` but GPT-5 returned a citation-format validation failure, so exact approved answers and their immediately following confirmations now use a deterministic cited path before the unchanged output guardrails, with assistant-core and API suites green.
+Reproduced both hosted failures; implemented and deployed split live providers, calibrated retrieval, contextual follow-ups, the current Browser Run contract, bounded GPT-5 reasoning, and a deterministic cited path for exact approved manual answers and their immediate confirmations. Website v3 is Ready with 10 real documents and 65 OpenAI-embedded chunks; the supplied DOCX and manual answer are Ready with 13 and 1 chunks. Live customer acceptance answered the school name and course questions with citations, returned the approved answer and cited `are you sure?` confirmation in one conversation, and safely handed off an unsupported inventory question without citations. Three obsolete seeded demo sources were disabled, not deleted.
 
 next_step:
-Deploy the approved-manual path, verify the exact answer and `are you sure?` in one fresh conversation, then verify one unsupported-question handoff and finalize status/resource evidence.
+When full G1 is resumed, provision bucket-scoped R2 signing credentials and hostname-bound Turnstile keys, replace the two remaining development mocks, and execute the signed-upload and live-challenge acceptance cases.
 
 verification_evidence:
-The live conversation and knowledge pages reproduced the exact user report. `smartservice.ca/health` returned the hosted development Worker. The actual music-school corpus produced semantic similarity requiring the new calibrated threshold. The final `pnpm check` passed after the credential/configuration change: formatting, lint, every workspace typecheck, all 133 tests, the production web builds, and the Cloudflare Worker dry run.
+Production `main` commit `e9bd023f5b8314c2d22a2261930422be6d2946dc` deployed successfully as Worker version `a78953d6-899e-4a81-add5-646c9051c280`. The live Knowledge page shows the three supplied sources Ready and the seeded fixtures disabled. A fresh customer browser proved both website answers and citations, the exact manual answer plus `are you sure?` citation continuity, and the unsupported handoff. The final `pnpm check` passed formatting, lint, every workspace typecheck, all 135 tests, production builds, and the Worker dry run.
 
 blockers:
-None currently. The required OpenAI and least-privilege Browser Run secrets are installed on the existing hosted-development Worker, and the user approved the remaining deploy, source-reprocessing, and live-verification mutations.
+None for the reported knowledge-repair goal. Broader full-G1 acceptance still requires R2 S3 signer credentials and hostname-bound Turnstile keys; P1/G2 retains its separately documented provider and device blockers.
 
 decisions:
 Decouple upload, crawl, and embeddings so one missing provider credential cannot silently force unrelated features into mock behavior. Use real OpenAI embeddings/chat for hosted retrieval, keep the current signed same-origin development upload adapter, use the specified Cloudflare `/crawl` REST provider with a least-privilege token, and contextualize only clearly dependent follow-ups.
 
 files_changed:
-Assistant-core retrieval logic/tests, API provider selection/retrieval/tests/generated bindings, Worker configuration, environment/deployment documentation, this progress ledger, and pending status/decision evidence.
+Assistant-core retrieval/manual-answer logic and tests; API provider selection, crawl, retrieval, structured-output handling, tests, and generated bindings; Worker configuration; deployment/resource/status/decision documentation; and this progress ledger.
 
 resume_instruction:
 Read this ledger and current `git status`; reuse the existing signed-in Cloudflare and SmartService browser tabs when available. Resume `active_step`, never print secrets, and distinguish local, deployed, reprocessed, and live-answer evidence.

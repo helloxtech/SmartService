@@ -13,13 +13,13 @@ current_phase:
 Hosted knowledge retrieval repair and live acceptance.
 
 active_step:
-Run the final local validation, commit and publish the provider configuration, reprocess every hosted source into the live embedding space, and run live cited-answer/follow-up acceptance.
+Publish the verified Browser Run contract correction, reprocess the music-school website, and run live cited-answer/follow-up acceptance.
 
 completed_steps:
-Reproduced both hosted failures; proved the Worker was using deterministic mock chat/ingestion; identified the mock crawler, exact-only manual-answer behavior, context-free follow-up retrieval, and over-strict live threshold; implemented split upload/crawl/embedding modes, live OpenAI chat/auxiliary/embedding configuration, a calibrated threshold, and bounded contextual follow-up retrieval; created a one-year account-scoped Browser Run Write token, stored it only as the `smartservice-dev` Worker secret, removed the temporary handoff file, enabled live crawling, regenerated the Worker bindings, and passed the complete `pnpm check` including formatting, lint, all workspace typechecks, 133 tests, both production web builds, and the Worker dry run.
+Reproduced both hosted failures; proved the Worker was using deterministic mock chat/ingestion; identified the mock crawler, exact-only manual-answer behavior, context-free follow-up retrieval, and over-strict live threshold; implemented split upload/crawl/embedding modes, live OpenAI chat/auxiliary/embedding configuration, a calibrated threshold, and bounded contextual follow-up retrieval; created and safely installed the least-privilege Browser Run secret; passed the complete 133-test `pnpm check`; deployed commit `63ba207` as Worker version `07396bd6-8902-44bd-a3f7-c55a243b4ec9`; re-embedded the manual answer and recent Apple Seeds document; then used the live crawl failure to correct the current Cloudflare request/response contract and add a passing contract test, bringing the API suite to 55 tests.
 
 next_step:
-Complete the final local checks, deploy through the Git-triggered `main` path, reprocess all six hosted sources, and verify the two music-school questions plus the manual-answer confirmation follow-up with citations.
+Deploy the Browser Run contract correction, retry `canadaycmusicacademy.com`, then verify the two music-school questions and manual-answer confirmation follow-up with citations plus one unsupported-question handoff.
 
 verification_evidence:
 The live conversation and knowledge pages reproduced the exact user report. `smartservice.ca/health` returned the hosted development Worker. The actual music-school corpus produced semantic similarity requiring the new calibrated threshold. The final `pnpm check` passed after the credential/configuration change: formatting, lint, every workspace typecheck, all 133 tests, the production web builds, and the Cloudflare Worker dry run.

@@ -47,7 +47,7 @@ const crawlStatusResponseSchema = z.object({
         cursor: z.string().optional(),
         finished: z.number().int().nonnegative(),
         records: z.array(crawlRecordSchema),
-        skipped: z.number().int().nonnegative(),
+        skipped: z.number().int().nonnegative().optional().default(0),
         status: z.string(),
         total: z.number().int().nonnegative(),
     }),
@@ -81,18 +81,6 @@ function requireCrawlerBinding(
 }
 
 /**
- * escapeRegularExpression
- * ----------------
- * Escapes a validated origin before it is used as a Browser Run request allow-pattern.
- *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 2 Knowledge Ingestion
- */
-function escapeRegularExpression(value: string): string
-{
-    return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-}
-
-/**
  * delay
  * ----------------
  * Waits briefly between bounded Browser Run status polls without consuming CPU.
@@ -117,10 +105,17 @@ async function delay(milliseconds: number): Promise<void>
 async function parseProviderResponse<T>(
     response: Response,
     parser: { parse(input: unknown): T },
+    operation: "start" | "status",
 ): Promise<T>
 {
     if (!response.ok)
     {
+        console.error(JSON.stringify({
+            event: "crawl.provider.failed",
+            operation,
+            status: response.status,
+        }));
+
         throw new ApiError(502, "CRAWLER_PROVIDER_FAILED", "The website crawler request failed.");
     }
 
@@ -130,6 +125,12 @@ async function parseProviderResponse<T>(
     }
     catch
     {
+        console.error(JSON.stringify({
+            event: "crawl.response.invalid",
+            operation,
+            status: response.status,
+        }));
+
         throw new ApiError(502, "CRAWLER_RESPONSE_INVALID", "The website crawler returned an invalid response.");
     }
 }
@@ -173,9 +174,6 @@ export class CloudflareBrowserRunCrawlProvider implements CrawlProvider
             `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(accountId)}/browser-rendering/crawl`,
             {
                 body: JSON.stringify({
-                    allowRequestPattern: [
-                        `^${escapeRegularExpression(origin)}(?:/|$)`,
-                    ],
                     crawlPurposes: ["search", "ai-input"],
                     depth: Math.max(1, maxDepth),
                     formats: ["markdown"],
@@ -185,7 +183,7 @@ export class CloudflareBrowserRunCrawlProvider implements CrawlProvider
                         includePatterns: [`${origin}/**`],
                         includeSubdomains: false,
                     },
-                    render: true,
+                    render: false,
                     source: "links",
                     url: targetUrl,
                 }),
@@ -197,7 +195,11 @@ export class CloudflareBrowserRunCrawlProvider implements CrawlProvider
                 signal: AbortSignal.timeout(20_000),
             },
         );
-        const payload = await parseProviderResponse(response, crawlStartResponseSchema);
+        const payload = await parseProviderResponse(
+            response,
+            crawlStartResponseSchema,
+            "start",
+        );
 
         return payload.result;
     }
@@ -234,7 +236,11 @@ export class CloudflareBrowserRunCrawlProvider implements CrawlProvider
             },
             signal: AbortSignal.timeout(20_000),
         });
-        const payload = await parseProviderResponse(response, crawlStatusResponseSchema);
+        const payload = await parseProviderResponse(
+            response,
+            crawlStatusResponseSchema,
+            "status",
+        );
 
         return payload.result;
     }

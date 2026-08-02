@@ -1,4 +1,7 @@
-import { processIngestionMessage } from "@smartservice/ingestion";
+import {
+    IngestionPipelineError,
+    processIngestionMessage,
+} from "@smartservice/ingestion";
 
 import { ApiError } from "./errors";
 import { processFinalizationMessage } from "./finalization-queue";
@@ -89,9 +92,13 @@ export async function handleQueue(
         catch (error: unknown)
         {
             const errorName = error instanceof Error ? error.name : "UnknownError";
+            const errorCode = error instanceof ApiError || error instanceof IngestionPipelineError
+                ? error.code
+                : null;
 
             console.error(JSON.stringify({
                 attempt: message.attempts,
+                errorCode,
                 errorName,
                 event: "queue.message.failed",
                 messageId: message.id,

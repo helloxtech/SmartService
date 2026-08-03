@@ -295,6 +295,22 @@ describe("grounded RAG", () =>
         expect(answer.answer).not.toContain("证据");
     });
 
+    it("answers a principal question directly when the model mentions only founders", () =>
+    {
+        const answer = enforceCustomerControlledHandoff({
+            answer: "学校由陈教授和杨教授共同创办，成立于2001年。",
+            citationChunkIds: [fixtureEvidence.chunkId],
+            confidence: 0.9,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "model value",
+        }, "你们学校校长是谁？哪年成立的？", "zh-CN");
+
+        expect(answer.answer).toBe(
+            "关于校长，我没有在现有资料中找到明确信息。学校由陈教授和杨教授共同创办，成立于2001年。",
+        );
+    });
+
     it("rejects a structurally valid citation outside the retrieval set", () =>
     {
         expect(() => validateGroundedAnswer({

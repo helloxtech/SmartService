@@ -529,20 +529,29 @@ export function createSafeClarification(
 export function humanizeGroundedAnswerText(
     answer: string,
     language: ConversationLanguage,
+    question = "",
 ): string
 {
     if (language === "zh-CN")
     {
-        return answer
+        const humanized = answer
             .replace(/根据(?:现有|提供的)?证据[，,:：]*/gu, "我查到的资料显示，")
             .replace(/证据中/gu, "现有资料中")
             .replace(/证据/gu, "资料");
+
+        return /校长/u.test(question) && !/校长/u.test(humanized)
+            ? `关于校长，我没有在现有资料中找到明确信息。${humanized}`
+            : humanized;
     }
 
-    return answer
+    const humanized = answer
         .replace(/\baccording to (?:the )?evidence\b/giu, "Based on the information I found")
         .replace(/\bthe evidence\b/giu, "the information I found")
         .replace(/\bevidence\b/giu, "information");
+
+    return /\bprincipal\b/iu.test(question) && !/\bprincipal\b/iu.test(humanized)
+        ? `I could not find clear information about the current principal. ${humanized}`
+        : humanized;
 }
 
 /**
@@ -562,7 +571,7 @@ export function enforceCustomerControlledHandoff(
     {
         return {
             ...answer,
-            answer: humanizeGroundedAnswerText(answer.answer, language),
+            answer: humanizeGroundedAnswerText(answer.answer, language, question),
             normalizedQuestion: normalizeQuestion(question),
         };
     }
@@ -653,6 +662,7 @@ export function buildRagPrompt(input: RagGenerationInput): {
             "Lead with a direct, natural answer to the exact question the customer asked. Never substitute a nearby product, instrument, person, course, or service.",
             "For a multi-part question, address every part separately. Answer supported parts and say plainly which specific parts you could not find.",
             "Do not infer a current title, offering, price, teaching mode, or location from an adjacent fact. Do not treat a founder as the current principal unless the evidence says so.",
+            "If the customer asks for the current principal but EVIDENCE identifies only founders, explicitly say that you could not find the current principal before optionally naming the founders. Never answer the principal question with founders alone.",
             "When information is not found, say that you could not find it; never claim that the product or service does not exist unless EVIDENCE explicitly says that.",
             "For decision=clarify, explain the limitation conversationally and offer direct contact or optional human help without claiming that a transfer was requested.",
             "Never use internal phrases such as 'evidence', 'approved knowledge', 'insufficient evidence', or 'reliable answer' in customer-facing answer text. In Chinese, say '我查到的资料' rather than '证据'.",

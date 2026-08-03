@@ -6,6 +6,7 @@ import {
     evaluateDeterministicGuardrails,
     guardrailPromptVersion,
     ragPromptVersion,
+    selectCitedGuardrailEvidence,
     validateGroundedAnswer,
     type GuardrailSupervisor,
     type RagAnswerProvider,
@@ -805,6 +806,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 const inputGuardrailStartedAt = Date.now();
                 const inputEvaluation = evaluateDeterministicGuardrails({
                     candidateAnswer: null,
+                    evidence: [],
                     language,
                     rules,
                     userMessage: input.text,
@@ -899,6 +901,10 @@ export class DefaultPublicConversationService implements PublicConversationServi
                         || answer.decision === "clarify"
                     )
                     {
+                        const citedEvidence = selectCitedGuardrailEvidence(
+                            evidence,
+                            answer.citationChunkIds,
+                        );
                         const candidate: CandidateAudit = {
                             answer: answer.answer,
                             inputTokens,
@@ -911,6 +917,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                         const outputGuardrailStartedAt = Date.now();
                         const outputEvaluation = evaluateDeterministicGuardrails({
                             candidateAnswer: answer.answer,
+                            evidence: citedEvidence,
                             language,
                             rules,
                             userMessage: input.text,
@@ -939,6 +946,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                         const supervisionStartedAt = Date.now();
                         const supervision = await this.guardrails.supervise({
                             candidateAnswer: answer.answer,
+                            evidence: citedEvidence,
                             language,
                             rules,
                             userMessage: input.text,

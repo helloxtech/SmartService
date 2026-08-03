@@ -53,7 +53,14 @@ describe("conversation tokens", () =>
             code: "CONVERSATION_TOKEN_INVALID",
         });
 
-        const tampered = `${issued.token.slice(0, -1)}x`;
+        const tokenParts = issued.token.split(".");
+        const signature = tokenParts[2];
+
+        expect(tokenParts).toHaveLength(3);
+        expect(signature).toBeDefined();
+
+        const tamperedSignature = `${signature?.startsWith("A") === true ? "B" : "A"}${signature?.slice(1) ?? ""}`;
+        const tampered = `${tokenParts[0]}.${tokenParts[1]}.${tamperedSignature}`;
 
         await expect(service.verify(
             tampered,

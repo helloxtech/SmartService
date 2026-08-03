@@ -65,6 +65,10 @@ describe("OpenAI auxiliary adapters", () =>
         } as SmartServiceBindings);
         const result = await provider.supervise({
             candidateAnswer: "The final price is guaranteed.",
+            evidence: [{
+                chunkId: "10000000-0000-4000-a000-000000000002",
+                content: "The final price is guaranteed.",
+            }],
             language: "en",
             rules: [rule],
             userMessage: "Give me the final price.",

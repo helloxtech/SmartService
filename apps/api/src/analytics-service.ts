@@ -4,6 +4,7 @@ import {
     evaluateDeterministicGuardrails,
     guardrailPromptVersion,
     ragPromptVersion,
+    selectCitedGuardrailEvidence,
     validateGroundedAnswer,
     type GuardrailSupervisor,
     type RagAnswerProvider,
@@ -781,6 +782,7 @@ export class SupabaseAnalyticsService implements AnalyticsService
             .listGuardrailRules(identity.organizationId);
         const inputEvaluation = evaluateDeterministicGuardrails({
             candidateAnswer: null,
+            evidence: [],
             language,
             rules,
             userMessage: gap.exampleQuestion,
@@ -837,6 +839,10 @@ export class SupabaseAnalyticsService implements AnalyticsService
                 answer = validateGroundedAnswer(generated.answer, evidence);
                 const outputEvaluation = evaluateDeterministicGuardrails({
                     candidateAnswer: answer.answer,
+                    evidence: selectCitedGuardrailEvidence(
+                        evidence,
+                        answer.citationChunkIds,
+                    ),
                     language,
                     rules,
                     userMessage: gap.exampleQuestion,
@@ -851,6 +857,10 @@ export class SupabaseAnalyticsService implements AnalyticsService
                     const supervisionStartedAt = Date.now();
                     const supervision = await this.dependencies.guardrails.supervise({
                         candidateAnswer: answer.answer,
+                        evidence: selectCitedGuardrailEvidence(
+                            evidence,
+                            answer.citationChunkIds,
+                        ),
                         language,
                         rules,
                         userMessage: gap.exampleQuestion,

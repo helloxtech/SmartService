@@ -1,7 +1,11 @@
 import type { GuardrailRule } from "@smartservice/contracts";
 import { describe, expect, it } from "vitest";
 
-import { evaluateDeterministicGuardrails } from "./guardrails";
+import {
+    buildGuardrailPrompt,
+    evaluateDeterministicGuardrails,
+    selectCitedGuardrailEvidence,
+} from "./guardrails";
 
 const timestamp = "2026-07-26T12:00:00.000Z";
 const ruleDefinitions = [
@@ -40,6 +44,7 @@ describe("deterministic guardrails", () =>
     {
         const evaluation = evaluateDeterministicGuardrails({
             candidateAnswer: null,
+            evidence: [],
             language: /\p{Script=Han}/u.test(question) ? "zh-CN" : "en",
             rules,
             userMessage: question,
@@ -58,6 +63,7 @@ describe("deterministic guardrails", () =>
     {
         expect(evaluateDeterministicGuardrails({
             candidateAnswer: "The documented limited warranty is 36 months.",
+            evidence: [],
             language: "en",
             rules,
             userMessage: "What is the documented warranty?",
@@ -67,5 +73,33 @@ describe("deterministic guardrails", () =>
             safeResponse: null,
             violations: [],
         });
+    });
+
+    it("provides only cited evidence to unsupported-claim supervision", () =>
+    {
+        const selected = selectCitedGuardrailEvidence([
+            {
+                chunkId: "10000000-0000-4000-a000-000000000001",
+                content: "Music Study is course 103.",
+            },
+            {
+                chunkId: "10000000-0000-4000-a000-000000000002",
+                content: "Unrelated evidence.",
+            },
+        ], ["10000000-0000-4000-a000-000000000001"]);
+        const prompt = buildGuardrailPrompt({
+            candidateAnswer: "We offer Music Study as course 103.",
+            evidence: selected,
+            language: "en",
+            rules,
+            userMessage: "Which music courses do you offer?",
+        });
+        const payload = JSON.parse(prompt.user) as {
+            EVIDENCE: Array<{ chunkId: string; content: string }>;
+        };
+
+        expect(payload.EVIDENCE).toEqual(selected);
+        expect(payload.EVIDENCE).toHaveLength(1);
+        expect(prompt.system).toContain("Do not block an answer merely because it names specific company offerings");
     });
 });

@@ -278,6 +278,23 @@ describe("grounded RAG", () =>
             .toBe("does the qa-500 course include lunar-campus lodging");
     });
 
+    it("removes internal evidence terminology from customer-facing answers", () =>
+    {
+        const answer = enforceCustomerControlledHandoff({
+            answer: "根据证据，学校成立于2001年，证据中没有校长姓名。",
+            citationChunkIds: [fixtureEvidence.chunkId],
+            confidence: 0.9,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "model value",
+        }, "学校是哪年成立的？", "zh-CN");
+
+        expect(answer.answer).toBe(
+            "我查到的资料显示，学校成立于2001年，现有资料中没有校长姓名。",
+        );
+        expect(answer.answer).not.toContain("证据");
+    });
+
     it("rejects a structurally valid citation outside the retrieval set", () =>
     {
         expect(() => validateGroundedAnswer({

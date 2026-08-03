@@ -883,11 +883,17 @@ export class SupabaseConversationRepository
                 throw new ApiError(503, "CITATION_LOOKUP_FAILED", "Response citations could not be loaded.");
             }
 
+            const pageUrl = source.type === "url"
+                ? z.url().safeParse(chunk.source_locator.url)
+                : null;
+
             result.get(citation.message_id)?.push({
                 citationId: citation.id,
                 label: citation.label,
                 sourceType: source.type,
-                sourceUrl: source.source_url,
+                sourceUrl: pageUrl?.success === true
+                    ? pageUrl.data
+                    : source.source_url,
                 supportingExcerpt: citation.supporting_excerpt,
             });
         }

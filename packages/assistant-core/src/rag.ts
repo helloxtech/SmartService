@@ -520,6 +520,32 @@ export function createSafeClarification(
 }
 
 /**
+ * humanizeGroundedAnswerText
+ * ----------------
+ * Replaces internal retrieval terminology with natural customer-facing language without changing the answer's factual content.
+ *
+ * August 03, 2026: Created by Forrest Zhang for SmartService Humanized Multi-Intent Answers
+ */
+export function humanizeGroundedAnswerText(
+    answer: string,
+    language: ConversationLanguage,
+): string
+{
+    if (language === "zh-CN")
+    {
+        return answer
+            .replace(/根据(?:现有|提供的)?证据[，,:：]*/gu, "我查到的资料显示，")
+            .replace(/证据中/gu, "现有资料中")
+            .replace(/证据/gu, "资料");
+    }
+
+    return answer
+        .replace(/\baccording to (?:the )?evidence\b/giu, "Based on the information I found")
+        .replace(/\bthe evidence\b/giu, "the information I found")
+        .replace(/\bevidence\b/giu, "information");
+}
+
+/**
  * enforceCustomerControlledHandoff
  * ----------------
  * Converts model-originated handoffs into non-terminal limitations because only application policy may initiate a transfer.
@@ -536,6 +562,7 @@ export function enforceCustomerControlledHandoff(
     {
         return {
             ...answer,
+            answer: humanizeGroundedAnswerText(answer.answer, language),
             normalizedQuestion: normalizeQuestion(question),
         };
     }
@@ -628,7 +655,7 @@ export function buildRagPrompt(input: RagGenerationInput): {
             "Do not infer a current title, offering, price, teaching mode, or location from an adjacent fact. Do not treat a founder as the current principal unless the evidence says so.",
             "When information is not found, say that you could not find it; never claim that the product or service does not exist unless EVIDENCE explicitly says that.",
             "For decision=clarify, explain the limitation conversationally and offer direct contact or optional human help without claiming that a transfer was requested.",
-            "Never use internal phrases such as 'approved knowledge', 'insufficient evidence', or 'reliable answer' in customer-facing answer text.",
+            "Never use internal phrases such as 'evidence', 'approved knowledge', 'insufficient evidence', or 'reliable answer' in customer-facing answer text. In Chinese, say '我查到的资料' rather than '证据'.",
             "Follow the language of the latest customer question.",
             "Do not promise prices, discounts, stock, delivery dates, certifications, or unauthorized commitments.",
             "For decision=answer, cite one to five chunk IDs supplied in EVIDENCE and only those IDs.",

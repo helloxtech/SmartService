@@ -282,7 +282,10 @@ export function enforceCustomerControlledHandoff(
 {
     if (answer.decision !== "handoff")
     {
-        return answer;
+        return {
+            ...answer,
+            normalizedQuestion: normalizeQuestion(question),
+        };
     }
 
     if (

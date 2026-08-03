@@ -156,6 +156,21 @@ describe("grounded RAG", () =>
         expect(prompt.system).toContain("Never return decision=handoff");
     });
 
+    it("replaces model-controlled question normalization with the deterministic canonical form", () =>
+    {
+        const answer = enforceCustomerControlledHandoff({
+            answer: "Please add details.",
+            citationChunkIds: [],
+            confidence: 0,
+            decision: "clarify",
+            handoffReason: "missing_knowledge",
+            normalizedQuestion: "MODEL CONTROLLED VALUE",
+        }, "Does the QA-500 course include lunar-campus lodging?", "en");
+
+        expect(answer.normalizedQuestion)
+            .toBe("does the qa-500 course include lunar-campus lodging");
+    });
+
     it("rejects a structurally valid citation outside the retrieval set", () =>
     {
         expect(() => validateGroundedAnswer({

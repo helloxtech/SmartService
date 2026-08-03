@@ -378,7 +378,7 @@ as
 select coalesce(max(occurrence_count), 0) as occurrence_count
 from public.knowledge_gaps
 where organization_id = '00000000-0000-4000-a000-000000000001'
-  and normalized_question = '产品有没有 atex 认证';
+  and normalized_question = 'nf-500 有没有 atex 认证';
 
 create temporary table clarification_messages
 on commit drop
@@ -389,7 +389,7 @@ cross join lateral public.record_public_customer_message(
     '00000000-0000-4000-a000-000000000001',
     clarification_conversation.conversation_id,
     extensions.gen_random_uuid(),
-    '产品有没有 ATEX 认证？',
+    'NF-500 有没有 ATEX 认证？',
     'zh-CN'
 ) as recorded;
 
@@ -405,7 +405,7 @@ cross join lateral public.complete_public_turn(
     p_citations => '[]'::jsonb,
     p_retrieved_chunk_ids => array[]::uuid[],
     p_handoff_reason => 'missing_knowledge',
-    p_normalized_question => '产品有没有 atex 认证',
+    p_normalized_question => 'nf-500 有没有 atex 认证',
     p_create_gap => false,
     p_provider => 'retrieval-gate',
     p_model => 'no-evidence-v2',
@@ -416,7 +416,7 @@ cross join lateral public.complete_public_turn(
     p_ai_status => 'succeeded',
     p_error_code => null,
     p_request_id => 'pgtap-missing-knowledge-clarification',
-    p_retrieval_metadata => '{"count":0}'::jsonb
+    p_retrieval_metadata => '{"count":0,"normalizedQuestion":"nf-500 有没有 atex 认证"}'::jsonb
 ) as completed;
 
 select extensions.results_eq(
@@ -436,7 +436,7 @@ select extensions.results_eq(
         from public.knowledge_gaps as knowledge_gap
         cross join prior_gap_occurrence as prior_gap
         where knowledge_gap.organization_id = '00000000-0000-4000-a000-000000000001'
-          and knowledge_gap.normalized_question = '产品有没有 atex 认证'
+          and knowledge_gap.normalized_question = 'nf-500 有没有 atex 认证'
     $$,
     array[2],
     'Repeated normalized missing questions add two occurrences to one knowledge gap'

@@ -16,6 +16,8 @@ const hostedDemoPublicKeys = [
 const organizationId = "00000000-0000-4000-a000-000000000001";
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDirectory, "../..");
+const environmentFile = process.env.SMARTSERVICE_ENV_FILE
+    ?? resolve(repositoryRoot, ".env.local");
 
 const environmentSchema = z.object({
     DEMO_ADMIN_EMAIL: z.email(),
@@ -72,7 +74,7 @@ interface Environment
 
 interface HostedQuestionCase
 {
-    expectedDecision: "answer" | "handoff";
+    expectedDecision: "answer" | "clarify";
     expectedFact?: string;
     language: "en" | "zh-CN";
     question: string;
@@ -364,42 +366,54 @@ async function verifyQuestionCase(testCase: HostedQuestionCase): Promise<void>
     }
 
     if (
-        result.decision !== "handoff"
-        || result.handoff?.reason !== "missing_knowledge"
+        result.decision !== "clarify"
+        || result.handoff !== null
         || result.citations.length !== 0
+        || /requested human support|已将问题转交/u.test(result.answer)
     )
     {
-        throw new Error(`Hosted question did not fail closed to missing-knowledge handoff: ${testCase.question}`);
+        throw new Error(`Hosted question did not remain AI-active with a safe clarification: ${JSON.stringify({
+            answer: result.answer,
+            citationCount: result.citations.length,
+            decision: result.decision,
+            handoff: result.handoff,
+            question: testCase.question,
+        })}`);
     }
 }
 
 /**
  * main
  * ----------------
- * Runs a bounded hosted DEV smoke covering static routing, ready knowledge, cited answers, and safe handoff.
+ * Runs a bounded hosted DEV smoke covering static routing, ready knowledge, cited answers, and a non-terminal missing-knowledge clarification.
  *
  * July 28, 2026: Created by Forrest Zhang for Hosted DEV UAT
  */
 async function main(): Promise<void>
 {
-    const environment = parseEnvironment(await readFile(resolve(repositoryRoot, ".env.local"), "utf8"));
+    const environment = parseEnvironment(await readFile(environmentFile, "utf8"));
     const cases: HostedQuestionCase[] = [
         {
             expectedDecision: "answer",
-            expectedFact: "380",
             language: "en",
-            question: "What voltage does the NF-500 require?",
+            question: "Which music courses do you provide?",
         },
         {
             expectedDecision: "answer",
-            expectedFact: "120",
+            expectedFact: "Canada YC Music Academy",
             language: "zh-CN",
-            question: "NF-200 最大流量是多少？",
+            question: "请问你们音乐学校的名字是什么？",
         },
         {
-            expectedDecision: "handoff",
+            expectedDecision: "answer",
+            expectedFact: "40",
+            language: "zh-CN",
+            question: "古筝课程要上多久？",
+        },
+        {
+            expectedDecision: "clarify",
             language: "en",
-            question: "Can you confirm the stock quantity in your Vancouver warehouse?",
+            question: "Does the QA-500 course include lunar-campus lodging?",
         },
     ];
 
@@ -417,7 +431,7 @@ async function main(): Promise<void>
             knowledgeState === "counted"
                 ? "ready fictional knowledge count"
                 : "public cited-answer knowledge proof"
-        }, 2/2 cited answers, and 1/1 safe handoff.\n`,
+        }, 3/3 cited answers, and 1/1 AI-active safe clarification.\n`,
     );
 }
 

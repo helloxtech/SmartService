@@ -1024,6 +1024,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
             retrievalMetadata: {
                 contextualized: retrievalContextualized,
                 count: evidence.length,
+                normalizedQuestion: answer.normalizedQuestion,
                 scores: evidence.map((item) => ({
                     chunkId: item.chunkId,
                     combinedScore: item.combinedScore,

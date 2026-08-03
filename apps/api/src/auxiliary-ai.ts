@@ -7,6 +7,7 @@ import {
     finalizationPromptVersion,
     guardrailEvaluationJsonSchema,
     guardrailPromptVersion,
+    localizeGuardrailSafeResponse,
     type ConversationFinalizer,
     type FinalizationInput,
     type FinalizationResult,
@@ -87,8 +88,20 @@ export class OpenAiGuardrailSupervisor implements GuardrailSupervisor
             );
         }
 
+        const primaryRule = evaluation.allowed
+            ? undefined
+            : input.rules.find((rule) =>
+                rule.enabled && rule.code === evaluation.violations[0]?.ruleCode,
+            );
+        const localizedEvaluation = primaryRule === undefined
+            ? evaluation
+            : guardrailEvaluationSchema.parse({
+                ...evaluation,
+                safeResponse: localizeGuardrailSafeResponse(primaryRule, input.language),
+            });
+
         return {
-            evaluation,
+            evaluation: localizedEvaluation,
             inputTokens: result.inputTokens,
             outputTokens: result.outputTokens,
         };

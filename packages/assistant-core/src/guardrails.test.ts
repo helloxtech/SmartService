@@ -101,5 +101,7 @@ describe("deterministic guardrails", () =>
         expect(payload.EVIDENCE).toEqual(selected);
         expect(payload.EVIDENCE).toHaveLength(1);
         expect(prompt.system).toContain("Do not block an answer merely because it names specific company offerings");
+        expect(prompt.system).toContain("could not find or confirm");
+        expect(prompt.system).toContain("judge each clause separately");
     });
 });

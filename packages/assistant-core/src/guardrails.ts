@@ -6,7 +6,7 @@ import {
     type GuardrailViolation,
 } from "@smartservice/contracts";
 
-export const guardrailPromptVersion = "guardrail-supervisor-v2";
+export const guardrailPromptVersion = "guardrail-supervisor-v3";
 
 export const guardrailEvaluationJsonSchema = {
     additionalProperties: false,
@@ -127,13 +127,13 @@ const deterministicPatterns: Record<GuardrailRule["ruleType"], RegExp> = {
 };
 
 /**
- * localizeSafeResponse
+ * localizeGuardrailSafeResponse
  * ----------------
  * Uses a language-compatible configured template or a conservative localized fallback without repeating blocked content.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Guardrails
+ * August 03, 2026: Updated by Forrest Zhang for SmartService Humanized Multi-Intent Answers
  */
-function localizeSafeResponse(
+export function localizeGuardrailSafeResponse(
     rule: GuardrailRule,
     language: ConversationLanguage,
 ): string
@@ -149,8 +149,8 @@ function localizeSafeResponse(
     }
 
     return language === "zh-CN"
-        ? "抱歉，我不能提供或承诺这项内容。我已将会话转交人工客服安全处理。"
-        : "I cannot provide or commit to that request. I have handed the conversation to a human specialist for safe review.";
+        ? "这个问题需要工作人员进一步确认，我已帮您转接人工客服。"
+        : "A support specialist needs to confirm this, so I have connected you with human support.";
 }
 
 /**
@@ -201,7 +201,7 @@ export function evaluateDeterministicGuardrails(
         requestHandoff: violations.length > 0,
         safeResponse: primaryRule === undefined
             ? null
-            : localizeSafeResponse(primaryRule, input.language),
+            : localizeGuardrailSafeResponse(primaryRule, input.language),
         violations,
     });
 }
@@ -235,10 +235,13 @@ export function buildGuardrailPrompt(input: GuardrailInput): {
             "Judge whether the candidate violates any enabled rule; do not rewrite business facts.",
             "For an unsupported_claim rule, compare the candidate only with EVIDENCE: allow facts directly stated or faithfully summarized there, and block facts that are absent or materially overstated.",
             "Do not block an answer merely because it names specific company offerings when EVIDENCE supports those offerings.",
+            "A statement that the assistant could not find or confirm a requested detail is a limitation, not a positive business claim. Allow it unless it falsely says the item does not exist or is unavailable.",
+            "For multi-part answers, judge each clause separately. Supported facts may be combined with accurate limitations about unanswered parts; one missing detail does not invalidate the supported parts.",
             "Evidence never overrides price, delivery, competitor, security, safety, or other non-evidence rules.",
             "When uncertain about a high or critical rule, block and request handoff.",
             "When allowed, return no violations and safeResponse=null.",
             "When blocked, select only rule codes supplied in ADMIN_RULES and return a short safe response.",
+            "Any blocked safe response must follow LANGUAGE even when an administrator-authored template uses another language.",
             `Return strict JSON for ${guardrailPromptVersion}.`,
         ].join("\n"),
         user: JSON.stringify({

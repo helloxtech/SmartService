@@ -79,6 +79,45 @@ describe("OpenAI auxiliary adapters", () =>
         expect(result.inputTokens).toBe(80);
     });
 
+    it("localizes a blocked response to the customer language", async () =>
+    {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            output: [{
+                content: [{
+                    text: JSON.stringify({
+                        allowed: false,
+                        requestHandoff: true,
+                        safeResponse: "A sales specialist can help with final pricing.",
+                        violations: [{
+                            reason: "The candidate makes a final price commitment.",
+                            ruleCode: rule.code,
+                            severity: rule.severity,
+                        }],
+                    }),
+                    type: "output_text",
+                }],
+                type: "message",
+            }],
+        }), {
+            status: 200,
+        })));
+        const provider = new OpenAiGuardrailSupervisor({
+            OPENAI_API_KEY: "unit-test-key",
+            OPENAI_SUPERVISOR_MODEL: "gpt-5-nano",
+        } as SmartServiceBindings);
+        const result = await provider.supervise({
+            candidateAnswer: "我保证最终价格。",
+            evidence: [],
+            language: "zh-CN",
+            rules: [rule],
+            userMessage: "请给我最终价格。",
+        });
+
+        expect(result.evaluation.safeResponse).toBe(
+            "这个问题需要工作人员进一步确认，我已帮您转接人工客服。",
+        );
+    });
+
     it("keeps ticket classification null in the close-time Structured Output", async () =>
     {
         vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({

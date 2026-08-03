@@ -214,6 +214,10 @@ describe("PublicChat", () =>
         await user.type(screen.getByLabelText(/Ask Smart Service support/u), "Second unclear question");
         await user.click(screen.getByRole("button", { name: /Send message/u }));
         await screen.findByText("Clarification 2");
+        expect(screen.queryByText("Waiting for human support"))
+            .not.toBeInTheDocument();
+        expect(fetchMock.mock.calls.filter(([request]) => String(request).endsWith("/request-handoff")))
+            .toHaveLength(0);
 
         await user.click(screen.getByRole("button", { name: /Need human help/u }));
         expect(await screen.findByText("Your request was received. A human support specialist will take over this conversation."))

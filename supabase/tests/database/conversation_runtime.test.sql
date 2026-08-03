@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select extensions.plan(19);
+select extensions.plan(20);
 
 select extensions.ok(
     not pg_catalog.has_function_privilege(
@@ -20,6 +20,15 @@ select extensions.ok(
         'EXECUTE'
     ),
     'Authenticated clients cannot execute AI turn completion directly'
+);
+
+select extensions.ok(
+    not pg_catalog.has_function_privilege(
+        'authenticated',
+        'public.record_nonterminal_knowledge_gap()',
+        'EXECUTE'
+    ),
+    'Authenticated clients cannot execute the internal knowledge-gap trigger function'
 );
 
 select extensions.ok(
@@ -342,14 +351,14 @@ select extensions.results_eq(
     'A repeated completion returns the existing AI message without duplicate cost artifacts'
 );
 
-create temporary table handoff_conversations
+create temporary table clarification_conversations
 on commit drop
 as
 select created_row.conversation_id
 from (
     values
-        ('handoff-runtime-fixture-one'),
-        ('handoff-runtime-fixture-two')
+        ('clarification-runtime-fixture-one'),
+        ('clarification-runtime-fixture-two')
 ) as fixture(idempotency_key)
 cross join lateral public.create_public_conversation(
     'smart-service-public-demo',
@@ -360,7 +369,7 @@ cross join lateral public.create_public_conversation(
     null,
     'zh-CN',
     fixture.idempotency_key,
-    'pgtap-handoff-create'
+    'pgtap-clarification-create'
 ) as created_row;
 
 create temporary table prior_gap_occurrence
@@ -371,42 +380,42 @@ from public.knowledge_gaps
 where organization_id = '00000000-0000-4000-a000-000000000001'
   and normalized_question = '产品有没有 atex 认证';
 
-create temporary table handoff_messages
+create temporary table clarification_messages
 on commit drop
 as
-select recorded.customer_message_id, handoff_conversation.conversation_id
-from handoff_conversations as handoff_conversation
+select recorded.customer_message_id, clarification_conversation.conversation_id
+from clarification_conversations as clarification_conversation
 cross join lateral public.record_public_customer_message(
     '00000000-0000-4000-a000-000000000001',
-    handoff_conversation.conversation_id,
+    clarification_conversation.conversation_id,
     extensions.gen_random_uuid(),
     '产品有没有 ATEX 认证？',
     'zh-CN'
 ) as recorded;
 
 select completed.*
-from handoff_messages as handoff_message
+from clarification_messages as clarification_message
 cross join lateral public.complete_public_turn(
     p_organization_id => '00000000-0000-4000-a000-000000000001',
-    p_conversation_id => handoff_message.conversation_id,
-    p_customer_message_id => handoff_message.customer_message_id,
-    p_decision => 'handoff',
-    p_answer => '现有资料不足，我已转交人工客服。',
+    p_conversation_id => clarification_message.conversation_id,
+    p_customer_message_id => clarification_message.customer_message_id,
+    p_decision => 'clarify',
+    p_answer => '现有的已批准资料不足以可靠回答这个问题。您可以补充问题，或选择人工客服帮助。',
     p_language => 'zh-CN',
     p_citations => '[]'::jsonb,
     p_retrieved_chunk_ids => array[]::uuid[],
     p_handoff_reason => 'missing_knowledge',
     p_normalized_question => '产品有没有 atex 认证',
-    p_create_gap => true,
+    p_create_gap => false,
     p_provider => 'retrieval-gate',
-    p_model => 'no-evidence-v1',
-    p_prompt_version => 'rag-answer-v1',
+    p_model => 'no-evidence-v2',
+    p_prompt_version => 'rag-answer-v2',
     p_input_tokens => null,
     p_output_tokens => null,
     p_latency_ms => 2,
     p_ai_status => 'succeeded',
     p_error_code => null,
-    p_request_id => 'pgtap-missing-knowledge',
+    p_request_id => 'pgtap-missing-knowledge-clarification',
     p_retrieval_metadata => '{"count":0}'::jsonb
 ) as completed;
 
@@ -414,11 +423,11 @@ select extensions.results_eq(
     $$
         select count(*)::bigint
         from public.conversations
-        where id in (select conversation_id from handoff_conversations)
-          and status = 'handoff_requested'
+        where id in (select conversation_id from clarification_conversations)
+          and status = 'active_ai'
     $$,
     array[2::bigint],
-    'Missing knowledge transitions every affected conversation to handoff requested'
+    'Missing knowledge keeps every affected conversation AI-active'
 );
 
 select extensions.results_eq(
@@ -437,16 +446,10 @@ select extensions.results_eq(
     $$
         select count(*)::bigint
         from public.handoffs
-        where conversation_id in (select conversation_id from handoff_conversations)
-          and summary_snapshot ?& array[
-              'customerQuestion',
-              'confirmedFacts',
-              'triggerReason',
-              'nextStep'
-          ]
+        where conversation_id in (select conversation_id from clarification_conversations)
     $$,
-    array[2::bigint],
-    'Each missing-knowledge handoff includes the required review package fields'
+    array[0::bigint],
+    'Missing knowledge does not create a handoff until the customer explicitly requests one'
 );
 
 select extensions.throws_ok(

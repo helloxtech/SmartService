@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    buildRagPrompt,
     buildRetrievalQuestion,
     DeterministicRagAnswerProvider,
+    enforceCustomerControlledHandoff,
     isContextDependentFollowUp,
     RagValidationError,
     validateGroundedAnswer,
@@ -60,7 +62,7 @@ describe("grounded RAG", () =>
         expect(validateGroundedAnswer(answer, evidence)).toEqual(answer);
     });
 
-    it("hands off rather than guessing when retrieved evidence does not support the question", async () =>
+    it("keeps the conversation AI-active when retrieved evidence does not support the question", async () =>
     {
         const provider = new DeterministicRagAnswerProvider();
         const result = await provider.generate({
@@ -73,9 +75,10 @@ describe("grounded RAG", () =>
 
         expect(answer).toMatchObject({
             citationChunkIds: [],
-            decision: "handoff",
+            decision: "clarify",
             handoffReason: "missing_knowledge",
         });
+        expect(answer.answer).not.toContain("已将问题转交");
     });
 
     it("returns an exact approved manual answer only for its matching original question", async () =>
@@ -120,12 +123,37 @@ describe("grounded RAG", () =>
             citationChunkIds: [manualEvidence[0]?.chunkId],
             decision: "answer",
         });
-        expect(different.answer.decision).toBe("handoff");
+        expect(different.answer.decision).toBe("clarify");
         expect(confirmation.answer).toMatchObject({
             answer: "Yes. According to the approved knowledge, The approved diagnostic coverage window is 14 days.",
             citationChunkIds: [manualEvidence[0]?.chunkId],
             decision: "answer",
         });
+    });
+
+    it("prevents a model-originated handoff from transferring the customer", () =>
+    {
+        const answer = enforceCustomerControlledHandoff({
+            answer: "I requested human support.",
+            citationChunkIds: [],
+            confidence: 0,
+            decision: "handoff",
+            handoffReason: "missing_knowledge",
+            normalizedQuestion: "unsupported question",
+        }, "Unsupported question", "en");
+        const prompt = buildRagPrompt({
+            evidence,
+            language: "en",
+            question: "Unsupported question",
+            recentMessages: [],
+        });
+
+        expect(answer).toMatchObject({
+            decision: "clarify",
+            handoffReason: "missing_knowledge",
+        });
+        expect(answer.answer).not.toContain("requested human support");
+        expect(prompt.system).toContain("Never return decision=handoff");
     });
 
     it("rejects a structurally valid citation outside the retrieval set", () =>

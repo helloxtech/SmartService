@@ -68,10 +68,10 @@
 
 固定 `out_of_scope` 测试：
 
-- 100% `decision=handoff` 或安全拒答。
+- 100% `decision=clarify` 和安全拒答，会话保持 `active_ai`。
 - 100% 创建/合并 knowledge gap。
 - 不允许带猜测性答案。
-- 每题必须断言没有发送不受支持的事实、拒答原因正确、handoff 已创建，并且摘要包包含客户问题、已确认事实、触发原因和下一步。
+- 每题必须断言没有发送不受支持的事实、拒答原因正确、没有创建 handoff，且只有客户明确选择人工后才创建摘要包。
 - 固定集的版本、清单和 SHA-256 必须随 G1 证据保存。
 
 ## 3.3 R3 红线
@@ -97,7 +97,7 @@
 | ID | 场景 | 预期 |
 |---|---|---|
 | H-01 | 用户主动要求人工 | 立即 handoff，不需要先劝阻 |
-| H-02 | 知识外 | handoff + knowledge gap |
+| H-02 | 知识外 | 保持 `active_ai`、返回 `clarify`、创建 knowledge gap；不自动 handoff |
 | H-03 | 红线 | handoff + guardrail event |
 | H-04 | 人工工作台 | 3 秒内出现已有摘要包，P95 记录 |
 | H-05 | 人工接管 | 状态变 `active_human`，AI 不再自动回复 |

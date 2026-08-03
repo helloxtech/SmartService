@@ -1,8 +1,10 @@
 import {
     buildRetrievalQuestion,
     createApprovedManualAnswer,
+    createSafeClarification,
     createSafeHandoff,
     detectConversationLanguage,
+    enforceCustomerControlledHandoff,
     evaluateDeterministicGuardrails,
     guardrailPromptVersion,
     ragPromptVersion,
@@ -869,8 +871,8 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 if (evidence.length === 0)
                 {
                     provider = "retrieval-gate";
-                    model = "no-evidence-v1";
-                    answer = createSafeHandoff(input.text, language, "missing_knowledge");
+                    model = "no-evidence-v2";
+                    answer = createSafeClarification(input.text, language, "missing_knowledge");
                 }
                 else
                 {
@@ -893,7 +895,11 @@ export class DefaultPublicConversationService implements PublicConversationServi
                         const generated = await this.answers.generate(generationInput);
                         inputTokens = generated.inputTokens;
                         outputTokens = generated.outputTokens;
-                        answer = validateGroundedAnswer(generated.answer, evidence);
+                        answer = enforceCustomerControlledHandoff(
+                            validateGroundedAnswer(generated.answer, evidence),
+                            input.text,
+                            language,
+                        );
                     }
 
                     if (
@@ -983,7 +989,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 : error instanceof Error
                     ? error.name.slice(0, 120)
                     : "UNKNOWN_ERROR";
-            answer = createSafeHandoff(input.text, language, "system_error");
+            answer = createSafeClarification(input.text, language, "system_error");
 
             console.error(JSON.stringify({
                 conversationId,

@@ -1,12 +1,15 @@
 import {
-    buildRetrievalQuestion,
+    buildCrossLanguageRetrievalQuestion,
+    buildRetrievalQuestions,
     createApprovedManualAnswer,
     createSafeClarification,
     createSafeHandoff,
     detectConversationLanguage,
     enforceCustomerControlledHandoff,
     evaluateDeterministicGuardrails,
+    filterEvidenceForExactEntities,
     guardrailPromptVersion,
+    mergeRetrievedEvidence,
     ragPromptVersion,
     selectCitedGuardrailEvidence,
     validateGroundedAnswer,
@@ -783,7 +786,10 @@ export class DefaultPublicConversationService implements PublicConversationServi
 
         const startedAt = Date.now();
         let evidence: RetrievedEvidence[] = [];
+        let retrievalCrossLanguageExpanded = false;
         let retrievalContextualized = false;
+        let retrievalMinimumThreshold = parseThreshold(this.bindings);
+        let retrievalQueryCount = 1;
         let provider = this.answers.provider;
         let model = this.answers.model;
         let inputTokens: number | null = null;
@@ -847,31 +853,71 @@ export class DefaultPublicConversationService implements PublicConversationServi
                     conversationId,
                     customerMessage.id,
                 );
-                const retrievalQuestion = buildRetrievalQuestion(
+                const focusedRetrievalQuestions = buildRetrievalQuestions(
                     input.text,
                     recentMessages,
                 );
-                retrievalContextualized = retrievalQuestion !== input.text.trim();
-                const vectors = await this.embeddings.embed([retrievalQuestion]);
-                const queryEmbedding = vectors[0];
+                const retrievalQuestions = focusedRetrievalQuestions.map((question) =>
+                    buildCrossLanguageRetrievalQuestion(question),
+                );
+                const retrievalThresholds = retrievalQuestions.map((retrievalQuestion, index) =>
+                    retrievalQuestion === focusedRetrievalQuestions[index]
+                        ? parseThreshold(this.bindings)
+                        : Math.min(parseThreshold(this.bindings), 0.3),
+                );
+                retrievalCrossLanguageExpanded = retrievalQuestions.some(
+                    (question, index) => question !== focusedRetrievalQuestions[index],
+                );
+                retrievalContextualized = focusedRetrievalQuestions.length > 1
+                    || focusedRetrievalQuestions[0] !== input.text.trim();
+                retrievalMinimumThreshold = Math.min(...retrievalThresholds);
+                retrievalQueryCount = focusedRetrievalQuestions.length;
+                const vectors = await this.embeddings.embed(retrievalQuestions);
 
-                if (queryEmbedding === undefined)
+                if (vectors.length !== retrievalQuestions.length)
                 {
                     throw new ApiError(502, "QUERY_EMBEDDING_INVALID", "The query embedding is not valid.");
                 }
 
-                evidence = await this.repository.retrieveEvidence(
-                    organizationId,
-                    retrievalQuestion,
-                    queryEmbedding,
-                    parseThreshold(this.bindings),
-                    8,
+                const retrievalResultSets = await Promise.all(
+                    retrievalQuestions.map(async (retrievalQuestion, index) =>
+                    {
+                        const queryEmbedding = vectors[index];
+
+                        if (queryEmbedding === undefined)
+                        {
+                            throw new ApiError(502, "QUERY_EMBEDDING_INVALID", "The query embedding is not valid.");
+                        }
+
+                        const resultSet = await this.repository.retrieveEvidence(
+                            organizationId,
+                            retrievalQuestion,
+                            queryEmbedding,
+                            retrievalThresholds[index] ?? parseThreshold(this.bindings),
+                            4,
+                        );
+                        const focusedRetrievalQuestion = focusedRetrievalQuestions[index]
+                            ?? input.text;
+                        const entityQuestion = focusedRetrievalQuestions.length === 1
+                            && focusedRetrievalQuestion !== input.text.trim()
+                            ? [...recentMessages]
+                                .reverse()
+                                .find((message) => message.senderType === "customer")
+                                ?.text ?? input.text
+                            : focusedRetrievalQuestion;
+
+                        return filterEvidenceForExactEntities(
+                            entityQuestion,
+                            resultSet,
+                        );
+                    }),
                 );
+                evidence = mergeRetrievedEvidence(retrievalResultSets, 8);
 
                 if (evidence.length === 0)
                 {
                     provider = "retrieval-gate";
-                    model = "no-evidence-v2";
+                    model = "no-evidence-v3";
                     answer = createSafeClarification(input.text, language, "missing_knowledge");
                 }
                 else
@@ -1026,12 +1072,14 @@ export class DefaultPublicConversationService implements PublicConversationServi
             retrievalMetadata: {
                 contextualized: retrievalContextualized,
                 count: evidence.length,
+                crossLanguageExpanded: retrievalCrossLanguageExpanded,
+                queryCount: retrievalQueryCount,
                 normalizedQuestion: answer.normalizedQuestion,
                 scores: evidence.map((item) => ({
                     chunkId: item.chunkId,
                     combinedScore: item.combinedScore,
                 })),
-                threshold: parseThreshold(this.bindings),
+                threshold: retrievalMinimumThreshold,
             },
             retrievedChunkIds: evidence.map((item) => item.chunkId),
         });

@@ -1,17 +1,21 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    buildCrossLanguageRetrievalQuestion,
     buildRagPrompt,
     buildRetrievalQuestion,
+    buildRetrievalQuestions,
     DeterministicRagAnswerProvider,
     enforceCustomerControlledHandoff,
+    filterEvidenceForExactEntities,
     isContextDependentFollowUp,
+    mergeRetrievedEvidence,
     RagValidationError,
     validateGroundedAnswer,
     type RetrievedEvidence,
 } from "./rag";
 
-const evidence: RetrievedEvidence[] = [{
+const fixtureEvidence: RetrievedEvidence = {
     chunkId: "40000000-0000-4000-a000-000000000001",
     combinedScore: 0.91,
     content: "NF-500 specifications. Maximum flow | 300 litres per minute.",
@@ -19,7 +23,8 @@ const evidence: RetrievedEvidence[] = [{
         pageStart: 4,
         title: "NF-Series Product Manual",
     },
-}];
+};
+const evidence: RetrievedEvidence[] = [fixtureEvidence];
 
 describe("grounded RAG", () =>
 {
@@ -43,6 +48,86 @@ describe("grounded RAG", () =>
         expect(followUp).toContain("customer follow-up: Are you sure?");
         expect(buildRetrievalQuestion("请问有什么课程？", recentMessages))
             .toBe("请问有什么课程？");
+    });
+
+    it("decomposes multi-part questions into focused retrieval queries", () =>
+    {
+        expect(buildRetrievalQuestions(
+            "你们学校校长是谁？哪年成立的？上课要去学校上，还是可以在家上？学校地址是哪里？",
+            [],
+        )).toEqual([
+            "你们学校校长是谁",
+            "哪年成立的",
+            "上课要去学校上，还是可以在家上",
+            "学校地址是哪里",
+        ]);
+    });
+
+    it("adds exact shared entities to later subquestions", () =>
+    {
+        expect(buildRetrievalQuestions(
+            "古筝的课时有多少？有文凭证书吗？老师是谁？",
+            [],
+        )).toEqual([
+            "古筝的课时有多少",
+            "古筝 有文凭证书吗",
+            "古筝 老师是谁",
+        ]);
+    });
+
+    it("bridges common Chinese school questions into English website search terms", () =>
+    {
+        const foundedQuery = buildCrossLanguageRetrievalQuestion("哪年成立的");
+        const addressQuery = buildCrossLanguageRetrievalQuestion("学校地址是哪里");
+
+        expect(foundedQuery).toContain("founded in");
+        expect(foundedQuery).toContain("established");
+        expect(addressQuery).toContain("address");
+        expect(addressQuery).toContain("学校地址是哪里");
+        expect(buildCrossLanguageRetrievalQuestion("What is the address?"))
+            .toBe("What is the address?");
+    });
+
+    it("keeps evidence for every focused query when merging bounded results", () =>
+    {
+        const firstResult = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000004",
+        };
+        const secondResult = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000005",
+        };
+
+        expect(mergeRetrievedEvidence([
+            [firstResult, fixtureEvidence],
+            [secondResult],
+        ], 2).map((item) => item.chunkId)).toEqual([
+            firstResult.chunkId,
+            secondResult.chunkId,
+        ]);
+    });
+
+    it("does not let Guzheng evidence answer a Guqin question", () =>
+    {
+        const guzhengEvidence: RetrievedEvidence = {
+            ...fixtureEvidence,
+            content: "古筝表演文凭课程为 40 小时。",
+        };
+        const mixedEvidence: RetrievedEvidence = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000006",
+            content: "教师简介提到古琴教学经验。",
+        };
+
+        expect(filterEvidenceForExactEntities(
+            "请问有教古琴吗？",
+            [guzhengEvidence, mixedEvidence],
+        )).toEqual([mixedEvidence]);
+        expect(filterEvidenceForExactEntities(
+            "古琴的收费是多少？",
+            [guzhengEvidence],
+        )).toEqual([]);
     });
 
     it("answers a fixture question only with a retrieved supporting citation", async () =>
@@ -79,6 +164,27 @@ describe("grounded RAG", () =>
             handoffReason: "missing_knowledge",
         });
         expect(answer.answer).not.toContain("已将问题转交");
+        expect(answer.answer).not.toContain("已批准资料");
+    });
+
+    it("acknowledges the exact entity naturally when no matching information is found", async () =>
+    {
+        const provider = new DeterministicRagAnswerProvider();
+        const result = await provider.generate({
+            evidence: [],
+            language: "zh-CN",
+            question: "我在问有教古琴吗？",
+            recentMessages: [],
+        });
+
+        expect(result.answer).toMatchObject({
+            citationChunkIds: [],
+            decision: "clarify",
+            handoffReason: "missing_knowledge",
+        });
+        expect(result.answer.answer).toContain("您问的是“古琴”");
+        expect(result.answer.answer).toContain("如果您愿意");
+        expect(result.answer.answer).not.toContain("古筝");
     });
 
     it("returns an exact approved manual answer only for its matching original question", async () =>
@@ -125,7 +231,7 @@ describe("grounded RAG", () =>
         });
         expect(different.answer.decision).toBe("clarify");
         expect(confirmation.answer).toMatchObject({
-            answer: "Yes. According to the approved knowledge, The approved diagnostic coverage window is 14 days.",
+            answer: "Yes. I checked it again: The approved diagnostic coverage window is 14 days.",
             citationChunkIds: [manualEvidence[0]?.chunkId],
             decision: "answer",
         });
@@ -154,6 +260,7 @@ describe("grounded RAG", () =>
         });
         expect(answer.answer).not.toContain("requested human support");
         expect(prompt.system).toContain("Never return decision=handoff");
+        expect(prompt.system).toContain("address every part separately");
     });
 
     it("replaces model-controlled question normalization with the deterministic canonical form", () =>

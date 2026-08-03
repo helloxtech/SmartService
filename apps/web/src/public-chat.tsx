@@ -13,6 +13,7 @@ import {
     Headphones,
     LifeBuoy,
     LoaderCircle,
+    MessageSquarePlus,
     Send,
     ShieldCheck,
     UserRound,
@@ -80,6 +81,8 @@ const publicChatCopy: Record<UiLanguage, {
     initialWelcome: string;
     messageFailed: string;
     needHumanHelp: string;
+    newConversationConfirm: string;
+    newConversationLabel: string;
     openWebpage: string;
     placeholderActive: string;
     placeholderHuman: string;
@@ -97,7 +100,7 @@ const publicChatCopy: Record<UiLanguage, {
     en: {
         activeStatus: "AI ready",
         activeStatusShort: "AI ready",
-        aiReadyNotice: "Smart Service answers only from approved knowledge. If evidence is missing, the assistant will request human support.",
+        aiReadyNotice: "Smart Service answers only from approved knowledge. If evidence is missing, the assistant will explain the limitation and offer next steps.",
         askLabel: "Ask Smart Service support",
         backLabel: "Back to Smart Service",
         busy: "Checking approved knowledge…",
@@ -114,6 +117,8 @@ const publicChatCopy: Record<UiLanguage, {
         initialWelcome: "Hello, I'm the Smart Service Assistant. How can I help?",
         messageFailed: "The message could not be sent.",
         needHumanHelp: "Need human help?",
+        newConversationConfirm: "Start a new conversation? This conversation will remain available to support, but it will no longer appear in this browser tab.",
+        newConversationLabel: "New conversation",
         openWebpage: "Open webpage",
         placeholderActive: "Ask in Chinese or English…",
         placeholderHuman: "Add details for human support…",
@@ -131,7 +136,7 @@ const publicChatCopy: Record<UiLanguage, {
     "zh-CN": {
         activeStatus: "AI 已就绪",
         activeStatusShort: "AI 就绪",
-        aiReadyNotice: "Smart Service 只使用已批准知识回答；证据不足时会请求人工客服。",
+        aiReadyNotice: "Smart Service 只使用已批准知识回答；证据不足时会说明限制并提供下一步选择。",
         askLabel: "咨询 Smart Service 客服",
         backLabel: "返回 Smart Service",
         busy: "正在检查已批准知识…",
@@ -148,6 +153,8 @@ const publicChatCopy: Record<UiLanguage, {
         initialWelcome: "您好，我是 Smart Service 智能客服。请问有什么可以帮您？",
         messageFailed: "消息未发送。",
         needHumanHelp: "需要人工帮助？",
+        newConversationConfirm: "开始新会话？当前会话仍会保留给客服查看，但不会继续显示在此浏览器标签页中。",
+        newConversationLabel: "新建会话",
         openWebpage: "打开网页",
         placeholderActive: "请输入中文或英文问题…",
         placeholderHuman: "补充信息给人工客服…",
@@ -422,7 +429,7 @@ function CitationPanel({
 /**
  * PublicChat
  * ----------------
- * Renders the responsive customer chat with language-switched copy, grounded citations, scoped polling, automatic escalation, and contextual human support.
+ * Renders the responsive customer chat with language-switched copy, grounded citations, scoped polling, customer-controlled handoff, and contextual human support.
  *
  * July 30, 2026: Updated by Forrest Zhang for SmartService Apple-inspired UI
  */
@@ -754,6 +761,45 @@ export function PublicChat({
         }
     }
 
+    /**
+     * handleNewConversation
+     * ----------------
+     * Clears only this browser tab's scoped session and client state so the customer can start fresh without deleting the retained support record.
+     *
+     * August 03, 2026: Created by Forrest Zhang for SmartService Customer Conversation Reset
+     */
+    function handleNewConversation(): void
+    {
+        if (
+            session === null
+            || busy
+            || !window.confirm(copy.newConversationConfirm)
+        )
+        {
+            return;
+        }
+
+        sessionStorage.removeItem(sessionStorageKey);
+        setSession(null);
+        setMessages([{
+            citations: [],
+            id: "local-welcome",
+            sender: "ai",
+            text: copy.initialWelcome,
+        }]);
+        setInput("");
+        setError(null);
+        setStatus("active_ai");
+        setTurnstileToken("");
+        setSelectedCitation(null);
+        setHumanSupportOfferReason(null);
+        consecutiveClarifications.current = 0;
+        cursorRef.current = null;
+        etagRef.current = null;
+        seenMessageIds.current.clear();
+        retryMessage.current = null;
+    }
+
     return (
         <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_#dff6ff_0,_transparent_34rem),linear-gradient(135deg,_#f8fafc_0%,_#eef4ff_45%,_#f8fafc_100%)] text-slate-950">
             <header className="sticky top-0 z-20 border-b border-white/70 bg-white/75 backdrop-blur-2xl">
@@ -881,10 +927,22 @@ export function PublicChat({
                                 />
                             )
                             : (
-                                <p className="mb-2 flex items-center gap-1.5 text-xs text-emerald-700">
-                                    <CheckCircle2 aria-hidden="true" className="size-3.5" />
-                                    {copy.secureSession}
-                                </p>
+                                <div className="mb-2 flex items-center justify-between gap-3">
+                                    <p className="flex items-center gap-1.5 text-xs text-emerald-700">
+                                        <CheckCircle2 aria-hidden="true" className="size-3.5" />
+                                        {copy.secureSession}
+                                    </p>
+                                    <Button
+                                        disabled={busy}
+                                        onClick={handleNewConversation}
+                                        size="sm"
+                                        type="button"
+                                        variant="outline"
+                                    >
+                                        <MessageSquarePlus aria-hidden="true" className="size-3.5" />
+                                        {copy.newConversationLabel}
+                                    </Button>
+                                </div>
                             )}
 
                         {error === null

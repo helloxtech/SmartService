@@ -180,6 +180,7 @@ describe("Workers AI RAG answer provider", () =>
             AI: {
                 run: runMock,
             } as unknown as Ai,
+            CHAT_FALLBACK_PROVIDER: "openai",
             CHAT_PRIMARY_PROVIDER: "workers-ai",
             CHAT_PROVIDER_MODE: "live",
             OPENAI_API_KEY: "unit-test-key",
@@ -212,6 +213,7 @@ describe("Workers AI RAG answer provider", () =>
             AI: {
                 run: runMock,
             } as unknown as Ai,
+            CHAT_FALLBACK_PROVIDER: "openai",
             CHAT_PRIMARY_PROVIDER: "workers-ai",
             CHAT_PROVIDER_MODE: "live",
             OPENAI_API_KEY: "unit-test-key",
@@ -230,6 +232,74 @@ describe("Workers AI RAG answer provider", () =>
         ));
         expect(warnMock).toHaveBeenCalledWith(expect.stringContaining(
             '"event":"rag.answer.fallback"',
+        ));
+    });
+
+    it("returns only the Workers AI result when fallback is disabled", async () =>
+    {
+        const runMock = vi.fn().mockResolvedValue({
+            choices: [{
+                finish_reason: "stop",
+                message: {
+                    content: JSON.stringify(createGroundedAnswer()),
+                },
+            }],
+            created: 1,
+            id: "workers-ai-primary-only",
+            model: "@cf/zai-org/glm-4.7-flash",
+            object: "chat.completion",
+            usage: {
+                completion_tokens: 21,
+                prompt_tokens: 91,
+                total_tokens: 112,
+            },
+        });
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const provider = createRagAnswerProvider({
+            AI: {
+                run: runMock,
+            } as unknown as Ai,
+            CHAT_FALLBACK_PROVIDER: "none",
+            CHAT_PRIMARY_PROVIDER: "workers-ai",
+            CHAT_PROVIDER_MODE: "live",
+            OPENAI_API_KEY: "unit-test-key",
+            OPENAI_CHAT_MODEL: "gpt-5-mini",
+        } as SmartServiceBindings);
+        const result = await provider.generate(createGenerationInput());
+
+        expect(runMock).toHaveBeenCalledTimes(1);
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(result).toMatchObject({
+            model: "@cf/zai-org/glm-4.7-flash",
+            provider: "cloudflare-workers-ai",
+        });
+    });
+
+    it("fails closed without calling OpenAI when Workers AI fails and fallback is disabled", async () =>
+    {
+        const runMock = vi.fn().mockRejectedValue(new Error("Workers AI unavailable"));
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const errorMock = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const provider = createRagAnswerProvider({
+            AI: {
+                run: runMock,
+            } as unknown as Ai,
+            CHAT_FALLBACK_PROVIDER: "none",
+            CHAT_PRIMARY_PROVIDER: "workers-ai",
+            CHAT_PROVIDER_MODE: "live",
+            OPENAI_API_KEY: "unit-test-key",
+            OPENAI_CHAT_MODEL: "gpt-5-mini",
+        } as SmartServiceBindings);
+
+        await expect(provider.generate(createGenerationInput())).rejects.toMatchObject({
+            code: "WORKERS_AI_PROVIDER_FAILED",
+        });
+        expect(runMock).toHaveBeenCalledTimes(1);
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(errorMock).toHaveBeenCalledWith(expect.stringContaining(
+            '"event":"workers_ai.structured_output.failed"',
         ));
     });
 });

@@ -208,9 +208,9 @@ export class HybridRagAnswerProvider implements RagAnswerProvider
 /**
  * createRagAnswerProvider
  * ----------------
- * Selects the live Structured Output adapter or the explicit deterministic nonproduction provider.
+ * Selects deterministic, OpenAI, Workers AI primary-only, or Workers AI with OpenAI fallback behavior from explicit runtime configuration.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Grounded Text Q&A
+ * August 03, 2026: Updated by Forrest Zhang for SmartService Primary-Model Testing
  */
 export function createRagAnswerProvider(bindings: SmartServiceBindings): RagAnswerProvider
 {
@@ -219,12 +219,17 @@ export function createRagAnswerProvider(bindings: SmartServiceBindings): RagAnsw
         return new DeterministicRagAnswerProvider();
     }
 
-    const openAiProvider = new OpenAiRagAnswerProvider(bindings);
+    if (bindings.CHAT_PRIMARY_PROVIDER !== "workers-ai")
+    {
+        return new OpenAiRagAnswerProvider(bindings);
+    }
 
-    return bindings.CHAT_PRIMARY_PROVIDER === "workers-ai"
-        ? new HybridRagAnswerProvider(
-            new WorkersAiRagAnswerProvider(bindings),
-            openAiProvider,
-        )
-        : openAiProvider;
+    const workersAiProvider = new WorkersAiRagAnswerProvider(bindings);
+
+    return bindings.CHAT_FALLBACK_PROVIDER === "none"
+        ? workersAiProvider
+        : new HybridRagAnswerProvider(
+            workersAiProvider,
+            new OpenAiRagAnswerProvider(bindings),
+        );
 }

@@ -339,7 +339,7 @@ async function sendHostedQuestion(testCase: HostedQuestionCase): Promise<z.infer
 /**
  * verifyQuestionCase
  * ----------------
- * Verifies one hosted UAT question for the expected answer or safe handoff behavior.
+ * Verifies one hosted UAT question for the expected cited answer or AI-active clarification behavior.
  *
  * July 28, 2026: Created by Forrest Zhang for Hosted DEV UAT
  */

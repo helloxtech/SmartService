@@ -788,8 +788,8 @@ export class SupabaseAnalyticsService implements AnalyticsService
             userMessage: gap.exampleQuestion,
         });
         let evidence: RetrievedEvidence[] = [];
-        let provider = this.dependencies.answers.provider;
-        let model = this.dependencies.answers.model;
+        let provider: string;
+        let model: string;
         let inputTokens: number | null = null;
         let outputTokens: number | null = null;
         let supervisor: {
@@ -835,7 +835,9 @@ export class SupabaseAnalyticsService implements AnalyticsService
                     recentMessages: [],
                 });
                 inputTokens = generated.inputTokens;
+                model = generated.model;
                 outputTokens = generated.outputTokens;
+                provider = generated.provider;
                 answer = validateGroundedAnswer(generated.answer, evidence);
                 const outputEvaluation = evaluateDeterministicGuardrails({
                     candidateAnswer: answer.answer,

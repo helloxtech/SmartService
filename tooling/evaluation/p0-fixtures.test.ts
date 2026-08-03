@@ -105,7 +105,7 @@ describe("P0 acceptance fixture integrity", () =>
         }
     });
 
-    it("hands off all eight fixed out-of-scope cases without citations or guessed facts", async () =>
+    it("clarifies all eight fixed out-of-scope cases without citations, guessed facts, or forced handoff", async () =>
     {
         const cases = await loadAcceptanceCases();
         const evidence = await loadApprovedFixtureEvidence();
@@ -122,7 +122,7 @@ describe("P0 acceptance fixture integrity", () =>
             });
             const answer = validateGroundedAnswer(generated.answer, evidence);
 
-            expect(answer.decision, testCase.id).toBe("handoff");
+            expect(answer.decision, testCase.id).toBe("clarify");
             expect(answer.handoffReason, testCase.id).toBe("missing_knowledge");
             expect(answer.citationChunkIds, testCase.id).toEqual([]);
         }

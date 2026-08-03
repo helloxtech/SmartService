@@ -31,7 +31,9 @@ export interface RagGenerationResult
 {
     answer: RagAnswer;
     inputTokens: number | null;
+    model: string;
     outputTokens: number | null;
+    provider: string;
 }
 
 export interface RagAnswerProvider
@@ -654,7 +656,9 @@ export class DeterministicRagAnswerProvider implements RagAnswerProvider
         return {
             answer: buildDeterministicFixtureAnswer(input),
             inputTokens: null,
+            model: this.model,
             outputTokens: null,
+            provider: this.provider,
         };
     }
 }

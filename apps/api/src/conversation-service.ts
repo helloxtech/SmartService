@@ -894,7 +894,9 @@ export class DefaultPublicConversationService implements PublicConversationServi
                     {
                         const generated = await this.answers.generate(generationInput);
                         inputTokens = generated.inputTokens;
+                        model = generated.model;
                         outputTokens = generated.outputTokens;
+                        provider = generated.provider;
                         answer = enforceCustomerControlledHandoff(
                             validateGroundedAnswer(generated.answer, evidence),
                             input.text,

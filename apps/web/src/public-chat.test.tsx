@@ -13,6 +13,7 @@ import {
     vi,
 } from "vitest";
 
+import { mergeChatMessages } from "./lib/public-chat-messages";
 import { PublicChat } from "./public-chat";
 
 const conversationId = "20000000-0000-4000-a000-000000000001";
@@ -33,6 +34,19 @@ afterEach(() =>
 
 describe("PublicChat", () =>
 {
+    it("deduplicates a persisted AI message received from polling and send completion", () =>
+    {
+        const message = {
+            citations: [],
+            id: messageId,
+            sender: "ai" as const,
+            text: "We offer approved music courses.",
+        };
+
+        expect(mergeChatMessages([message], [message])).toEqual([message]);
+        expect(mergeChatMessages([], [message, message])).toEqual([message]);
+    });
+
     it("starts a scoped session, sends a bilingual question, and opens its evidence excerpt", async () =>
     {
         const fetchMock = vi.fn(async (

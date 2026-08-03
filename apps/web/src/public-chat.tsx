@@ -36,6 +36,10 @@ import {
     sendPublicMessage,
 } from "./lib/public-conversation-api";
 import {
+    mergeChatMessages,
+    type ChatMessage,
+} from "./lib/public-chat-messages";
+import {
     LanguageSwitch,
     type UiLanguage,
 } from "./language";
@@ -50,14 +54,6 @@ const storedSessionSchema = z.object({
 });
 
 type StoredSession = z.infer<typeof storedSessionSchema>;
-
-interface ChatMessage
-{
-    citations: PublicCitation[];
-    id: string;
-    sender: "ai" | "customer" | "human" | "system";
-    text: string;
-}
 
 type HumanSupportOfferReason =
     | "customer_frustration"
@@ -531,7 +527,7 @@ export function PublicChat({
 
                     if (additions.length > 0)
                     {
-                        setMessages((current) => [...current, ...additions]);
+                        setMessages((current) => mergeChatMessages(current, additions));
                     }
                 }
             }
@@ -638,12 +634,12 @@ export function PublicChat({
 
             if (retryMessage.current?.clientMessageId !== pending.clientMessageId)
             {
-                setMessages((current) => [...current, {
+                setMessages((current) => mergeChatMessages(current, [{
                     citations: [],
                     id: pending.clientMessageId,
                     sender: "customer",
                     text: pending.text,
-                }]);
+                }]));
             }
 
             retryMessage.current = pending;
@@ -657,12 +653,12 @@ export function PublicChat({
 
             if (response.decision !== "human")
             {
-                setMessages((current) => [...current, {
+                setMessages((current) => mergeChatMessages(current, [{
                     citations: response.citations,
                     id: response.messageId,
                     sender: "ai",
                     text: response.answer,
-                }]);
+                }]));
             }
 
             if (response.handoff !== null)
@@ -738,12 +734,12 @@ export function PublicChat({
             seenMessageIds.current.add(response.messageId);
             setStatus(response.handoff.status);
             setHumanSupportOfferReason(null);
-            setMessages((current) => [...current, {
+            setMessages((current) => mergeChatMessages(current, [{
                 citations: [],
                 id: response.messageId,
                 sender: "system",
                 text: copy.handoffDefaultMessage,
-            }]);
+            }]));
         }
         catch (caught: unknown)
         {

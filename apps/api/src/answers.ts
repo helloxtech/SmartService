@@ -95,9 +95,9 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
     /**
      * generate
      * ----------------
-     * Requests one bounded non-thinking GLM answer in JSON Schema mode and returns provider-specific usage for the AI audit.
+     * Requests a bounded non-thinking GLM answer in JSON Schema mode with one same-model retry after provider, schema, or citation validation failure.
      *
-     * August 03, 2026: Created by Forrest Zhang for SmartService Workers AI Cost Optimization
+     * August 03, 2026: Updated by Forrest Zhang for SmartService Primary-Only Reliability
      */
     public async generate(input: RagGenerationInput): Promise<RagGenerationResult>
     {
@@ -112,26 +112,56 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
             );
         }
 
-        const result = await requestWorkersAiStructuredOutput({
-            ai,
-            description: "A grounded customer-service answer or safe clarification decision.",
-            gatewayId: this.bindings.WORKERS_AI_GATEWAY_ID ?? "default",
-            maxOutputTokens: 1_800,
-            model: this.model,
-            name: "smartservice_rag_answer",
-            prompt: buildRagPrompt(input),
-            promptVersion: ragPromptVersion,
-            schema: ragAnswerJsonSchema,
-            timeoutMs: 12_000,
-        });
+        let lastError: unknown;
 
-        return {
-            answer: ragAnswerSchema.parse(result.value),
-            inputTokens: result.inputTokens,
-            model: this.model,
-            outputTokens: result.outputTokens,
-            provider: this.provider,
-        };
+        for (let attempt = 1; attempt <= 2; attempt += 1)
+        {
+            try
+            {
+                const result = await requestWorkersAiStructuredOutput({
+                    ai,
+                    description: "A grounded customer-service answer or safe clarification decision.",
+                    gatewayId: this.bindings.WORKERS_AI_GATEWAY_ID ?? "default",
+                    maxOutputTokens: 1_800,
+                    model: this.model,
+                    name: "smartservice_rag_answer",
+                    prompt: buildRagPrompt(input),
+                    promptVersion: ragPromptVersion,
+                    schema: ragAnswerJsonSchema,
+                    timeoutMs: 12_000,
+                });
+
+                return {
+                    answer: validateGroundedAnswer(
+                        ragAnswerSchema.parse(result.value),
+                        input.evidence,
+                    ),
+                    inputTokens: result.inputTokens,
+                    model: this.model,
+                    outputTokens: result.outputTokens,
+                    provider: this.provider,
+                };
+            }
+            catch (error: unknown)
+            {
+                lastError = error;
+
+                if (attempt === 1)
+                {
+                    console.warn(JSON.stringify({
+                        errorCode: error instanceof ApiError
+                            ? error.code
+                            : error instanceof Error
+                                ? error.name.slice(0, 120)
+                                : "UNKNOWN_ERROR",
+                        event: "workers_ai.answer.retry",
+                        model: this.model,
+                    }));
+                }
+            }
+        }
+
+        throw lastError;
     }
 }
 

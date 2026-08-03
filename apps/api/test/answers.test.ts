@@ -152,6 +152,41 @@ describe("Workers AI RAG answer provider", () =>
         });
     });
 
+    it("retries GLM once after a schema-invalid primary response", async () =>
+    {
+        const runMock = vi.fn()
+            .mockResolvedValueOnce({
+                choices: [{
+                    finish_reason: "stop",
+                    message: {
+                        content: JSON.stringify({ answer: "Incomplete" }),
+                    },
+                }],
+            })
+            .mockResolvedValueOnce({
+                choices: [{
+                    finish_reason: "stop",
+                    message: {
+                        content: JSON.stringify(createGroundedAnswer()),
+                    },
+                }],
+            });
+        const warnMock = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+        const provider = new WorkersAiRagAnswerProvider({
+            AI: {
+                run: runMock,
+            } as unknown as Ai,
+            WORKERS_AI_GATEWAY_ID: "default",
+        } as SmartServiceBindings);
+        const result = await provider.generate(createGenerationInput());
+
+        expect(runMock).toHaveBeenCalledTimes(2);
+        expect(result.provider).toBe("cloudflare-workers-ai");
+        expect(warnMock).toHaveBeenCalledWith(expect.stringContaining(
+            '"event":"workers_ai.answer.retry"',
+        ));
+    });
+
     it("falls back to OpenAI when GLM cites evidence outside the exact retrieval set", async () =>
     {
         const runMock = vi.fn().mockResolvedValue({
@@ -188,7 +223,7 @@ describe("Workers AI RAG answer provider", () =>
         } as SmartServiceBindings);
         const result = await provider.generate(createGenerationInput());
 
-        expect(runMock).toHaveBeenCalledTimes(1);
+        expect(runMock).toHaveBeenCalledTimes(2);
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(result).toMatchObject({
             model: "gpt-5-mini",
@@ -221,7 +256,7 @@ describe("Workers AI RAG answer provider", () =>
         } as SmartServiceBindings);
         const result = await provider.generate(createGenerationInput());
 
-        expect(runMock).toHaveBeenCalledTimes(1);
+        expect(runMock).toHaveBeenCalledTimes(2);
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(result).toMatchObject({
             model: "gpt-5-mini",
@@ -296,7 +331,7 @@ describe("Workers AI RAG answer provider", () =>
         await expect(provider.generate(createGenerationInput())).rejects.toMatchObject({
             code: "WORKERS_AI_PROVIDER_FAILED",
         });
-        expect(runMock).toHaveBeenCalledTimes(1);
+        expect(runMock).toHaveBeenCalledTimes(2);
         expect(fetchMock).not.toHaveBeenCalled();
         expect(errorMock).toHaveBeenCalledWith(expect.stringContaining(
             '"event":"workers_ai.structured_output.failed"',

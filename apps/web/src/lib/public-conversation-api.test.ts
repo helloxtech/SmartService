@@ -77,7 +77,7 @@ describe("public conversation API", () =>
         );
 
         expect(result.displayName).toBe("Smart Service");
-        expect(result.welcomeMessage).toBe("您好，我是 Smart Service 智能客服。请问有什么可以帮您？");
+        expect(result.welcomeMessage).toBe("您好，这里是 Smart Service 招生咨询。请问您想了解课程、报名还是学校信息？");
         expect(attemptedKeys).toEqual([
             "smart-service-public-demo",
             "xflow-public-demo",

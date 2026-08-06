@@ -51,7 +51,7 @@ function createFetchMock(
                 conversationToken: "x".repeat(32),
                 displayName: "Smart Service",
                 expiresAt: "2099-07-27T08:00:00.000Z",
-                welcomeMessage: "Hello, I'm the Smart Service Assistant. How can I help?",
+                welcomeMessage: "Hello! You’ve reached Smart Service Admissions. How can I help with courses, enrolment, or the school?",
             }), {
                 headers: {
                     "content-type": "application/json",
@@ -296,7 +296,7 @@ describe("VoiceExperience", () =>
         )).toHaveLength(2);
     });
 
-    it("enters terminal handoff UI when the shared voice guardrail stops AI", async () =>
+    it("enters terminal manager-follow-up UI when the shared voice guardrail stops the voice conversation", async () =>
     {
         const fetchMock = createFetchMock(true, "handoff_requested");
         vi.stubGlobal("fetch", fetchMock);
@@ -309,7 +309,7 @@ describe("VoiceExperience", () =>
 
         await user.click(screen.getByRole("button", { name: /Start voice/u }));
 
-        expect(await screen.findByText(/AI voice has stopped/u)).toBeInTheDocument();
-        expect(screen.getByText(/Voice AI will not reply again/u)).toBeInTheDocument();
+        expect(await screen.findByText(/Voice has paused/u)).toBeInTheDocument();
+        expect(screen.getAllByText(/admissions manager can now review/u)).toHaveLength(2);
     });
 });

@@ -11,7 +11,9 @@ describe("explicit customer handoff intent", () =>
     it.each([
         "我要人工",
         "请转人工客服",
+        "请招生经理跟进",
         "I need a human agent",
+        "Please connect me with an admissions manager",
         "Connect me to a representative",
         "I want to talk with a real person",
     ])("recognizes %s", (message) =>

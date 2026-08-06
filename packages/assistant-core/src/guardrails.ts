@@ -127,11 +127,41 @@ const deterministicPatterns: Record<GuardrailRule["ruleType"], RegExp> = {
 };
 
 /**
+ * normalizeGuardrailCustomerVoice
+ * ----------------
+ * Preserves a rule's safety instruction while removing external-research and generic-support wording from customer-visible escalation copy.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Admissions Owner Voice Policy
+ */
+function normalizeGuardrailCustomerVoice(
+    safeResponse: string,
+    language: ConversationLanguage,
+): string
+{
+    if (language === "zh-CN")
+    {
+        return safeResponse
+            .replace(/我没有已批准资料支持这个说法/gu, "我无法确认这个说法")
+            .replace(/会转(?:接|交)(?:给)?人工(?:客服)?(?:处理)?/gu, "我会请招生经理继续跟进")
+            .replace(/(?:已为您|我已)?(?:帮您)?转(?:接|交)(?:给)?人工(?:客服)?(?:处理)?/gu, "我已请招生经理继续跟进")
+            .replace(/人工(?:客服|支持)|工作人员/gu, "招生经理")
+            .slice(0, 600);
+    }
+
+    return safeResponse
+        .replace(/\b(?:a )?sales specialist\b/giu, "an admissions manager")
+        .replace(/\b(?:a )?human (?:support )?(?:specialist|agent)\b/giu, "an admissions manager")
+        .replace(/\bhuman support\b/giu, "an admissions manager")
+        .replace(/\bI (?:have )?(?:connected|transferred) you to\b/giu, "I have asked")
+        .slice(0, 600);
+}
+
+/**
  * localizeGuardrailSafeResponse
  * ----------------
- * Uses a language-compatible configured template or a conservative localized fallback without repeating blocked content.
+ * Uses a language-compatible configured template or a conservative localized fallback without repeating blocked content or losing the admissions-team voice.
  *
- * August 03, 2026: Updated by Forrest Zhang for SmartService Humanized Multi-Intent Answers
+ * August 06, 2026: Updated by Forrest Zhang for Admissions Owner Voice Policy
  */
 export function localizeGuardrailSafeResponse(
     rule: GuardrailRule,
@@ -140,17 +170,16 @@ export function localizeGuardrailSafeResponse(
 {
     const containsChinese = /\p{Script=Han}/u.test(rule.safeResponse);
 
-    if (
+    const safeResponse = (
         (language === "zh-CN" && containsChinese)
         || (language === "en" && !containsChinese)
     )
-    {
-        return rule.safeResponse.slice(0, 600);
-    }
+        ? rule.safeResponse
+        : language === "zh-CN"
+            ? "这个问题需要招生经理进一步确认，我已请对方继续跟进。"
+            : "An admissions manager needs to confirm this, so I have asked them to follow up.";
 
-    return language === "zh-CN"
-        ? "这个问题需要工作人员进一步确认，我已帮您转接人工客服。"
-        : "A support specialist needs to confirm this, so I have connected you with human support.";
+    return normalizeGuardrailCustomerVoice(safeResponse, language);
 }
 
 /**

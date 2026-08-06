@@ -1046,14 +1046,14 @@ export class SupabaseConversationRepository
     {
         const client = createServiceClient(this.bindings);
         const systemMessage = language === "zh-CN"
-            ? "已收到您的请求，人工客服将接手此会话。"
-            : "Your request was received. A human support specialist will take over this conversation.";
+            ? "已收到您的请求，招生经理将继续跟进本次咨询。"
+            : "Your request has been sent to an admissions manager, who will continue with your enquiry.";
         const { data, error } = await client.rpc("request_public_handoff", {
             p_conversation_id: conversationId,
             p_idempotency_key: idempotencyKey,
             p_language: language,
             p_organization_id: organizationId,
-            p_reason: "Customer explicitly requested human support.",
+            p_reason: "Customer explicitly requested admissions-manager follow-up.",
             p_request_id: requestId,
             p_system_message: systemMessage,
         });

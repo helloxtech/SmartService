@@ -174,11 +174,11 @@ function decodeCursor(value: string | null): MessageCursorPosition | null
  * ----------------
  * Detects narrow direct requests for a person without treating ordinary mentions of support or sales as takeover requests.
  *
- * July 27, 2026: Updated by Forrest Zhang for SmartService Conditional Human Support
+ * August 06, 2026: Updated by Forrest Zhang for Admissions Owner Voice Policy
  */
 export function isExplicitHandoffRequest(question: string): boolean
 {
-    return /(?:转(?:接)?人工|(?:我要|我想要|我需要|需要|联系)(?:一位|一个)?(?:人工|人工客服|真人|真人客服)|人工客服|真人客服|找个人|(?:speak|talk|connect|transfer) (?:me )?(?:to|with) (?:a )?(?:human|person|agent|representative)|i (?:want|need|would like) (?:a )?(?:human|person|agent|representative)|human agent|real person|customer service (?:agent|representative))/iu
+    return /(?:转(?:接)?人工|(?:我要|我想要|我需要|需要|联系)(?:一位|一个)?(?:人工|人工客服|真人|真人客服|招生经理)|人工客服|真人客服|招生经理|找个人|(?:speak|talk|connect|transfer) (?:me )?(?:to|with) (?:an? )?(?:human|person|agent|representative|admissions manager)|i (?:want|need|would like) (?:an? )?(?:human|person|agent|representative|admissions manager)|human agent|real person|customer service (?:agent|representative)|admissions manager)/iu
         .test(question);
 }
 
@@ -481,9 +481,9 @@ export class DefaultPublicConversationService implements PublicConversationServi
     /**
      * recordHumanRoutedCustomerMessage
      * ----------------
-     * Stores a customer update after human support is requested or connected without running retrieval, guardrails, LLM, or TTS.
+     * Stores a customer update after manager follow-up is requested or connected without running retrieval, guardrails, LLM, or TTS.
      *
-     * July 29, 2026: Created by Forrest Zhang for SmartService Pending Handoff Customer Messages
+     * August 06, 2026: Updated by Forrest Zhang for Admissions Owner Voice Policy
      */
     private async recordHumanRoutedCustomerMessage(
         organizationId: string,
@@ -513,8 +513,8 @@ export class DefaultPublicConversationService implements PublicConversationServi
 
         return sendPublicMessageResponseSchema.parse({
             answer: language === "zh-CN"
-                ? "您的补充已发送给人工客服。"
-                : "Your update has been sent to human support.",
+                ? "您的补充已发送给招生经理。"
+                : "Your update has been sent to the admissions manager.",
             citations: [],
             decision: "human",
             handoff: null,

@@ -7,12 +7,12 @@ import { Button } from "@smartservice/ui";
 import {
     ArrowLeft,
     BookOpen,
-    Bot,
     CheckCircle2,
     ExternalLink,
     Headphones,
     LifeBuoy,
     LoaderCircle,
+    MessageCircle,
     MessageSquarePlus,
     Send,
     ShieldCheck,
@@ -58,7 +58,7 @@ type StoredSession = z.infer<typeof storedSessionSchema>;
 
 type HumanSupportOfferReason =
     | "customer_frustration"
-    | "repeated_clarification"
+    | "incomplete_answer"
     | "request_error";
 
 const publicChatCopy: Record<UiLanguage, {
@@ -98,30 +98,30 @@ const publicChatCopy: Record<UiLanguage, {
     verificationRequired: string;
 }> = {
     en: {
-        activeStatus: "AI ready",
-        activeStatusShort: "AI ready",
-        aiReadyNotice: "I’ll answer from the information this business provides. If I can’t find something, I’ll say so and help with the next step.",
-        askLabel: "Ask Smart Service support",
+        activeStatus: "Admissions team online",
+        activeStatusShort: "Admissions online",
+        aiReadyNotice: "I’ll help as part of the school’s admissions team and confirm only information the school has made available. If something needs verification, you can ask an admissions manager to follow up.",
+        askLabel: "Ask Smart Service Admissions",
         backLabel: "Back to Smart Service",
-        busy: "Looking that up…",
+        busy: "Confirming that for you…",
         closedFooter: "Conversation closed",
         closedPlaceholder: "Conversation is closed.",
         closedStatus: "Conversation closed",
         footerHelp: "Enter to send. Shift + Enter for a new line.",
-        handoffConnectedFooter: "Human support connected",
-        handoffConnectedStatus: "Human support connected",
-        handoffDefaultMessage: "Your request was received. A human support specialist will take over this conversation.",
-        handoffRequestedFooter: "Waiting for human support",
-        handoffRequestedStatus: "Human support requested",
-        humanStatusShort: "Human support",
-        initialWelcome: "Hello, I'm the Smart Service Assistant. How can I help?",
+        handoffConnectedFooter: "Admissions manager connected",
+        handoffConnectedStatus: "Admissions manager connected",
+        handoffDefaultMessage: "Your request has been sent to an admissions manager, who will continue with your enquiry.",
+        handoffRequestedFooter: "Waiting for an admissions manager",
+        handoffRequestedStatus: "Admissions manager requested",
+        humanStatusShort: "Admissions manager",
+        initialWelcome: "Hello! You’ve reached Smart Service Admissions. How can I help with courses, enrolment, or the school?",
         messageFailed: "The message could not be sent.",
-        needHumanHelp: "Need human help?",
+        needHumanHelp: "Ask an admissions manager",
         newConversationConfirm: "Start a new conversation? This conversation will remain available to support, but it will no longer appear in this browser tab.",
         newConversationLabel: "New conversation",
         openWebpage: "Open webpage",
-        placeholderActive: "Ask in Chinese or English…",
-        placeholderHuman: "Add details for human support…",
+        placeholderActive: "Ask about courses, enrolment, or the school…",
+        placeholderHuman: "Add details for the admissions manager…",
         secureSession: "Secure conversation session active",
         sendLabel: "Send message",
         sourceAria: "Supporting source",
@@ -129,35 +129,35 @@ const publicChatCopy: Record<UiLanguage, {
         sourceEmpty: "Select a source below an answer to inspect the approved excerpt.",
         sourceHeading: "Supporting source",
         sourcePrefix: "Source",
-        subtitle: "Grounded customer service",
-        titleSuffix: "Support",
+        subtitle: "School admissions consultation",
+        titleSuffix: "Admissions",
         verificationRequired: "Please complete the human verification before starting.",
     },
     "zh-CN": {
-        activeStatus: "AI 已就绪",
-        activeStatusShort: "AI 就绪",
-        aiReadyNotice: "我会根据商家提供的资料回答；如果没查到，我会坦白说明，并帮您找到下一步。",
-        askLabel: "咨询 Smart Service 客服",
+        activeStatus: "招生咨询在线",
+        activeStatusShort: "招生咨询在线",
+        aiReadyNotice: "我会以学院招生团队的身份为您解答，并只确认学院已经明确的信息；需要进一步核实的内容，您可以选择请招生经理跟进。",
+        askLabel: "咨询 Smart Service 招生团队",
         backLabel: "返回 Smart Service",
-        busy: "正在帮您查资料…",
+        busy: "正在为您核实信息…",
         closedFooter: "会话已结束",
         closedPlaceholder: "会话已结束。",
         closedStatus: "会话已结束",
         footerHelp: "回车发送，Shift + 回车换行。",
-        handoffConnectedFooter: "人工客服已接入",
-        handoffConnectedStatus: "人工已接入",
-        handoffDefaultMessage: "已收到您的请求，人工客服将接手此会话。",
-        handoffRequestedFooter: "等待人工客服接入",
-        handoffRequestedStatus: "已转人工",
-        humanStatusShort: "人工客服",
-        initialWelcome: "您好，我是 Smart Service 智能客服。请问有什么可以帮您？",
+        handoffConnectedFooter: "招生经理已接入",
+        handoffConnectedStatus: "招生经理已接入",
+        handoffDefaultMessage: "已收到您的请求，招生经理将继续跟进本次咨询。",
+        handoffRequestedFooter: "等待招生经理跟进",
+        handoffRequestedStatus: "已请招生经理跟进",
+        humanStatusShort: "招生经理",
+        initialWelcome: "您好，这里是 Smart Service 招生咨询。请问您想了解课程、报名还是学校信息？",
         messageFailed: "消息未发送。",
-        needHumanHelp: "需要人工帮助？",
+        needHumanHelp: "请招生经理跟进",
         newConversationConfirm: "开始新会话？当前会话仍会保留给客服查看，但不会继续显示在此浏览器标签页中。",
         newConversationLabel: "新建会话",
         openWebpage: "打开网页",
-        placeholderActive: "请输入中文或英文问题…",
-        placeholderHuman: "补充信息给人工客服…",
+        placeholderActive: "请输入课程、报名或学校相关问题…",
+        placeholderHuman: "补充信息给招生经理…",
         secureSession: "安全会话已开启",
         sendLabel: "发送消息",
         sourceAria: "引用来源",
@@ -165,8 +165,8 @@ const publicChatCopy: Record<UiLanguage, {
         sourceEmpty: "点击答案下方的来源，可查看已批准的证据片段。",
         sourceHeading: "引用来源",
         sourcePrefix: "来源",
-        subtitle: "有依据的客户服务",
-        titleSuffix: "客服",
+        subtitle: "学院招生咨询",
+        titleSuffix: "招生咨询",
         verificationRequired: "请先完成人机验证。",
     },
 };
@@ -429,9 +429,9 @@ function CitationPanel({
 /**
  * PublicChat
  * ----------------
- * Renders the responsive customer chat with language-switched copy, grounded citations, scoped polling, customer-controlled handoff, and contextual human support.
+ * Renders the responsive admissions conversation with language-switched copy, grounded citations, scoped polling, customer-controlled manager follow-up, and ownership-safe customer language.
  *
- * July 30, 2026: Updated by Forrest Zhang for SmartService Apple-inspired UI
+ * August 06, 2026: Updated by Forrest Zhang for Admissions Owner Voice Policy
  */
 export function PublicChat({
     onUiLanguageChange = ignoreUiLanguageChange,
@@ -459,7 +459,6 @@ export function PublicChat({
     const [selectedCitation, setSelectedCitation] = useState<PublicCitation | null>(null);
     const [humanSupportOfferReason, setHumanSupportOfferReason] =
         useState<HumanSupportOfferReason | null>(null);
-    const consecutiveClarifications = useRef(0);
     const cursorRef = useRef<string | null>(null);
     const etagRef = useRef<string | null>(null);
     const seenMessageIds = useRef(new Set<string>());
@@ -606,9 +605,9 @@ export function PublicChat({
     /**
      * handleSubmit
      * ----------------
-     * Sends one optimistic retry-safe customer turn, appends the validated response, and exposes human help only after a contextual signal.
+     * Clears and locks the composer before one retry-safe customer turn, then appends the validated response and offers manager follow-up for incomplete answers.
      *
-     * July 27, 2026: Updated by Forrest Zhang for SmartService Conditional Human Support
+     * August 06, 2026: Updated by Forrest Zhang for Admissions Owner Voice Policy
      */
     async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void>
     {
@@ -620,6 +619,7 @@ export function PublicChat({
             return;
         }
 
+        setInput("");
         setBusy(true);
         setError(null);
         const customerAppearsFrustrated = indicatesCustomerFrustration(question);
@@ -671,27 +671,18 @@ export function PublicChat({
             if (response.handoff !== null)
             {
                 setStatus(response.handoff.status);
-                consecutiveClarifications.current = 0;
                 setHumanSupportOfferReason(null);
             }
             else if (response.decision === "human")
             {
-                consecutiveClarifications.current = 0;
                 setHumanSupportOfferReason(null);
             }
             else if (response.decision === "clarify")
             {
-                consecutiveClarifications.current += 1;
-
-                if (consecutiveClarifications.current >= 2)
-                {
-                    setHumanSupportOfferReason("repeated_clarification");
-                }
+                setHumanSupportOfferReason("incomplete_answer");
             }
             else
             {
-                consecutiveClarifications.current = 0;
-
                 if (!customerAppearsFrustrated)
                 {
                     setHumanSupportOfferReason(null);
@@ -699,10 +690,10 @@ export function PublicChat({
             }
 
             retryMessage.current = null;
-            setInput("");
         }
         catch (caught: unknown)
         {
+            setInput(question);
             setError(caught instanceof Error
                 ? caught.message
                 : copy.messageFailed);
@@ -717,9 +708,9 @@ export function PublicChat({
     /**
      * handleHandoff
      * ----------------
-     * Starts a conversation if needed, then accepts the contextual human-support offer through the scoped Worker endpoint.
+     * Starts a conversation if needed, then accepts the customer's explicit admissions-manager follow-up request through the scoped Worker endpoint.
      *
-     * July 27, 2026: Updated by Forrest Zhang for SmartService Conditional Human Support
+     * August 06, 2026: Updated by Forrest Zhang for Admissions Owner Voice Policy
      */
     async function handleHandoff(): Promise<void>
     {
@@ -733,7 +724,7 @@ export function PublicChat({
 
         try
         {
-            const activeSession = await ensureSession("zh-CN");
+            const activeSession = await ensureSession(uiLanguage === "zh-CN" ? "zh-CN" : "en");
             const response = await requestPublicHandoff(
                 activeSession.conversationId,
                 activeSession.conversationToken,
@@ -766,7 +757,7 @@ export function PublicChat({
      * ----------------
      * Clears only this browser tab's scoped session and client state so the customer can start fresh without deleting the retained support record.
      *
-     * August 03, 2026: Created by Forrest Zhang for SmartService Customer Conversation Reset
+     * August 06, 2026: Updated by Forrest Zhang for Admissions Owner Voice Policy
      */
     function handleNewConversation(): void
     {
@@ -793,7 +784,6 @@ export function PublicChat({
         setTurnstileToken("");
         setSelectedCitation(null);
         setHumanSupportOfferReason(null);
-        consecutiveClarifications.current = 0;
         cursorRef.current = null;
         etagRef.current = null;
         seenMessageIds.current.clear();
@@ -870,7 +860,7 @@ export function PublicChat({
                                         ? <UserRound aria-hidden="true" className="size-4" />
                                         : message.sender === "human"
                                             ? <Headphones aria-hidden="true" className="size-4" />
-                                            : <Bot aria-hidden="true" className="size-4" />}
+                                            : <MessageCircle aria-hidden="true" className="size-4" />}
                                 </div>
                                 <div className={`max-w-[85%] ${
                                     message.sender === "customer" ? "text-right" : ""
@@ -959,8 +949,9 @@ export function PublicChat({
                             </label>
                             <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-inner shadow-slate-200/50 focus-within:border-slate-400 focus-within:ring-4 focus-within:ring-slate-200/60">
                                 <textarea
+                                    aria-busy={busy}
                                     className="max-h-36 min-h-11 flex-1 resize-none border-0 bg-transparent px-3 py-2 text-sm outline-none"
-                                    disabled={!canCustomerSend(status)}
+                                    disabled={busy || !canCustomerSend(status)}
                                     id="customer-message"
                                     maxLength={5000}
                                     onChange={(event) => setInput(event.target.value)}

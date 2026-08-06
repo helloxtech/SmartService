@@ -184,7 +184,7 @@ describe("grounded RAG", () =>
             handoffReason: "missing_knowledge",
         });
         expect(result.answer.answer).toContain("您问的是“古琴”");
-        expect(result.answer.answer).toContain("招生经理");
+        expect(result.answer.answer).toContain("客服专员");
         expect(result.answer.answer).not.toContain("古筝");
     });
 
@@ -279,7 +279,7 @@ describe("grounded RAG", () =>
             .toBe("does the qa-500 course include lunar-campus lodging");
     });
 
-    it("removes retrieval language so confirmed facts sound school-owned", () =>
+    it("removes retrieval language so confirmed facts sound company-owned", () =>
     {
         const answer = enforceCustomerControlledHandoff({
             answer: "根据证据，学校成立于2001年，证据中没有校长姓名。",
@@ -298,7 +298,7 @@ describe("grounded RAG", () =>
         expect(answer.answer).not.toContain("查到");
     });
 
-    it("answers a principal question directly in the admissions-team voice when the model mentions only founders", () =>
+    it("answers a principal question directly in the company-service voice when the model mentions only founders", () =>
     {
         const answer = enforceCustomerControlledHandoff({
             answer: "学校由陈教授和杨教授共同创办，成立于2001年。",
@@ -310,11 +310,11 @@ describe("grounded RAG", () =>
         }, "你们学校校长是谁？哪年成立的？", "zh-CN");
 
         expect(answer.answer).toBe(
-            "关于校长，我这边暂时没有可确认的信息。您可以选择请招生经理进一步核实。学校由陈教授和杨教授共同创办，成立于2001年。",
+            "关于校长，我这边暂时没有可确认的信息。您可以选择请客服专员进一步核实。学校由陈教授和杨教授共同创办，成立于2001年。",
         );
     });
 
-    it("uses an admissions-manager option instead of external research, retry, or contact copy", () =>
+    it("uses a support-specialist option instead of external research, retry, or contact copy", () =>
     {
         const answer = enforceCustomerControlledHandoff({
             answer: "I checked the information available but cannot confirm the online teaching mode.",
@@ -331,12 +331,14 @@ describe("grounded RAG", () =>
             recentMessages: [],
         });
 
-        expect(answer.answer).toContain("admissions manager");
+        expect(answer.answer).toContain("support specialist");
         expect(answer.answer).not.toContain("I checked");
-        expect(prompt.system).toContain("Speak as part of the school");
+        expect(prompt.system).toContain("Speak as part of the company");
         expect(prompt.system).toContain("Never tell the customer to try again");
-        expect(prompt.system).toContain("Never tell the customer to contact the school or business");
+        expect(prompt.system).toContain("Never tell the customer to contact the company or business");
         expect(prompt.system).toContain("根据我查到的资料");
+        expect(prompt.system).not.toContain("admissions");
+        expect(prompt.system).not.toContain("school");
     });
 
     it("never asks a customer to retry after an unavailable confirmation", () =>
@@ -347,7 +349,7 @@ describe("grounded RAG", () =>
             "system_error",
         );
 
-        expect(answer.answer).toContain("招生经理");
+        expect(answer.answer).toContain("客服专员");
         expect(answer.answer).not.toContain("再试");
         expect(answer.answer).not.toContain("查资料");
     });

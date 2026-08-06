@@ -114,7 +114,7 @@ describe("OpenAI auxiliary adapters", () =>
         });
 
         expect(result.evaluation.safeResponse).toBe(
-            "这个问题需要招生经理进一步确认，我已请对方继续跟进。",
+            "这个问题需要客服专员进一步确认，我已请对方继续跟进。",
         );
     });
 

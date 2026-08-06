@@ -174,11 +174,11 @@ function decodeCursor(value: string | null): MessageCursorPosition | null
  * ----------------
  * Detects narrow direct requests for a person without treating ordinary mentions of support or sales as takeover requests.
  *
- * August 06, 2026: Updated by Forrest Zhang for Admissions Owner Voice Policy
+ * August 06, 2026: Updated by Forrest Zhang for Tenant Customer-Service Ownership Policy
  */
 export function isExplicitHandoffRequest(question: string): boolean
 {
-    return /(?:转(?:接)?人工|(?:我要|我想要|我需要|需要|联系)(?:一位|一个)?(?:人工|人工客服|真人|真人客服|招生经理)|人工客服|真人客服|招生经理|找个人|(?:speak|talk|connect|transfer) (?:me )?(?:to|with) (?:an? )?(?:human|person|agent|representative|admissions manager)|i (?:want|need|would like) (?:an? )?(?:human|person|agent|representative|admissions manager)|human agent|real person|customer service (?:agent|representative)|admissions manager)/iu
+    return /(?:转(?:接)?人工|(?:我要|我想要|我需要|需要|联系)(?:一位|一个)?(?:人工|人工客服|真人|真人客服|客服专员)|人工客服|真人客服|客服专员|找个人|(?:speak|talk|connect|transfer) (?:me )?(?:to|with) (?:a )?(?:human|person|agent|representative|support specialist)|i (?:want|need|would like) (?:a )?(?:human|person|agent|representative|support specialist)|human agent|real person|customer service (?:agent|representative)|support specialist)/iu
         .test(question);
 }
 
@@ -481,9 +481,9 @@ export class DefaultPublicConversationService implements PublicConversationServi
     /**
      * recordHumanRoutedCustomerMessage
      * ----------------
-     * Stores a customer update after manager follow-up is requested or connected without running retrieval, guardrails, LLM, or TTS.
+     * Stores a customer update after specialist follow-up is requested or connected without running retrieval, guardrails, LLM, or TTS.
      *
-     * August 06, 2026: Updated by Forrest Zhang for Admissions Owner Voice Policy
+     * August 06, 2026: Updated by Forrest Zhang for Tenant Customer-Service Ownership Policy
      */
     private async recordHumanRoutedCustomerMessage(
         organizationId: string,
@@ -513,8 +513,8 @@ export class DefaultPublicConversationService implements PublicConversationServi
 
         return sendPublicMessageResponseSchema.parse({
             answer: language === "zh-CN"
-                ? "您的补充已发送给招生经理。"
-                : "Your update has been sent to the admissions manager.",
+                ? "您的补充已发送给客服专员。"
+                : "Your update has been sent to a support specialist.",
             citations: [],
             decision: "human",
             handoff: null,

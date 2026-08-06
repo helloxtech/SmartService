@@ -129,9 +129,9 @@ const deterministicPatterns: Record<GuardrailRule["ruleType"], RegExp> = {
 /**
  * normalizeGuardrailCustomerVoice
  * ----------------
- * Preserves a rule's safety instruction while removing external-research and generic-support wording from customer-visible escalation copy.
+ * Preserves a rule's safety instruction while removing external-research wording and using tenant-neutral customer-service escalation copy.
  *
- * August 06, 2026: Created by Forrest Zhang for Admissions Owner Voice Policy
+ * August 06, 2026: Updated by Forrest Zhang for Tenant Customer-Service Ownership Policy
  */
 function normalizeGuardrailCustomerVoice(
     safeResponse: string,
@@ -142,16 +142,16 @@ function normalizeGuardrailCustomerVoice(
     {
         return safeResponse
             .replace(/我没有已批准资料支持这个说法/gu, "我无法确认这个说法")
-            .replace(/会转(?:接|交)(?:给)?人工(?:客服)?(?:处理)?/gu, "我会请招生经理继续跟进")
-            .replace(/(?:已为您|我已)?(?:帮您)?转(?:接|交)(?:给)?人工(?:客服)?(?:处理)?/gu, "我已请招生经理继续跟进")
-            .replace(/人工(?:客服|支持)|工作人员/gu, "招生经理")
+            .replace(/会转(?:接|交)(?:给)?人工(?:客服)?(?:处理)?/gu, "我会请客服专员继续跟进")
+            .replace(/(?:已为您|我已)?(?:帮您)?转(?:接|交)(?:给)?人工(?:客服)?(?:处理)?/gu, "我已请客服专员继续跟进")
+            .replace(/招生经理|人工(?:客服|支持)|工作人员/gu, "客服专员")
             .slice(0, 600);
     }
 
     return safeResponse
-        .replace(/\b(?:a )?sales specialist\b/giu, "an admissions manager")
-        .replace(/\b(?:a )?human (?:support )?(?:specialist|agent)\b/giu, "an admissions manager")
-        .replace(/\bhuman support\b/giu, "an admissions manager")
+        .replace(/\b(?:an? )?(?:sales|admissions) specialist\b/giu, "a support specialist")
+        .replace(/\b(?:an? )?(?:admissions manager|human (?:support )?(?:specialist|agent))\b/giu, "a support specialist")
+        .replace(/\bhuman support\b/giu, "a support specialist")
         .replace(/\bI (?:have )?(?:connected|transferred) you to\b/giu, "I have asked")
         .slice(0, 600);
 }
@@ -159,9 +159,9 @@ function normalizeGuardrailCustomerVoice(
 /**
  * localizeGuardrailSafeResponse
  * ----------------
- * Uses a language-compatible configured template or a conservative localized fallback without repeating blocked content or losing the admissions-team voice.
+ * Uses a language-compatible configured template or a conservative localized fallback without repeating blocked content or losing the company's customer-service voice.
  *
- * August 06, 2026: Updated by Forrest Zhang for Admissions Owner Voice Policy
+ * August 06, 2026: Updated by Forrest Zhang for Tenant Customer-Service Ownership Policy
  */
 export function localizeGuardrailSafeResponse(
     rule: GuardrailRule,
@@ -176,8 +176,8 @@ export function localizeGuardrailSafeResponse(
     )
         ? rule.safeResponse
         : language === "zh-CN"
-            ? "这个问题需要招生经理进一步确认，我已请对方继续跟进。"
-            : "An admissions manager needs to confirm this, so I have asked them to follow up.";
+            ? "这个问题需要客服专员进一步确认，我已请对方继续跟进。"
+            : "A support specialist needs to confirm this, so I have asked them to follow up.";
 
     return normalizeGuardrailCustomerVoice(safeResponse, language);
 }

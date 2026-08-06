@@ -51,7 +51,7 @@ function createFetchMock(
                 conversationToken: "x".repeat(32),
                 displayName: "Smart Service",
                 expiresAt: "2099-07-27T08:00:00.000Z",
-                welcomeMessage: "Hello! You’ve reached Smart Service Admissions. How can I help with courses, enrolment, or the school?",
+                welcomeMessage: "Hello! You’ve reached Smart Service customer service. How can I help today?",
             }), {
                 headers: {
                     "content-type": "application/json",
@@ -310,6 +310,6 @@ describe("VoiceExperience", () =>
         await user.click(screen.getByRole("button", { name: /Start voice/u }));
 
         expect(await screen.findByText(/Voice has paused/u)).toBeInTheDocument();
-        expect(screen.getAllByText(/admissions manager can now review/u)).toHaveLength(2);
+        expect(screen.getAllByText(/support specialist can now review/u)).toHaveLength(2);
     });
 });

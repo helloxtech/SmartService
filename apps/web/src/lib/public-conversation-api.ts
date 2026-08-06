@@ -92,15 +92,15 @@ function normalizeHostedDemoBrand(value: string): string
 /**
  * getSmartServiceWelcomeMessage
  * ----------------
- * Provides the customer-visible admissions greeting in the selected language so stale hosted tenant settings cannot leak old names or an external-assistant identity.
+ * Provides the customer-visible online-customer-service greeting in the selected language so stale hosted tenant settings cannot leak old names or an external-assistant identity.
  *
- * August 06, 2026: Updated by Forrest Zhang for Admissions Owner Voice Policy
+ * August 06, 2026: Updated by Forrest Zhang for Tenant Customer-Service Ownership Policy
  */
 function getSmartServiceWelcomeMessage(language: ConversationLanguage): string
 {
     return language === "zh-CN"
-        ? "您好，这里是 Smart Service 招生咨询。请问您想了解课程、报名还是学校信息？"
-        : "Hello! You’ve reached Smart Service Admissions. How can I help with courses, enrolment, or the school?";
+        ? "您好，这里是 Smart Service 在线客服。请问有什么可以帮您？"
+        : "Hello! You’ve reached Smart Service customer service. How can I help today?";
 }
 
 /**

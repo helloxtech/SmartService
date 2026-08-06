@@ -98,30 +98,30 @@ const publicChatCopy: Record<UiLanguage, {
     verificationRequired: string;
 }> = {
     en: {
-        activeStatus: "Admissions team online",
-        activeStatusShort: "Admissions online",
-        aiReadyNotice: "I’ll help as part of the school’s admissions team and confirm only information the school has made available. If something needs verification, you can ask an admissions manager to follow up.",
-        askLabel: "Ask Smart Service Admissions",
+        activeStatus: "Customer service online",
+        activeStatusShort: "Service online",
+        aiReadyNotice: "I’ll help as part of this company’s customer-service team and confirm only information the company has made available. If something needs verification, you can ask a support specialist to follow up.",
+        askLabel: "Ask Smart Service customer service",
         backLabel: "Back to Smart Service",
         busy: "Confirming that for you…",
         closedFooter: "Conversation closed",
         closedPlaceholder: "Conversation is closed.",
         closedStatus: "Conversation closed",
         footerHelp: "Enter to send. Shift + Enter for a new line.",
-        handoffConnectedFooter: "Admissions manager connected",
-        handoffConnectedStatus: "Admissions manager connected",
-        handoffDefaultMessage: "Your request has been sent to an admissions manager, who will continue with your enquiry.",
-        handoffRequestedFooter: "Waiting for an admissions manager",
-        handoffRequestedStatus: "Admissions manager requested",
-        humanStatusShort: "Admissions manager",
-        initialWelcome: "Hello! You’ve reached Smart Service Admissions. How can I help with courses, enrolment, or the school?",
+        handoffConnectedFooter: "Support specialist connected",
+        handoffConnectedStatus: "Support specialist connected",
+        handoffDefaultMessage: "Your request has been sent to a support specialist, who will continue with your enquiry.",
+        handoffRequestedFooter: "Waiting for a support specialist",
+        handoffRequestedStatus: "Support specialist requested",
+        humanStatusShort: "Support specialist",
+        initialWelcome: "Hello! You’ve reached Smart Service customer service. How can I help today?",
         messageFailed: "The message could not be sent.",
-        needHumanHelp: "Ask an admissions manager",
+        needHumanHelp: "Ask a support specialist",
         newConversationConfirm: "Start a new conversation? This conversation will remain available to support, but it will no longer appear in this browser tab.",
         newConversationLabel: "New conversation",
         openWebpage: "Open webpage",
-        placeholderActive: "Ask about courses, enrolment, or the school…",
-        placeholderHuman: "Add details for the admissions manager…",
+        placeholderActive: "Ask in Chinese or English…",
+        placeholderHuman: "Add details for the support specialist…",
         secureSession: "Secure conversation session active",
         sendLabel: "Send message",
         sourceAria: "Supporting source",
@@ -129,35 +129,35 @@ const publicChatCopy: Record<UiLanguage, {
         sourceEmpty: "Select a source below an answer to inspect the approved excerpt.",
         sourceHeading: "Supporting source",
         sourcePrefix: "Source",
-        subtitle: "School admissions consultation",
-        titleSuffix: "Admissions",
+        subtitle: "Company online customer service",
+        titleSuffix: "Customer Service",
         verificationRequired: "Please complete the human verification before starting.",
     },
     "zh-CN": {
-        activeStatus: "招生咨询在线",
-        activeStatusShort: "招生咨询在线",
-        aiReadyNotice: "我会以学院招生团队的身份为您解答，并只确认学院已经明确的信息；需要进一步核实的内容，您可以选择请招生经理跟进。",
-        askLabel: "咨询 Smart Service 招生团队",
+        activeStatus: "在线客服",
+        activeStatusShort: "在线客服",
+        aiReadyNotice: "我会以本企业在线客服的身份为您解答，并只确认企业已经明确的信息；需要进一步核实的内容，您可以选择请客服专员跟进。",
+        askLabel: "咨询 Smart Service 在线客服",
         backLabel: "返回 Smart Service",
         busy: "正在为您核实信息…",
         closedFooter: "会话已结束",
         closedPlaceholder: "会话已结束。",
         closedStatus: "会话已结束",
         footerHelp: "回车发送，Shift + 回车换行。",
-        handoffConnectedFooter: "招生经理已接入",
-        handoffConnectedStatus: "招生经理已接入",
-        handoffDefaultMessage: "已收到您的请求，招生经理将继续跟进本次咨询。",
-        handoffRequestedFooter: "等待招生经理跟进",
-        handoffRequestedStatus: "已请招生经理跟进",
-        humanStatusShort: "招生经理",
-        initialWelcome: "您好，这里是 Smart Service 招生咨询。请问您想了解课程、报名还是学校信息？",
+        handoffConnectedFooter: "客服专员已接入",
+        handoffConnectedStatus: "客服专员已接入",
+        handoffDefaultMessage: "已收到您的请求，客服专员将继续跟进本次咨询。",
+        handoffRequestedFooter: "等待客服专员跟进",
+        handoffRequestedStatus: "已请客服专员跟进",
+        humanStatusShort: "客服专员",
+        initialWelcome: "您好，这里是 Smart Service 在线客服。请问有什么可以帮您？",
         messageFailed: "消息未发送。",
-        needHumanHelp: "请招生经理跟进",
+        needHumanHelp: "请客服专员跟进",
         newConversationConfirm: "开始新会话？当前会话仍会保留给客服查看，但不会继续显示在此浏览器标签页中。",
         newConversationLabel: "新建会话",
         openWebpage: "打开网页",
-        placeholderActive: "请输入课程、报名或学校相关问题…",
-        placeholderHuman: "补充信息给招生经理…",
+        placeholderActive: "请输入中文或英文问题…",
+        placeholderHuman: "补充信息给客服专员…",
         secureSession: "安全会话已开启",
         sendLabel: "发送消息",
         sourceAria: "引用来源",
@@ -165,8 +165,8 @@ const publicChatCopy: Record<UiLanguage, {
         sourceEmpty: "点击答案下方的来源，可查看已批准的证据片段。",
         sourceHeading: "引用来源",
         sourcePrefix: "来源",
-        subtitle: "学院招生咨询",
-        titleSuffix: "招生咨询",
+        subtitle: "企业在线客服",
+        titleSuffix: "在线客服",
         verificationRequired: "请先完成人机验证。",
     },
 };
@@ -429,9 +429,9 @@ function CitationPanel({
 /**
  * PublicChat
  * ----------------
- * Renders the responsive admissions conversation with language-switched copy, grounded citations, scoped polling, customer-controlled manager follow-up, and ownership-safe customer language.
+ * Renders the responsive tenant customer-service conversation with language-switched copy, grounded citations, scoped polling, customer-controlled specialist follow-up, and ownership-safe customer language.
  *
- * August 06, 2026: Updated by Forrest Zhang for Admissions Owner Voice Policy
+ * August 06, 2026: Updated by Forrest Zhang for Tenant Customer-Service Ownership Policy
  */
 export function PublicChat({
     onUiLanguageChange = ignoreUiLanguageChange,
@@ -605,9 +605,9 @@ export function PublicChat({
     /**
      * handleSubmit
      * ----------------
-     * Clears and locks the composer before one retry-safe customer turn, then appends the validated response and offers manager follow-up for incomplete answers.
+     * Clears and locks the composer before one retry-safe customer turn, then appends the validated response and offers specialist follow-up for incomplete answers.
      *
-     * August 06, 2026: Updated by Forrest Zhang for Admissions Owner Voice Policy
+     * August 06, 2026: Updated by Forrest Zhang for Tenant Customer-Service Ownership Policy
      */
     async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void>
     {
@@ -708,9 +708,9 @@ export function PublicChat({
     /**
      * handleHandoff
      * ----------------
-     * Starts a conversation if needed, then accepts the customer's explicit admissions-manager follow-up request through the scoped Worker endpoint.
+     * Starts a conversation if needed, then accepts the customer's explicit support-specialist follow-up request through the scoped Worker endpoint.
      *
-     * August 06, 2026: Updated by Forrest Zhang for Admissions Owner Voice Policy
+     * August 06, 2026: Updated by Forrest Zhang for Tenant Customer-Service Ownership Policy
      */
     async function handleHandoff(): Promise<void>
     {
@@ -757,7 +757,7 @@ export function PublicChat({
      * ----------------
      * Clears only this browser tab's scoped session and client state so the customer can start fresh without deleting the retained support record.
      *
-     * August 06, 2026: Updated by Forrest Zhang for Admissions Owner Voice Policy
+     * August 06, 2026: Updated by Forrest Zhang for Tenant Customer-Service Ownership Policy
      */
     function handleNewConversation(): void
     {

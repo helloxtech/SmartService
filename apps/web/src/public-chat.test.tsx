@@ -26,7 +26,7 @@ const citationId = "50000000-0000-4000-a000-000000000001";
  * ----------------
  * Creates a test-controlled response promise so the pending-composer state can be asserted before the simulated server reply resolves.
  *
- * August 06, 2026: Created by Forrest Zhang for Admissions Owner Voice Policy
+ * August 06, 2026: Updated by Forrest Zhang for Tenant Customer-Service Ownership Policy
  */
 function createDeferredResponse(): {
     promise: Promise<Response>;
@@ -89,7 +89,7 @@ describe("PublicChat", () =>
                     conversationToken: "x".repeat(32),
                     displayName: "Smart Service",
                     expiresAt: "2099-07-26T22:00:00.000Z",
-                    welcomeMessage: "Hello! You’ve reached Smart Service Admissions. How can I help with courses, enrolment, or the school?",
+                    welcomeMessage: "Hello! You’ve reached Smart Service customer service. How can I help today?",
                 }), {
                     headers: {
                         "content-type": "application/json",
@@ -137,10 +137,10 @@ describe("PublicChat", () =>
         render(<PublicChat />);
 
         await screen.findByText("Local demo verification is ready.");
-        expect(screen.queryByRole("button", { name: /Ask an admissions manager/u }))
+        expect(screen.queryByRole("button", { name: /Ask a support specialist/u }))
             .not.toBeInTheDocument();
         await user.type(
-            screen.getByLabelText(/Ask Smart Service Admissions/u),
+            screen.getByLabelText(/Ask Smart Service customer service/u),
             "NF-500 的保修期多久？",
         );
         await user.click(screen.getByRole("button", { name: /Send message/u }));
@@ -155,7 +155,7 @@ describe("PublicChat", () =>
         expect(JSON.stringify(fetchMock.mock.calls)).not.toContain("chunkId");
     });
 
-    it("clears and locks the composer while a school answer is being confirmed", async () =>
+    it("clears and locks the composer while a company answer is being confirmed", async () =>
     {
         const pendingMessage = createDeferredResponse();
         const fetchMock = vi.fn(async (
@@ -172,7 +172,7 @@ describe("PublicChat", () =>
                     conversationToken: "x".repeat(32),
                     displayName: "Smart Service",
                     expiresAt: "2099-07-26T22:00:00.000Z",
-                    welcomeMessage: "Hello! You’ve reached Smart Service Admissions. How can I help with courses, enrolment, or the school?",
+                    welcomeMessage: "Hello! You’ve reached Smart Service customer service. How can I help today?",
                 }), {
                     headers: {
                         "content-type": "application/json",
@@ -202,7 +202,7 @@ describe("PublicChat", () =>
         const user = userEvent.setup();
         render(<PublicChat />);
 
-        const composer = screen.getByLabelText(/Ask Smart Service Admissions/u);
+        const composer = screen.getByLabelText(/Ask Smart Service customer service/u);
         await user.type(composer, "Can I study online?");
         await user.click(screen.getByRole("button", { name: /Send message/u }));
 
@@ -229,7 +229,7 @@ describe("PublicChat", () =>
         expect(composer).toBeEnabled();
     });
 
-    it("offers admissions-manager follow-up after the first incomplete answer and transfers only after the customer selects it", async () =>
+    it("offers support-specialist follow-up after the first incomplete answer and transfers only after the customer selects it", async () =>
     {
         let clarificationCount = 0;
         const fetchMock = vi.fn(async (
@@ -246,7 +246,7 @@ describe("PublicChat", () =>
                     conversationToken: "x".repeat(32),
                     displayName: "Smart Service",
                     expiresAt: "2099-07-26T22:00:00.000Z",
-                    welcomeMessage: "Hello! You’ve reached Smart Service Admissions. How can I help with courses, enrolment, or the school?",
+                    welcomeMessage: "Hello! You’ve reached Smart Service customer service. How can I help today?",
                 }), {
                     headers: {
                         "content-type": "application/json",
@@ -305,20 +305,20 @@ describe("PublicChat", () =>
         render(<PublicChat />);
 
         await screen.findByText("Local demo verification is ready.");
-        await user.type(screen.getByLabelText(/Ask Smart Service Admissions/u), "First unclear question");
+        await user.type(screen.getByLabelText(/Ask Smart Service customer service/u), "First unclear question");
         await user.click(screen.getByRole("button", { name: /Send message/u }));
         await screen.findByText("Clarification 1");
-        expect(screen.getByRole("button", { name: /Ask an admissions manager/u }))
+        expect(screen.getByRole("button", { name: /Ask a support specialist/u }))
             .toBeInTheDocument();
-        expect(screen.queryByText("Waiting for an admissions manager"))
+        expect(screen.queryByText("Waiting for a support specialist"))
             .not.toBeInTheDocument();
         expect(fetchMock.mock.calls.filter(([request]) => String(request).endsWith("/request-handoff")))
             .toHaveLength(0);
 
-        await user.click(screen.getByRole("button", { name: /Ask an admissions manager/u }));
-        expect(await screen.findByText("Your request has been sent to an admissions manager, who will continue with your enquiry."))
+        await user.click(screen.getByRole("button", { name: /Ask a support specialist/u }));
+        expect(await screen.findByText("Your request has been sent to a support specialist, who will continue with your enquiry."))
             .toBeInTheDocument();
-        expect(screen.queryByRole("button", { name: /Ask an admissions manager/u }))
+        expect(screen.queryByRole("button", { name: /Ask a support specialist/u }))
             .not.toBeInTheDocument();
     });
 
@@ -329,7 +329,7 @@ describe("PublicChat", () =>
             conversationToken: "x".repeat(32),
             displayName: "Smart Service",
             expiresAt: "2099-07-26T22:00:00.000Z",
-            welcomeMessage: "Hello! You’ve reached Smart Service Admissions. How can I help with courses, enrolment, or the school?",
+            welcomeMessage: "Hello! You’ve reached Smart Service customer service. How can I help today?",
         }));
         const fetchMock = vi.fn(async (
             input: RequestInfo | URL,
@@ -341,7 +341,7 @@ describe("PublicChat", () =>
             if (url.includes(`/conversations/${conversationId}/messages`) && init?.method === "POST")
             {
                 return new Response(JSON.stringify({
-                    answer: "Your update has been sent to the admissions manager.",
+                    answer: "Your update has been sent to a support specialist.",
                     citations: [],
                     decision: "human",
                     handoff: null,
@@ -375,9 +375,9 @@ describe("PublicChat", () =>
         const user = userEvent.setup();
         render(<PublicChat />);
 
-        expect(await screen.findByText("Waiting for an admissions manager"))
+        expect(await screen.findByText("Waiting for a support specialist"))
             .toBeInTheDocument();
-        const composer = screen.getByLabelText(/Ask Smart Service Admissions/u);
+        const composer = screen.getByLabelText(/Ask Smart Service customer service/u);
         expect(composer).toBeEnabled();
 
         await user.type(composer, "I can share my preferred model.");
@@ -385,9 +385,9 @@ describe("PublicChat", () =>
 
         expect(await screen.findByText("I can share my preferred model."))
             .toBeInTheDocument();
-        expect(screen.queryByText("Admissions manager connected"))
+        expect(screen.queryByText("Support specialist connected"))
             .not.toBeInTheDocument();
-        expect(screen.queryByText("Your update has been sent to the admissions manager."))
+        expect(screen.queryByText("Your update has been sent to a support specialist."))
             .not.toBeInTheDocument();
     });
 
@@ -398,7 +398,7 @@ describe("PublicChat", () =>
             conversationToken: "x".repeat(32),
             displayName: "Smart Service",
             expiresAt: "2099-07-26T22:00:00.000Z",
-            welcomeMessage: "Hello! You’ve reached Smart Service Admissions. How can I help with courses, enrolment, or the school?",
+            welcomeMessage: "Hello! You’ve reached Smart Service customer service. How can I help today?",
         }));
         const confirmMock = vi.fn()
             .mockReturnValueOnce(false)
@@ -418,7 +418,7 @@ describe("PublicChat", () =>
                     conversationToken: "y".repeat(32),
                     displayName: "Smart Service",
                     expiresAt: "2099-07-26T23:00:00.000Z",
-                    welcomeMessage: "Hello! You’ve reached Smart Service Admissions. How can I help with courses, enrolment, or the school?",
+                    welcomeMessage: "Hello! You’ve reached Smart Service customer service. How can I help today?",
                 }), {
                     headers: {
                         "content-type": "application/json",
@@ -433,7 +433,7 @@ describe("PublicChat", () =>
             )
             {
                 return new Response(JSON.stringify({
-                    answer: "This is a fresh admissions conversation.",
+                    answer: "This is a fresh customer-service conversation.",
                     citations: [],
                     decision: "clarify",
                     handoff: null,
@@ -477,7 +477,7 @@ describe("PublicChat", () =>
         const user = userEvent.setup();
         render(<PublicChat />);
 
-        expect(await screen.findByText("Waiting for an admissions manager"))
+        expect(await screen.findByText("Waiting for a support specialist"))
             .toBeInTheDocument();
         const newConversation = screen.getByRole("button", { name: "New conversation" });
 
@@ -487,7 +487,7 @@ describe("PublicChat", () =>
         );
         expect(sessionStorage.getItem("smartservice.publicConversation.v1"))
             .not.toBeNull();
-        expect(screen.getByText("Waiting for an admissions manager"))
+        expect(screen.getByText("Waiting for a support specialist"))
             .toBeInTheDocument();
 
         await user.click(newConversation);
@@ -495,16 +495,16 @@ describe("PublicChat", () =>
             .toBeInTheDocument();
         expect(sessionStorage.getItem("smartservice.publicConversation.v1"))
             .toBeNull();
-        expect(screen.queryByText("Waiting for an admissions manager"))
+        expect(screen.queryByText("Waiting for a support specialist"))
             .not.toBeInTheDocument();
 
         await user.type(
-            screen.getByLabelText(/Ask Smart Service Admissions/u),
+            screen.getByLabelText(/Ask Smart Service customer service/u),
             "Start fresh",
         );
         await user.click(screen.getByRole("button", { name: /Send message/u }));
 
-        expect(await screen.findByText("This is a fresh admissions conversation."))
+        expect(await screen.findByText("This is a fresh customer-service conversation."))
             .toBeInTheDocument();
         expect(JSON.parse(
             sessionStorage.getItem("smartservice.publicConversation.v1") ?? "{}",

@@ -76,7 +76,7 @@ describe("deterministic guardrails", () =>
         });
     });
 
-    it("keeps guardrail safety wording while using the school's admissions-manager voice", () =>
+    it("keeps guardrail safety wording while using the company's customer-service voice", () =>
     {
         const firstRule = rules[0];
 
@@ -90,7 +90,7 @@ describe("deterministic guardrails", () =>
             safeResponse: "我没有已批准资料支持这个说法，会转交人工客服处理。",
         }, "zh-CN");
 
-        expect(response).toBe("我无法确认这个说法，我会请招生经理继续跟进。");
+        expect(response).toBe("我无法确认这个说法，我会请客服专员继续跟进。");
         expect(response).not.toContain("资料");
         expect(response).not.toContain("人工客服");
     });

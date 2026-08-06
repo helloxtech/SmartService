@@ -43,16 +43,16 @@ test("renders the responsive public customer chat and evidence panel", async ({ 
 {
     await page.goto("/chat");
 
-    await expect(page.getByRole("heading", { name: /Smart Service Admissions/u })).toBeVisible();
-    await expect(page.getByText("Admissions team online")).toBeVisible();
-    await expect(page.getByLabel(/Ask Smart Service Admissions/u)).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Smart Service Customer Service/u })).toBeVisible();
+    await expect(page.getByText("Customer service online")).toBeVisible();
+    await expect(page.getByLabel(/Ask Smart Service customer service/u)).toBeVisible();
     await expect(page.getByRole("heading", { name: /Supporting source/u })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Ask an admissions manager/u })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Ask a support specialist/u })).toHaveCount(0);
     await page.getByRole("button", { name: "中文" }).click();
-    await expect(page.getByText("招生咨询在线").nth(1)).toBeVisible();
-    await expect(page.getByLabel(/咨询 Smart Service 招生团队/u)).toBeVisible();
+    await expect(page.getByText("在线客服").nth(1)).toBeVisible();
+    await expect(page.getByLabel(/咨询 Smart Service 在线客服/u)).toBeVisible();
     await expect(page.getByRole("heading", { name: /引用来源/u })).toBeVisible();
-    await expect(page.getByText("Admissions team online")).toHaveCount(0);
+    await expect(page.getByText("Customer service online")).toHaveCount(0);
 
     await page.setViewportSize({
         height: 844,
@@ -179,7 +179,7 @@ test("starts voice only after click and falls back cleanly when microphone is de
                 conversationToken: "x".repeat(32),
                 displayName: "Smart Service",
                 expiresAt: "2099-07-27T08:00:00.000Z",
-                welcomeMessage: "Hello! You’ve reached Smart Service Admissions. How can I help with courses, enrolment, or the school?",
+                welcomeMessage: "Hello! You’ve reached Smart Service customer service. How can I help today?",
             }),
             contentType: "application/json",
             status: 201,

@@ -15,7 +15,7 @@ import { readVoiceSessionId } from "./metadata";
 export const VOICE_TURN_SETTINGS = {
     endpointing: {
         maxDelay: 1_500,
-        minDelay: 300,
+        minDelay: 500,
         mode: "dynamic",
     },
     interruption: {

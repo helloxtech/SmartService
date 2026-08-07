@@ -57,7 +57,7 @@ describe("voice agent foundation", () =>
         expect(VOICE_TURN_SETTINGS).toMatchObject({
             endpointing: {
                 maxDelay: 1_500,
-                minDelay: 300,
+                minDelay: 500,
                 mode: "dynamic",
             },
             interruption: {

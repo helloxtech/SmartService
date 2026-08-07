@@ -33,7 +33,7 @@ import type { SmartServiceBindings } from "./types";
  */
 function parseSupervisionBudgetMs(bindings: SmartServiceBindings): number
 {
-    const value = Number.parseInt(bindings.CHAT_SUPERVISION_BUDGET_MS ?? "4500", 10);
+    const value = Number.parseInt(bindings.CHAT_SUPERVISION_BUDGET_MS ?? "6000", 10);
 
     if (!Number.isInteger(value) || value < 2_000 || value > 10_000)
     {
@@ -87,14 +87,14 @@ export class OpenAiGuardrailSupervisor implements GuardrailSupervisor
             errorCode: "GUARDRAIL_PROVIDER_FAILED",
             errorMessage: "The guardrail provider request failed.",
             eventName: "guardrail.supervisor.failed",
-            maxOutputTokens: 900,
+            maxOutputTokens: 500,
             model: this.model,
             name: "smartservice_guardrail_evaluation",
             prompt: buildGuardrailPrompt(input),
             promptVersion: guardrailPromptVersion,
             reasoningEffort: "low",
             schema: guardrailEvaluationJsonSchema,
-            timeoutMs: Math.min(3_500, totalTimeoutMs),
+            timeoutMs: totalTimeoutMs,
             totalTimeoutMs,
         });
         const evaluation = guardrailEvaluationSchema.parse(result.value);

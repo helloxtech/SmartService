@@ -35,7 +35,7 @@ describe("OpenAI auxiliary adapters", () =>
 {
     it("accepts only enabled tenant rule codes from strict guardrail output", async () =>
     {
-        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
             output: [{
                 content: [{
                     text: JSON.stringify({
@@ -58,7 +58,8 @@ describe("OpenAI auxiliary adapters", () =>
             },
         }), {
             status: 200,
-        })));
+        }));
+        vi.stubGlobal("fetch", fetchMock);
         const provider = new OpenAiGuardrailSupervisor({
             OPENAI_API_KEY: "unit-test-key",
             OPENAI_SUPERVISOR_MODEL: "gpt-5-nano",
@@ -77,6 +78,9 @@ describe("OpenAI auxiliary adapters", () =>
         expect(result.evaluation.allowed).toBe(false);
         expect(result.evaluation.violations[0]?.ruleCode).toBe(rule.code);
         expect(result.inputTokens).toBe(80);
+        expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({
+            max_output_tokens: 500,
+        });
     });
 
     it("localizes a blocked response to the customer language", async () =>

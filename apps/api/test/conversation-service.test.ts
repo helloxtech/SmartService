@@ -303,6 +303,10 @@ describe("tenant-generic turn failure isolation", () =>
         );
 
         expect(harness.answers.generate).toHaveBeenCalledWith(expect.objectContaining({
+            questionPartEvidenceIds: [
+                [evidenceChunkId],
+                [evidenceChunkId],
+            ],
             questionParts: [
                 "What is the warranty",
                 "What does it cost",

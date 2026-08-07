@@ -24,6 +24,7 @@ export interface RagGenerationInput
     evidence: readonly RetrievedEvidence[];
     language: ConversationLanguage;
     question: string;
+    questionPartEvidenceIds?: readonly (readonly string[])[];
     questionParts?: readonly string[];
     recentMessages: readonly RecentConversationMessage[];
 }
@@ -31,6 +32,7 @@ export interface RagGenerationInput
 export interface RagValidationContext
 {
     language: ConversationLanguage;
+    questionPartEvidenceIds?: readonly (readonly string[])[];
     questionParts: readonly string[];
 }
 
@@ -694,10 +696,10 @@ function hasExplicitCurrentRoleHolderName(answer: string): boolean
 {
     const candidates = [
         answer.match(
-            /(?:校长|负责人|院长|主任|经理|店长|老板|业主|总裁|会长|董事长)\s*(?:是|为|：|:)\s*([^,.;，。；\n]+)/u,
+            /(?:校长|负责人|院长|主任|经理|店长|老板|业主|总裁|会长|董事长)[ \t]*(?:是|为|：|:|\r?\n)[ \t]*([^,.;，。；\n]+)/u,
         )?.[1],
         answer.match(
-            /\b(?:principal|person in charge|head|lead|manager|owner|president|chief executive officer|ceo|chairperson|chairman|chairwoman|director)\b\s*(?:is|:|-)\s*([^,.;，。；\n]+)/iu,
+            /\b(?:principal|person in charge|head|lead|manager|owner|president|chief executive officer|ceo|chairperson|chairman|chairwoman|director)\b[ \t]*(?:is|:|-|\r?\n)[ \t]*([^,.;，。；\n]+)/iu,
         )?.[1],
         answer.match(
             /([^,.;，。；\n]+?)\s*(?:担任|现任)\s*(?:校长|负责人|院长|主任|经理|店长|老板|业主|总裁|会长|董事长)/u,
@@ -710,6 +712,8 @@ function hasExplicitCurrentRoleHolderName(answer: string): boolean
     return candidates.some((candidate) =>
     {
         const normalized = candidate
+            .replace(/^\d+[.)、]\s*/u, "")
+            .replace(/^[#*_\s-]+/u, "")
             .replace(/^(?:prof(?:essor)?\.?|dr\.?|mr\.?|mrs\.?|ms\.?)\s+/iu, "")
             .replace(/(?:教授|博士|先生|女士|老师)$/u, "")
             .trim();
@@ -720,6 +724,67 @@ function hasExplicitCurrentRoleHolderName(answer: string): boolean
                 || /^\p{Lu}[\p{L}'’-]*(?:\s+\p{Lu}[\p{L}'’-]*){0,3}$/u.test(normalized)
             );
     });
+}
+
+/**
+ * evidenceSupportsCurrentRoleHolder
+ * ----------------
+ * Requires at least one cited chunk to explicitly bind a person-like name to the exact requested role instead of relying on founders, menus, or nearby titles.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Current Role Accuracy
+ */
+function evidenceSupportsCurrentRoleHolder(
+    constraint: CurrentRoleConstraint,
+    citedEvidence: readonly RetrievedEvidence[],
+): boolean
+{
+    return citedEvidence.some((item) =>
+        constraint.answerPatterns.some((pattern) => pattern.test(item.content))
+        && hasExplicitCurrentRoleHolderName(item.content),
+    );
+}
+
+/**
+ * questionRequestsDeliveryMode
+ * ----------------
+ * Detects customer questions that require explicit knowledge of remote, at-home, in-person, on-site, or mobile service delivery.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Delivery Mode Accuracy
+ */
+function questionRequestsDeliveryMode(question: string): boolean
+{
+    return /线上|线下|远程|在家|到校|在校|现场|上门|网课|授课方式|上课方式|\b(?:online|offline|remote|virtual|at home|in[ -]person|on[ -]site|in[ -]home|service location|delivery mode)\b/iu.test(
+        question,
+    );
+}
+
+/**
+ * evidenceSupportsDeliveryModeAnswer
+ * ----------------
+ * Requires every remote or in-person mode asserted by a supported part to appear explicitly in one of that part's cited chunks.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Delivery Mode Accuracy
+ */
+function evidenceSupportsDeliveryModeAnswer(
+    answer: string,
+    citedEvidence: readonly RetrievedEvidence[],
+): boolean
+{
+    const claimsRemote = /线上|远程|在家|网课|上门|\b(?:online|remote|virtual|at home|in[ -]home)\b/iu.test(answer);
+    const claimsInPerson = /线下|到校|在校|现场|\b(?:in[ -]person|on[ -]site|onsite|at (?:our|the) (?:school|office|store|location))\b/iu.test(
+        answer,
+    );
+    const citedText = citedEvidence.map((item) => item.content).join("\n");
+    const supportsRemote = /线上(?:课程|服务|授课|学习)|远程(?:课程|服务|授课|学习)|在家(?:上课|学习|接受服务)|上门服务|\b(?:(?:online|remote|virtual) (?:class(?:es)?|course(?:s)?|lesson(?:s)?|learning|instruction|service(?:s)?|study)|(?:class(?:es)?|course(?:s)?|lesson(?:s)?|service(?:s)?) (?:online|remotely|virtually)|(?:study|learn|take (?:the )?(?:class|course|lesson)s?) (?:from|at) home|in[ -]home service(?:s)?)\b/iu.test(
+        citedText,
+    );
+    const supportsInPerson = /线下(?:课程|服务|授课|学习)|到校(?:上课|学习|服务)|在校(?:上课|学习)|现场服务|\b(?:(?:in[ -]person|on[ -]site|onsite) (?:class(?:es)?|course(?:s)?|lesson(?:s)?|instruction|service(?:s)?)|(?:class(?:es)?|course(?:s)?|lesson(?:s)?|service(?:s)?) (?:in[ -]person|on[ -]site|onsite)|at (?:our|the) (?:school|office|store|location))\b/iu.test(
+        citedText,
+    );
+
+    return (claimsRemote || claimsInPerson)
+        && (!claimsRemote || supportsRemote)
+        && (!claimsInPerson || supportsInPerson);
 }
 
 /**
@@ -998,26 +1063,50 @@ export function validateGroundedAnswer(
         {
             const questionPart = questionParts[index] ?? "";
             const roleConstraint = findRequestedCurrentRoleConstraint(questionPart);
-            const supported = part.supported && (
-                roleConstraint === null
-                || hasExplicitCurrentRoleHolderName(part.answer)
-            );
+            const allowedPartEvidenceIds = context.questionPartEvidenceIds?.[index];
             const uniquePartCitationIds = new Set(part.citationChunkIds);
 
-            if (supported && uniquePartCitationIds.size !== part.citationChunkIds.length)
+            if (part.supported && uniquePartCitationIds.size !== part.citationChunkIds.length)
             {
                 throw new RagValidationError("A question part returned duplicate citation identifiers.");
             }
 
-            if (supported && part.citationChunkIds.some((chunkId) => !retrievedIds.has(chunkId)))
+            if (part.supported && part.citationChunkIds.some((chunkId) => !retrievedIds.has(chunkId)))
             {
                 throw new RagValidationError("A question part cited evidence outside the retrieval result.");
             }
 
-            if (supported && part.citationChunkIds.length === 0)
+            if (
+                part.supported
+                && allowedPartEvidenceIds !== undefined
+                && part.citationChunkIds.some((chunkId) =>
+                    !allowedPartEvidenceIds.includes(chunkId),
+                )
+            )
+            {
+                throw new RagValidationError("A question part cited evidence retrieved only for another part.");
+            }
+
+            if (part.supported && part.citationChunkIds.length === 0)
             {
                 throw new RagValidationError("A supported question part requires a citation.");
             }
+
+            const citedEvidence = retrievedEvidence.filter((item) =>
+                part.citationChunkIds.includes(item.chunkId),
+            );
+            const supported = part.supported
+                && (
+                    roleConstraint === null
+                    || (
+                        hasExplicitCurrentRoleHolderName(part.answer)
+                        && evidenceSupportsCurrentRoleHolder(roleConstraint, citedEvidence)
+                    )
+                )
+                && (
+                    !questionRequestsDeliveryMode(questionPart)
+                    || evidenceSupportsDeliveryModeAnswer(part.answer, citedEvidence)
+                );
 
             const normalizedPart = supported
                 ? {
@@ -1131,6 +1220,13 @@ export function buildRagPrompt(input: RagGenerationInput): {
         .map((part) => part.trim().slice(0, 500))
         .filter((part) => part.length > 0)
         .slice(0, 5);
+    const visibleEvidenceIds = new Set(evidence.map((item) => item.chunkId));
+    const defaultEvidenceIds = evidence.map((item) => item.chunkId);
+    const questionPartEvidence = questionParts.map((_, index) => ({
+        citationChunkIds: (input.questionPartEvidenceIds?.[index] ?? defaultEvidenceIds)
+            .filter((chunkId) => visibleEvidenceIds.has(chunkId)),
+        partIndex: index,
+    }));
 
     return {
         system: [
@@ -1144,6 +1240,7 @@ export function buildRagPrompt(input: RagGenerationInput): {
             "Never substitute a nearby product, instrument, person, course, service, model, plan, or identifier.",
             "For a multi-part question, address every part separately. Answer supported parts and say plainly which specific parts you could not find.",
             "QUESTION_PARTS is the server's ordered decomposition of the latest customer turn. Return exactly one questionPartAnswers item for every entry, using its zero-based partIndex and the same order; never omit or merge a part.",
+            "QUESTION_PART_EVIDENCE lists the only citation IDs allowed for each corresponding part. Never use evidence retrieved for a different part to answer it; an empty list means that part is unconfirmed.",
             "Each supported part must contain a complete, natural customer-facing sentence and its exact citation IDs; never return only a heading, isolated number, yes/no token, date, price, or address. Each unconfirmed part must set supported=false, use no citations, and state the specific limitation. The overall answer and citations must faithfully combine all part items.",
             "If at least one question part is supported, set the overall decision to answer and use the union of the supported parts' citations. If no part is supported, set the overall decision to clarify with no citations and an appropriate missing or conflicting knowledge reason.",
             "Do not infer a current role-holder, offering, price, availability, service or delivery mode, or location from an adjacent fact. A bare role heading, founder, former employee, or different title does not establish the named person who currently holds a requested role.",
@@ -1157,6 +1254,7 @@ export function buildRagPrompt(input: RagGenerationInput): {
             EVIDENCE: evidence,
             LANGUAGE: input.language,
             QUESTION: input.question,
+            QUESTION_PART_EVIDENCE: questionPartEvidence,
             QUESTION_PARTS: questionParts,
             RECENT_MESSAGES: recentMessages,
         }),

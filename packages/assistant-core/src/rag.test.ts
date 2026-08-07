@@ -418,24 +418,48 @@ describe("grounded RAG", () =>
 
     it("passes the server-decomposed question parts to the model in stable order", () =>
     {
+        const secondEvidence = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000002",
+        };
         const questionParts = [
             "What is the warranty?",
             "What does it cost?",
             "When are you open?",
         ];
         const prompt = buildRagPrompt({
-            evidence,
+            evidence: [fixtureEvidence, secondEvidence],
             language: "en",
             question: questionParts.join(" "),
+            questionPartEvidenceIds: [
+                [fixtureEvidence.chunkId],
+                [secondEvidence.chunkId],
+                [],
+            ],
             questionParts,
             recentMessages: [],
         });
         const payload = JSON.parse(prompt.user) as {
+            QUESTION_PART_EVIDENCE: Array<{
+                citationChunkIds: string[];
+                partIndex: number;
+            }>;
             QUESTION_PARTS: string[];
         };
 
         expect(payload.QUESTION_PARTS).toEqual(questionParts);
+        expect(payload.QUESTION_PART_EVIDENCE).toEqual([{
+            citationChunkIds: [fixtureEvidence.chunkId],
+            partIndex: 0,
+        }, {
+            citationChunkIds: [secondEvidence.chunkId],
+            partIndex: 1,
+        }, {
+            citationChunkIds: [],
+            partIndex: 2,
+        }]);
         expect(prompt.system).toContain("never omit or merge a part");
+        expect(prompt.system).toContain("retrieved for a different part");
     });
 
     it("binds Structured Output to the exact server-planned part count", () =>
@@ -568,6 +592,10 @@ describe("grounded RAG", () =>
 
     it("accepts an explicitly named current role holder for a non-school tenant", () =>
     {
+        const managerEvidence = {
+            ...fixtureEvidence,
+            content: "The current manager is Alice Chen.",
+        };
         const answer = validateGroundedAnswer({
             answer: "The current manager is Alice Chen. We open at 9 AM.",
             citationChunkIds: [fixtureEvidence.chunkId],
@@ -586,7 +614,7 @@ describe("grounded RAG", () =>
                 partIndex: 1,
                 supported: true,
             }],
-        }, evidence, {
+        }, [managerEvidence], {
             language: "en",
             questionParts: [
                 "Who is the current manager?",
@@ -596,6 +624,80 @@ describe("grounded RAG", () =>
 
         expect(answer.answer).toContain("1. The current manager is Alice Chen.");
         expect(answer.questionPartAnswers?.[0]?.supported).toBe(true);
+    });
+
+    it("rejects a citation retrieved only for a different customer question part", () =>
+    {
+        const secondEvidence = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000002",
+        };
+
+        expect(() => validateGroundedAnswer({
+            answer: "Two answers.",
+            citationChunkIds: [fixtureEvidence.chunkId, secondEvidence.chunkId],
+            confidence: 0.8,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "warranty and hours",
+            questionPartAnswers: [{
+                answer: "The warranty is one year.",
+                citationChunkIds: [secondEvidence.chunkId],
+                partIndex: 0,
+                supported: true,
+            }, {
+                answer: "We open at 9 AM.",
+                citationChunkIds: [fixtureEvidence.chunkId],
+                partIndex: 1,
+                supported: true,
+            }],
+        }, [fixtureEvidence, secondEvidence], {
+            language: "en",
+            questionPartEvidenceIds: [
+                [fixtureEvidence.chunkId],
+                [secondEvidence.chunkId],
+            ],
+            questionParts: [
+                "What is the warranty?",
+                "When do you open?",
+            ],
+        })).toThrow("retrieved only for another part");
+    });
+
+    it("requires explicit cited delivery-mode language before claiming at-home service", () =>
+    {
+        const answer = validateGroundedAnswer({
+            answer: "At-home and warranty answers.",
+            citationChunkIds: [fixtureEvidence.chunkId],
+            confidence: 0.8,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "home service and warranty",
+            questionPartAnswers: [{
+                answer: "We offer remote lessons that customers can take at home.",
+                citationChunkIds: [fixtureEvidence.chunkId],
+                partIndex: 0,
+                supported: true,
+            }, {
+                answer: "The warranty is one year.",
+                citationChunkIds: [fixtureEvidence.chunkId],
+                partIndex: 1,
+                supported: true,
+            }],
+        }, evidence, {
+            language: "en",
+            questionParts: [
+                "Can I take lessons at home?",
+                "What is the warranty?",
+            ],
+        });
+
+        expect(answer.answer).toContain("1. I cannot confirm “Can I take lessons at home” yet.");
+        expect(answer.answer).not.toContain("We offer remote lessons");
+        expect(answer.questionPartAnswers?.[0]).toMatchObject({
+            citationChunkIds: [],
+            supported: false,
+        });
     });
 
     it("separates a Chinese specialist option from an English-period company fact", () =>

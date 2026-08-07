@@ -85,6 +85,8 @@ function readRagValidationCode(error: unknown): string | null
             return "multipart_duplicate_citation";
         case "A question part cited evidence outside the retrieval result.":
             return "multipart_unknown_citation";
+        case "A question part cited evidence retrieved only for another part.":
+            return "multipart_cross_part_citation";
         case "A supported question part requires a citation.":
             return "multipart_supported_without_citation";
         case "The complete multipart answer is too long.":
@@ -275,6 +277,9 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
                     input.evidence,
                     {
                         language: input.language,
+                        ...(input.questionPartEvidenceIds === undefined
+                            ? {}
+                            : { questionPartEvidenceIds: input.questionPartEvidenceIds }),
                         questionParts: input.questionParts ?? [input.question],
                     },
                 );
@@ -414,6 +419,9 @@ export class HybridRagAnswerProvider implements RagAnswerProvider
             ...result,
             answer: validateGroundedAnswer(result.answer, input.evidence, {
                 language: input.language,
+                ...(input.questionPartEvidenceIds === undefined
+                    ? {}
+                    : { questionPartEvidenceIds: input.questionPartEvidenceIds }),
                 questionParts: input.questionParts ?? [input.question],
             }),
         };

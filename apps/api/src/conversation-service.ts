@@ -1118,6 +1118,9 @@ export class DefaultPublicConversationService implements PublicConversationServi
                             evidence,
                             language,
                             question: input.text,
+                            questionPartEvidenceIds: retrievalResultSets.map((resultSet) =>
+                                resultSet.map((item) => item.chunkId),
+                            ),
                             questionParts: focusedRetrievalQuestions,
                             recentMessages,
                         };
@@ -1141,6 +1144,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                             answer = enforceCustomerControlledHandoff(
                                 validateGroundedAnswer(generated.answer, evidence, {
                                     language,
+                                    questionPartEvidenceIds: generationInput.questionPartEvidenceIds,
                                     questionParts: focusedRetrievalQuestions,
                                 }),
                                 input.text,

@@ -356,7 +356,7 @@ describe("Workers AI RAG answer provider", () =>
             generationAttempts: 2,
             recoveryMode: "same_provider_repair",
         });
-        expect(repairSystemPrompt).toContain("citations or a decision");
+        expect(repairSystemPrompt).toContain("citations did not satisfy");
         expect(repairSystemPrompt).not.toContain("school admissions");
         expect(repairSystemPrompt).not.toContain("古筝");
     });

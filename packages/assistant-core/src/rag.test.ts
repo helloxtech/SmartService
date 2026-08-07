@@ -328,7 +328,8 @@ describe("grounded RAG", () =>
         });
         expect(answer.answer).not.toContain("requested human support");
         expect(prompt.system).toContain("Never return decision=handoff");
-        expect(prompt.system).toContain("address every part separately");
+        expect(prompt.system).toContain("Answer this one customer question directly");
+        expect(prompt.system).not.toContain("address every part separately");
     });
 
     it("replaces model-controlled question normalization with the deterministic canonical form", () =>
@@ -510,6 +511,17 @@ describe("grounded RAG", () =>
             maxItems: 4,
             minItems: 4,
         });
+    });
+
+    it("omits multipart output fields for one atomic question", () =>
+    {
+        const schema = buildRagAnswerJsonSchema(1) as {
+            properties: Record<string, unknown>;
+            required: string[];
+        };
+
+        expect(schema.properties).not.toHaveProperty("questionPartAnswers");
+        expect(schema.required).not.toContain("questionPartAnswers");
     });
 
     it("fails closed when a multipart answer omits one customer question", () =>

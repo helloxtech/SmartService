@@ -266,31 +266,29 @@ describe("tenant-generic turn failure isolation", () =>
     it("preserves every server-planned part through retrieval and answer generation", async () =>
     {
         const harness = createFailureHarness(null);
-        vi.mocked(harness.answers.generate).mockResolvedValue({
-            answer: {
-                answer: "The model aggregate will be replaced.",
-                citationChunkIds: [evidenceChunkId],
-                confidence: 0.8,
-                decision: "answer",
-                handoffReason: null,
-                normalizedQuestion: "warranty and price",
-                questionPartAnswers: [{
+        vi.mocked(harness.answers.generate).mockImplementation(async (generationInput) => ({
+            answer: generationInput.question.includes("warranty")
+                ? {
                     answer: "The warranty is one year.",
                     citationChunkIds: [evidenceChunkId],
-                    partIndex: 0,
-                    supported: true,
-                }, {
+                    confidence: 0.8,
+                    decision: "answer" as const,
+                    handoffReason: null,
+                    normalizedQuestion: "warranty",
+                }
+                : {
                     answer: "I cannot confirm the price yet.",
                     citationChunkIds: [],
-                    partIndex: 1,
-                    supported: false,
-                }],
-            },
-            inputTokens: 80,
+                    confidence: 0.4,
+                    decision: "clarify" as const,
+                    handoffReason: "missing_knowledge" as const,
+                    normalizedQuestion: "price",
+                },
+            inputTokens: 40,
             model: "@cf/meta/llama-3.1-8b-instruct-fast",
-            outputTokens: 40,
+            outputTokens: 20,
             provider: "cloudflare-workers-ai",
-        });
+        }));
 
         const response = await harness.service.sendTrusted(
             organizationId,
@@ -302,15 +300,16 @@ describe("tenant-generic turn failure isolation", () =>
             "request-multipart-coverage-test",
         );
 
-        expect(harness.answers.generate).toHaveBeenCalledWith(expect.objectContaining({
-            questionPartEvidenceIds: [
-                [evidenceChunkId],
-                [evidenceChunkId],
-            ],
-            questionParts: [
-                "What is the warranty",
-                "What does it cost",
-            ],
+        expect(harness.answers.generate).toHaveBeenCalledTimes(2);
+        expect(harness.answers.generate).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            question: "What is the warranty",
+            questionPartEvidenceIds: [[evidenceChunkId]],
+            questionParts: ["What is the warranty"],
+        }));
+        expect(harness.answers.generate).toHaveBeenNthCalledWith(2, expect.objectContaining({
+            question: "What does it cost",
+            questionPartEvidenceIds: [[evidenceChunkId]],
+            questionParts: ["What does it cost"],
         }));
         expect(harness.retrieveEvidence).toHaveBeenCalledTimes(2);
         expect(response.answer).toContain("1. The warranty is one year.");

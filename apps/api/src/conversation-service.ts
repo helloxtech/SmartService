@@ -11,11 +11,14 @@ import {
     filterEvidenceForExactEntities,
     guardrailPromptVersion,
     mergeRetrievedEvidence,
+    normalizeQuestion,
     ragPromptVersion,
     selectCitedGuardrailEvidence,
     validateGroundedAnswer,
     type GuardrailSupervisor,
     type RagAnswerProvider,
+    type RagGenerationInput,
+    type RagGenerationResult,
     type RetrievedEvidence,
 } from "@smartservice/assistant-core";
 import {
@@ -120,6 +123,22 @@ interface TurnStageAttribution
 {
     model: string;
     provider: string;
+}
+
+/**
+ * sumKnownTokenCounts
+ * ----------------
+ * Aggregates token counts from independent question-part generations while preserving null when no provider reported usage.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Parallel Multipart Answer Generation
+ */
+function sumKnownTokenCounts(values: readonly (number | null)[]): number | null
+{
+    const knownValues = values.filter((value): value is number => value !== null);
+
+    return knownValues.length === 0
+        ? null
+        : knownValues.reduce((total, value) => total + value, 0);
 }
 
 /**
@@ -484,6 +503,131 @@ export class DefaultPublicConversationService implements PublicConversationServi
             bindings.CONVERSATION_TOKEN_SECRET ?? "",
             parseTokenTtlSeconds(bindings),
         );
+    }
+
+    /**
+     * generateGroundedAnswer
+     * ----------------
+     * Generates independent multipart answers concurrently from each part's scoped evidence, then returns one server-composable result without asking the model to assign cross-part citations.
+     *
+     * August 06, 2026: Created by Forrest Zhang for Parallel Multipart Answer Generation
+     */
+    private async generateGroundedAnswer(
+        input: RagGenerationInput,
+    ): Promise<RagGenerationResult>
+    {
+        const questionParts = (input.questionParts ?? [input.question])
+            .map((part) => part.trim())
+            .filter((part) => part.length > 0)
+            .slice(0, 5);
+
+        if (questionParts.length <= 1)
+        {
+            return this.answers.generate(input);
+        }
+
+        const evidenceById = new Map(
+            input.evidence.map((item) => [item.chunkId, item] as const),
+        );
+        const generatedParts = await Promise.all(questionParts.map(async (questionPart, index) =>
+        {
+            const scopedIds = input.questionPartEvidenceIds?.[index]
+                ?? input.evidence.map((item) => item.chunkId);
+            const scopedEvidence = scopedIds.flatMap((chunkId) =>
+            {
+                const item = evidenceById.get(chunkId);
+                return item === undefined ? [] : [item];
+            });
+
+            if (scopedEvidence.length === 0)
+            {
+                return {
+                    answer: createSafeClarification(
+                        questionPart,
+                        input.language,
+                        "missing_knowledge",
+                    ),
+                    generationAttempts: 0,
+                    inputTokens: null,
+                    model: "no-evidence-v3",
+                    outputTokens: null,
+                    provider: "retrieval-gate",
+                } satisfies RagGenerationResult;
+            }
+
+            return this.answers.generate({
+                evidence: scopedEvidence,
+                language: input.language,
+                question: questionPart,
+                questionPartEvidenceIds: [scopedEvidence.map((item) => item.chunkId)],
+                questionParts: [questionPart],
+                recentMessages: input.recentMessages,
+            });
+        }));
+        const questionPartAnswers = generatedParts.map((result, index) => ({
+            answer: result.answer.answer,
+            citationChunkIds: result.answer.citationChunkIds,
+            partIndex: index,
+            supported: result.answer.decision === "answer",
+        }));
+        const supportedParts = questionPartAnswers.filter((part) => part.supported);
+        const citationChunkIds = [...new Set(
+            supportedParts.flatMap((part) => part.citationChunkIds),
+        )];
+        const representativeResult = generatedParts.find((result) =>
+            result.provider !== "retrieval-gate",
+        ) ?? generatedParts[0];
+
+        if (representativeResult === undefined)
+        {
+            throw new ApiError(
+                502,
+                "MULTIPART_GENERATION_EMPTY",
+                "The multipart answer did not produce any question-part result.",
+            );
+        }
+
+        const recoveryMode = generatedParts.some((result) =>
+            result.recoveryMode === "provider_fallback",
+        )
+            ? "provider_fallback" as const
+            : generatedParts.some((result) =>
+                result.recoveryMode === "same_provider_repair",
+            )
+                ? "same_provider_repair" as const
+                : undefined;
+
+        return {
+            answer: {
+                answer: "The server will compose the validated question-part answers.",
+                citationChunkIds: citationChunkIds.slice(0, 5),
+                confidence: Math.min(...generatedParts.map((result) =>
+                    result.answer.confidence,
+                )),
+                decision: supportedParts.length > 0 ? "answer" : "clarify",
+                handoffReason: supportedParts.length > 0
+                    ? null
+                    : generatedParts.some((result) =>
+                        result.answer.handoffReason === "conflicting_knowledge",
+                    )
+                        ? "conflicting_knowledge"
+                        : "missing_knowledge",
+                normalizedQuestion: normalizeQuestion(input.question),
+                questionPartAnswers,
+            },
+            generationAttempts: Math.max(...generatedParts.map((result) =>
+                result.generationAttempts ?? 1,
+            )),
+            inputTokens: sumKnownTokenCounts(generatedParts.map((result) =>
+                result.inputTokens,
+            )),
+            model: representativeResult.model,
+            outputTokens: sumKnownTokenCounts(generatedParts.map((result) =>
+                result.outputTokens,
+            )),
+            provider: representativeResult.provider,
+            ...(recoveryMode === undefined ? {} : { recoveryMode }),
+        };
     }
 
     /**
@@ -1137,7 +1281,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                         }
                         else
                         {
-                            const generated = await this.answers.generate(generationInput);
+                            const generated = await this.generateGroundedAnswer(generationInput);
                             generationAttempts = generated.generationAttempts ?? 1;
                             generationRecoveryMode = generated.recoveryMode ?? "none";
                             inputTokens = generated.inputTokens;

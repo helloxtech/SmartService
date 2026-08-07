@@ -10,6 +10,9 @@ import {
 
 import type { VoiceAgentConfiguration } from "./config";
 
+export const VOICE_INTERNAL_API_TIMEOUT_MS = 12_000;
+export const VOICE_TURN_REQUEST_TIMEOUT_MS = 9_000;
+
 export class VoiceInternalApiClient
 {
     /**
@@ -57,6 +60,7 @@ export class VoiceInternalApiClient
                 },
                 true,
                 signal,
+                VOICE_TURN_REQUEST_TIMEOUT_MS,
             ),
         );
     }
@@ -135,7 +139,7 @@ export class VoiceInternalApiClient
     /**
      * request
      * ----------------
-     * Performs an authenticated JSON request with a twelve-second timeout and one bounded retry for transient upstream failures.
+     * Performs an authenticated JSON request with one total deadline shared across the initial attempt and one transient-server retry.
      *
      * July 27, 2026: Created by Forrest Zhang for SmartService Day 6 Voice Foundation
      */
@@ -144,9 +148,17 @@ export class VoiceInternalApiClient
         init: RequestInit,
         expectJson = true,
         signal?: AbortSignal,
+        timeoutMs = VOICE_INTERNAL_API_TIMEOUT_MS,
     ): Promise<unknown>
     {
         const url = new URL(path, this.configuration.VOICE_INTERNAL_API_BASE_URL);
+        const timeoutSignal = AbortSignal.timeout(timeoutMs);
+        const requestSignal = signal === undefined
+            ? timeoutSignal
+            : AbortSignal.any([
+                signal,
+                timeoutSignal,
+            ]);
 
         for (let attempt = 0; attempt < 2; attempt += 1)
         {
@@ -156,12 +168,7 @@ export class VoiceInternalApiClient
                     authorization: `Bearer ${this.configuration.VOICE_INTERNAL_SERVICE_TOKEN}`,
                     "content-type": "application/json",
                 },
-                signal: signal === undefined
-                    ? AbortSignal.timeout(12_000)
-                    : AbortSignal.any([
-                        signal,
-                        AbortSignal.timeout(12_000),
-                    ]),
+                signal: requestSignal,
             });
 
             if (response.ok)

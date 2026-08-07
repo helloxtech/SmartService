@@ -9,18 +9,27 @@ import {
 import { readVoiceAgentConfiguration } from "./config";
 import {
     buildVoiceFailureSpeech,
+    buildVoiceGreeting,
+    buildVoiceProgressSpeech,
+    buildVoiceSpeechOptions,
     normalizeVoiceSpeech,
+    VOICE_PROGRESS_CUE_DELAY_MS,
     VoiceTurnCoordinator,
     VOICE_STT_SETTINGS,
+    VOICE_TTS_SETTINGS,
     VOICE_TURN_SETTINGS,
 } from "./agent";
-import { VoiceInternalApiClient } from "./internal-api";
+import {
+    VoiceInternalApiClient,
+    VOICE_TURN_REQUEST_TIMEOUT_MS,
+} from "./internal-api";
 import { readVoiceSessionId } from "./metadata";
 
 const voiceSessionId = "11111111-1111-4111-8111-111111111111";
 
 afterEach(() =>
 {
+    vi.useRealTimers();
     vi.restoreAllMocks();
 });
 
@@ -63,6 +72,21 @@ describe("voice agent foundation", () =>
         expect(VOICE_STT_SETTINGS).not.toHaveProperty("keyterm");
     });
 
+    it("opens each language as the company's customer-service team without claiming a human or AI identity", () =>
+    {
+        expect(buildVoiceGreeting("zh-CN")).toBe("您好，感谢您联系我们。请问今天有什么可以帮您？");
+        expect(buildVoiceGreeting("en")).toBe("Hi, thanks for reaching out. How can I help you today?");
+        expect(`${buildVoiceGreeting("zh-CN")} ${buildVoiceGreeting("en")}`).not.toMatch(/AI|人工|机器人|bot/iu);
+        expect(buildVoiceSpeechOptions("ephemeral")).toEqual({
+            addToChatCtx: false,
+            allowInterruptions: true,
+        });
+        expect(buildVoiceSpeechOptions("approved_answer")).toEqual({
+            addToChatCtx: true,
+            allowInterruptions: true,
+        });
+    });
+
     it("normalizes product models and units without adding internal identifiers", () =>
     {
         expect(normalizeVoiceSpeech(
@@ -75,7 +99,7 @@ describe("voice agent foundation", () =>
     {
         expect(VOICE_TURN_SETTINGS).toMatchObject({
             endpointing: {
-                maxDelay: 1_500,
+                maxDelay: 1_000,
                 minDelay: 500,
                 mode: "dynamic",
             },
@@ -91,6 +115,12 @@ describe("voice agent foundation", () =>
                 preemptiveTts: false,
             },
         });
+        expect(VOICE_TTS_SETTINGS).toMatchObject({
+            applyTextNormalization: "auto",
+            model: "eleven_flash_v2_5",
+            syncAlignment: true,
+        });
+        expect(VOICE_TURN_REQUEST_TIMEOUT_MS).toBe(9_000);
     });
 
     it("sends a committed STT turn through the shared assistant before scheduling TTS", async () =>
@@ -126,10 +156,73 @@ describe("voice agent foundation", () =>
 
         expect(completeTurn).toHaveBeenCalledOnce();
         expect(completeTurn.mock.calls[0]?.[2]).toBe("请问有古筝课程吗？");
-        expect(say).toHaveBeenCalledWith("我们提供古筝课程。");
+        expect(say).toHaveBeenCalledWith("我们提供古筝课程。", "approved_answer");
         expect(waitForPlayout).toHaveBeenCalledOnce();
         expect(updateStatus).not.toHaveBeenCalled();
         expect(shutdown).not.toHaveBeenCalled();
+    });
+
+    it("fills a genuinely slow turn with one short non-factual service acknowledgement", async () =>
+    {
+        vi.useFakeTimers();
+        vi.spyOn(console, "info").mockImplementation(() => undefined);
+        let resolveTurn: ((value: {
+            answer: string;
+            citations: [];
+            decision: "answer";
+            handoff: null;
+            messageId: string;
+            spokenText: string;
+        }) => void) | undefined;
+        const completeTurn = vi.fn(() => new Promise<{
+            answer: string;
+            citations: [];
+            decision: "answer";
+            handoff: null;
+            messageId: string;
+            spokenText: string;
+        }>((resolve) =>
+        {
+            resolveTurn = resolve;
+        }));
+        const say = vi.fn(() => ({
+            waitForPlayout: vi.fn().mockResolvedValue(undefined),
+        }));
+        const coordinator = new VoiceTurnCoordinator({
+            api: {
+                completeTurn,
+                updateStatus: vi.fn().mockResolvedValue(undefined),
+            },
+            language: "zh-CN",
+            say,
+            shutdown: vi.fn(),
+            voiceSessionId,
+        });
+        const pending = coordinator.handleFinalTurn("请介绍你们的课程。");
+
+        await vi.advanceTimersByTimeAsync(VOICE_PROGRESS_CUE_DELAY_MS);
+        expect(say).toHaveBeenNthCalledWith(
+            1,
+            buildVoiceProgressSpeech("zh-CN"),
+            "ephemeral",
+        );
+
+        resolveTurn?.({
+            answer: "我们提供经过确认的课程。",
+            citations: [],
+            decision: "answer",
+            handoff: null,
+            messageId: "33333333-3333-4333-8333-333333333333",
+            spokenText: "我们提供经过确认的课程。",
+        });
+        await pending;
+        await Promise.resolve();
+
+        expect(say).toHaveBeenNthCalledWith(
+            2,
+            "我们提供经过确认的课程。",
+            "approved_answer",
+        );
     });
 
     it("fails closed and stops the voice session when the shared turn service fails", async () =>
@@ -162,14 +255,15 @@ describe("voice agent foundation", () =>
             "failed",
             "VOICE_TURN_SERVICE_UNAVAILABLE",
         );
-        expect(say).toHaveBeenCalledWith(buildVoiceFailureSpeech("zh-CN"));
+        expect(say).toHaveBeenCalledWith(buildVoiceFailureSpeech("zh-CN"), "ephemeral");
         expect(shutdown).toHaveBeenCalledWith("voice_service_failure");
     });
 
     it("uses fixed bilingual provider-failure speech without upstream error content", () =>
     {
         expect(buildVoiceFailureSpeech("zh-CN")).toContain("文字客服");
-        expect(buildVoiceFailureSpeech("en")).toContain("continue by text");
+        expect(buildVoiceFailureSpeech("en")).toContain("continue with text customer service");
+        expect(`${buildVoiceFailureSpeech("zh-CN")} ${buildVoiceFailureSpeech("en")}`).not.toMatch(/重试|retry/iu);
         expect(buildVoiceFailureSpeech("en")).not.toContain("stack");
     });
 
@@ -207,6 +301,53 @@ describe("voice agent foundation", () =>
             name: "AbortError",
         });
         expect(fetcher).toHaveBeenCalledOnce();
+    });
+
+    it("shares one total deadline across a transient server retry", async () =>
+    {
+        const observedSignals: AbortSignal[] = [];
+        const fetcher = vi.fn<typeof fetch>(async (_input, init) =>
+        {
+            if (init?.signal !== null && init?.signal !== undefined)
+            {
+                observedSignals.push(init.signal);
+            }
+
+            if (observedSignals.length === 1)
+            {
+                return new Response("temporarily unavailable", {
+                    status: 503,
+                });
+            }
+
+            return new Response(JSON.stringify({
+                answer: "Confirmed answer.",
+                citations: [],
+                decision: "answer",
+                handoff: null,
+                messageId: "33333333-3333-4333-8333-333333333333",
+                spokenText: "Confirmed answer.",
+            }), {
+                headers: {
+                    "content-type": "application/json",
+                },
+            });
+        });
+        const client = new VoiceInternalApiClient({
+            VOICE_INTERNAL_API_BASE_URL: "https://api.example.test",
+            VOICE_INTERNAL_SERVICE_TOKEN: "v".repeat(32),
+        }, fetcher);
+
+        await client.completeTurn(
+            voiceSessionId,
+            "44444444-4444-4444-8444-444444444444",
+            "Please confirm.",
+            "2026-07-27T08:00:00.000Z",
+        );
+
+        expect(fetcher).toHaveBeenCalledTimes(2);
+        expect(observedSignals).toHaveLength(2);
+        expect(observedSignals[1]).toBe(observedSignals[0]);
     });
 
     it("authenticates configuration and transcript calls without logging content", async () =>

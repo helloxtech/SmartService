@@ -14,7 +14,7 @@ import { readVoiceSessionId } from "./metadata";
 
 export const VOICE_TURN_SETTINGS = {
     endpointing: {
-        maxDelay: 1_500,
+        maxDelay: 1_000,
         minDelay: 500,
         mode: "dynamic",
     },
@@ -36,6 +36,8 @@ export const VOICE_TURN_SETTINGS = {
     },
 } as const;
 
+export const VOICE_PROGRESS_CUE_DELAY_MS = 1_200;
+
 export const VOICE_STT_SETTINGS = {
     interimResults: true,
     model: "nova-3",
@@ -43,6 +45,61 @@ export const VOICE_STT_SETTINGS = {
     punctuate: true,
     smartFormat: true,
 } as const;
+
+export const VOICE_TTS_SETTINGS = {
+    applyTextNormalization: "auto",
+    enableLogging: false,
+    model: "eleven_flash_v2_5",
+    syncAlignment: true,
+} as const;
+
+export type VoiceSpeechPurpose = "approved_answer" | "ephemeral";
+
+/**
+ * buildVoiceSpeechOptions
+ * ----------------
+ * Keeps approved answers in Agent context while excluding greetings, progress cues, and failures from the customer conversation record.
+ *
+ * August 07, 2026: Created by Forrest Zhang for SmartService Human-Like Voice Experience
+ */
+export function buildVoiceSpeechOptions(purpose: VoiceSpeechPurpose): {
+    addToChatCtx: boolean;
+    allowInterruptions: true;
+}
+{
+    return {
+        addToChatCtx: purpose === "approved_answer",
+        allowInterruptions: true,
+    };
+}
+
+/**
+ * buildVoiceGreeting
+ * ----------------
+ * Returns one tenant-neutral opening that speaks as the company's customer-service team without claiming a human identity or querying knowledge.
+ *
+ * August 07, 2026: Created by Forrest Zhang for SmartService Human-Like Voice Experience
+ */
+export function buildVoiceGreeting(language: "zh-CN" | "en"): string
+{
+    return language === "zh-CN"
+        ? "您好，感谢您联系我们。请问今天有什么可以帮您？"
+        : "Hi, thanks for reaching out. How can I help you today?";
+}
+
+/**
+ * buildVoiceProgressSpeech
+ * ----------------
+ * Returns one brief non-factual service acknowledgement for turns whose approved answer is still being prepared.
+ *
+ * August 07, 2026: Created by Forrest Zhang for SmartService Human-Like Voice Experience
+ */
+export function buildVoiceProgressSpeech(language: "zh-CN" | "en"): string
+{
+    return language === "zh-CN"
+        ? "好的，我帮您确认一下。"
+        : "Of course. Let me check that for you.";
+}
 
 /**
  * buildVoiceFailureSpeech
@@ -54,8 +111,8 @@ export const VOICE_STT_SETTINGS = {
 export function buildVoiceFailureSpeech(language: "zh-CN" | "en"): string
 {
     return language === "zh-CN"
-        ? "抱歉，语音服务暂时不可用。请稍后重试，或改用文字客服。"
-        : "Sorry, voice service is temporarily unavailable. Please retry or continue by text.";
+        ? "抱歉，语音连接暂时不可用。您可以继续使用文字客服。"
+        : "Sorry, this voice connection is unavailable right now. You can continue with text customer service.";
 }
 
 /**
@@ -90,7 +147,7 @@ interface VoiceTurnCoordinatorOptions
 {
     api: Pick<VoiceInternalApiClient, "completeTurn" | "updateStatus">;
     language: "zh-CN" | "en";
-    say(text: string): VoiceSpeechHandle;
+    say(text: string, purpose: VoiceSpeechPurpose): VoiceSpeechHandle;
     shutdown(reason: string): void;
     voiceSessionId: string;
 }
@@ -98,6 +155,7 @@ interface VoiceTurnCoordinatorOptions
 export class VoiceTurnCoordinator
 {
     private activeController: AbortController | null = null;
+    private activeProgressTimer: ReturnType<typeof setTimeout> | null = null;
 
     /**
      * VoiceTurnCoordinator
@@ -120,6 +178,12 @@ export class VoiceTurnCoordinator
     public abortActiveTurn(): void
     {
         this.activeController?.abort();
+
+        if (this.activeProgressTimer !== null)
+        {
+            clearTimeout(this.activeProgressTimer);
+            this.activeProgressTimer = null;
+        }
     }
 
     /**
@@ -142,6 +206,43 @@ export class VoiceTurnCoordinator
         const controller = new AbortController();
         const startedAt = Date.now();
         this.activeController = controller;
+        const progressTimer = setTimeout(() =>
+        {
+            if (
+                controller.signal.aborted
+                || this.activeController !== controller
+            )
+            {
+                return;
+            }
+
+            if (this.activeProgressTimer === progressTimer)
+            {
+                this.activeProgressTimer = null;
+            }
+
+            try
+            {
+                this.options.say(
+                    buildVoiceProgressSpeech(this.options.language),
+                    "ephemeral",
+                );
+                console.info(JSON.stringify({
+                    elapsedMs: Date.now() - startedAt,
+                    event: "voice.turn.progress_scheduled",
+                    voiceSessionId: this.options.voiceSessionId,
+                }));
+            }
+            catch
+            {
+                console.warn(JSON.stringify({
+                    errorCode: "VOICE_PROGRESS_SPEECH_UNAVAILABLE",
+                    event: "voice.turn.progress_skipped",
+                    voiceSessionId: this.options.voiceSessionId,
+                }));
+            }
+        }, VOICE_PROGRESS_CUE_DELAY_MS);
+        this.activeProgressTimer = progressTimer;
         console.info(JSON.stringify({
             event: "voice.turn.finalized",
             transcriptLength: normalizedText.length,
@@ -163,10 +264,16 @@ export class VoiceTurnCoordinator
                 return;
             }
 
+            if (this.activeProgressTimer === progressTimer)
+            {
+                clearTimeout(progressTimer);
+                this.activeProgressTimer = null;
+            }
+
             const speechHandle = this.options.say(normalizeVoiceSpeech(
                 result.spokenText,
                 this.options.language,
-            ));
+            ), "approved_answer");
             console.info(JSON.stringify({
                 decision: result.decision,
                 elapsedMs: Date.now() - startedAt,
@@ -237,7 +344,7 @@ export class VoiceTurnCoordinator
             {
                 const speechHandle = this.options.say(buildVoiceFailureSpeech(
                     this.options.language,
-                ));
+                ), "ephemeral");
                 void speechHandle.waitForPlayout().then(
                     () =>
                     {
@@ -256,6 +363,12 @@ export class VoiceTurnCoordinator
         }
         finally
         {
+            if (this.activeProgressTimer === progressTimer)
+            {
+                clearTimeout(progressTimer);
+                this.activeProgressTimer = null;
+            }
+
             if (this.activeController === controller)
             {
                 this.activeController = null;
@@ -292,11 +405,8 @@ async function runVoiceJob(
         });
         const tts = new elevenlabs.TTS({
             apiKey: configuration.ELEVENLABS_API_KEY,
-            applyTextNormalization: "on",
-            enableLogging: false,
+            ...VOICE_TTS_SETTINGS,
             language: sessionConfiguration.language === "zh-CN" ? "zh" : "en",
-            model: "eleven_flash_v2_5",
-            syncAlignment: true,
             voiceId: configuration.ELEVENLABS_VOICE_ID,
         });
         const session = new voice.AgentSession({
@@ -312,12 +422,9 @@ async function runVoiceJob(
         const turnCoordinator = new VoiceTurnCoordinator({
             api,
             language: sessionConfiguration.language,
-            say(text)
+            say(text, purpose)
             {
-                return session.say(text, {
-                    addToChatCtx: true,
-                    allowInterruptions: true,
-                });
+                return session.say(text, buildVoiceSpeechOptions(purpose));
             },
             shutdown(reason)
             {
@@ -366,15 +473,41 @@ async function runVoiceJob(
         });
         session.on(voice.AgentSessionEventTypes.MetricsCollected, (event) =>
         {
-            if (
-                event.metrics.type === "eot_inference_metrics"
-                || event.metrics.type === "interruption_metrics"
-                || event.metrics.type === "tts_metrics"
-            )
+            if (event.metrics.type === "eou_metrics")
             {
                 console.info(JSON.stringify({
                     event: "voice.runtime_metric",
                     metric: event.metrics.type,
+                    endOfUtteranceDelayMs: event.metrics.endOfUtteranceDelayMs,
+                    onUserTurnCompletedDelayMs: event.metrics.onUserTurnCompletedDelayMs,
+                    transcriptionDelayMs: event.metrics.transcriptionDelayMs,
+                    voiceSessionId,
+                }));
+            }
+            else if (event.metrics.type === "tts_metrics")
+            {
+                console.info(JSON.stringify({
+                    audioDurationMs: event.metrics.audioDurationMs,
+                    cancelled: event.metrics.cancelled,
+                    durationMs: event.metrics.durationMs,
+                    event: "voice.runtime_metric",
+                    metric: event.metrics.type,
+                    speechId: event.metrics.speechId ?? null,
+                    ttfbMs: event.metrics.ttfbMs,
+                    voiceSessionId,
+                }));
+            }
+            else if (
+                event.metrics.type === "eot_inference_metrics"
+                || event.metrics.type === "interruption_metrics"
+            )
+            {
+                console.info(JSON.stringify({
+                    detectionDelay: event.metrics.detectionDelay,
+                    event: "voice.runtime_metric",
+                    metric: event.metrics.type,
+                    predictionDuration: event.metrics.predictionDuration,
+                    totalDuration: event.metrics.totalDuration,
                     voiceSessionId,
                 }));
             }
@@ -393,7 +526,34 @@ async function runVoiceJob(
         {
             turnCoordinator.abortActiveTurn();
         });
+        const readyAt = Date.now();
         await api.updateStatus(voiceSessionId, "ready");
+        const greetingHandle = session.say(
+            buildVoiceGreeting(sessionConfiguration.language),
+            buildVoiceSpeechOptions("ephemeral"),
+        );
+        console.info(JSON.stringify({
+            event: "voice.session.greeting_scheduled",
+            readyToScheduleMs: Date.now() - readyAt,
+            voiceSessionId,
+        }));
+        void greetingHandle.waitForPlayout().then(
+            () =>
+            {
+                console.info(JSON.stringify({
+                    event: "voice.session.greeting_playout_completed",
+                    voiceSessionId,
+                }));
+            },
+            () =>
+            {
+                console.warn(JSON.stringify({
+                    errorCode: "VOICE_GREETING_PLAYOUT_FAILED",
+                    event: "voice.session.greeting_playout_failed",
+                    voiceSessionId,
+                }));
+            },
+        );
     }
     catch (error: unknown)
     {

@@ -1,11 +1,13 @@
 import {
     createPublicConversationResponseSchema,
+    endVoiceSessionResponseSchema,
     publicMessageListResponseSchema,
     requestPublicHandoffResponseSchema,
     sendPublicMessageResponseSchema,
     type ConversationLanguage,
     type CreateVoiceTokenResponse,
     type CreatePublicConversationResponse,
+    type EndVoiceSessionResponse,
     type PublicMessageListResponse,
     type RequestPublicHandoffResponse,
     type SendPublicMessageResponse,
@@ -340,6 +342,42 @@ export async function createVoiceToken(
     }
 
     return createVoiceTokenResponseSchema.parse(await response.json());
+}
+
+/**
+ * endVoiceSession
+ * ----------------
+ * Persists the terminal state of the customer's exact voice session using only its scoped conversation credential.
+ *
+ * August 07, 2026: Created by Forrest Zhang for SmartService Cross-Channel Conversation Center
+ */
+export async function endVoiceSession(
+    conversationId: string,
+    conversationToken: string,
+    voiceSessionId: string,
+): Promise<EndVoiceSessionResponse>
+{
+    const response = await fetch(
+        getApiUrl(`/api/v1/public/voice/sessions/${encodeURIComponent(voiceSessionId)}/end`),
+        {
+            body: JSON.stringify({
+                conversationId,
+            }),
+            headers: {
+                authorization: `Bearer ${conversationToken}`,
+                "content-type": "application/json",
+            },
+            method: "POST",
+            signal: AbortSignal.timeout(10_000),
+        },
+    );
+
+    if (!response.ok)
+    {
+        throw await readApiFailure(response);
+    }
+
+    return endVoiceSessionResponseSchema.parse(await response.json());
 }
 
 /**

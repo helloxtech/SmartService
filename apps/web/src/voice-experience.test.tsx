@@ -78,6 +78,19 @@ function createFetchMock(
             });
         }
 
+        if (url.endsWith(`/api/v1/public/voice/sessions/${voiceSessionId}/end`))
+        {
+            return new Response(JSON.stringify({
+                status: "closed",
+                voiceSessionId,
+            }), {
+                headers: {
+                    "content-type": "application/json",
+                },
+                status: 200,
+            });
+        }
+
         if (url.includes(`/api/v1/public/conversations/${conversationId}/messages`))
         {
             if (includeAnswer)
@@ -203,6 +216,69 @@ describe("VoiceExperience", () =>
         expect(screen.getByTestId("voice-playback-clock")).toHaveTextContent(
             "2026-07-27T08:00:01.000Z",
         );
+    });
+
+    it("persists the ended voice session after the customer stops a connected call", async () =>
+    {
+        const fetchMock = createFetchMock();
+        const connector: VoiceRoomConnector = {
+            /**
+             * connect
+             * ----------------
+             * Establishes an isolated Ready room so the customer end action can be persisted through the public API.
+             *
+             * August 07, 2026: Created by Forrest Zhang for SmartService Voice Conversation Persistence
+             */
+            async connect(_token, callbacks)
+            {
+                await callbacks.onReady();
+                return {
+                    /**
+                     * disconnect
+                     * ----------------
+                     * Emits the normal room disconnect after the customer explicitly ends the fixture session.
+                     *
+                     * August 07, 2026: Created by Forrest Zhang for SmartService Voice Conversation Persistence
+                     */
+                    async disconnect()
+                    {
+                        callbacks.onDisconnected();
+                    },
+                    /**
+                     * enableAudioPlayback
+                     * ----------------
+                     * Confirms playback without external media for the persisted-end fixture.
+                     *
+                     * August 07, 2026: Created by Forrest Zhang for SmartService Voice Conversation Persistence
+                     */
+                    async enableAudioPlayback()
+                    {
+                        callbacks.onAudioPlaybackReady();
+                    },
+                };
+            },
+        };
+        vi.stubGlobal("fetch", fetchMock);
+        const user = userEvent.setup();
+        render(
+            <VoiceExperience
+                connector={connector}
+                requestMicrophone={vi.fn(async () => undefined)}
+            />,
+        );
+
+        await user.click(screen.getByRole("button", { name: /Start voice/u }));
+        await user.click(await screen.findByRole("button", { name: /End voice/u }));
+
+        await waitFor(() =>
+        {
+            expect(fetchMock).toHaveBeenCalledWith(
+                expect.stringContaining(`/api/v1/public/voice/sessions/${voiceSessionId}/end`),
+                expect.objectContaining({
+                    method: "POST",
+                }),
+            );
+        });
     });
 
     it("shows a friendly text fallback when microphone access is denied", async () =>

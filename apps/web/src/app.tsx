@@ -154,6 +154,17 @@ const VoiceExperience = lazy(async () =>
     };
 });
 
+const LocalConversationPreview = import.meta.env.DEV
+    ? lazy(async () =>
+    {
+        const module = await import("./local-conversation-preview");
+
+        return {
+            default: module.LocalConversationPreview,
+        };
+    })
+    : null;
+
 /**
  * describeError
  * ----------------
@@ -597,6 +608,25 @@ export function App(): JSX.Element
     {
         document.documentElement.lang = language === "zh-CN" ? "zh-CN" : "en";
     }, [language]);
+
+    if (
+        import.meta.env.DEV
+        && LocalConversationPreview !== null
+        && window.location.pathname.startsWith("/local/conversations")
+    )
+    {
+        return (
+            <Suspense
+                fallback={(
+                    <main className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-500">
+                        {copy.workspaceLoading}
+                    </main>
+                )}
+            >
+                <LocalConversationPreview />
+            </Suspense>
+        );
+    }
 
     if (window.location.pathname.startsWith("/voice"))
     {

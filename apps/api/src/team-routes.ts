@@ -9,7 +9,7 @@ import {
     sendHumanMessageRequestSchema,
     sendHumanMessageResponseSchema,
     teamConversationDetailSchema,
-    teamInboxResponseSchema,
+    teamConversationListResponseSchema,
     updateGuardrailRuleRequestSchema,
     type ConversationFinalizeMessage,
 } from "@smartservice/contracts";
@@ -137,12 +137,12 @@ export function createTeamRouter(
     {
         const services = getServices(serviceFactory, context.env);
         const identity = await services.authenticateMember(context.req.raw);
-        const conversations = await services.team.listInbox(
+        const conversations = await services.team.listConversations(
             identity.organizationId,
             parseBooleanQuery(context.req.query("includeClosed")),
         );
 
-        return context.json(teamInboxResponseSchema.parse({
+        return context.json(teamConversationListResponseSchema.parse({
             conversations,
         }));
     });

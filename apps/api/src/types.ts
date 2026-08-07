@@ -6,6 +6,7 @@ import type {
     ConversationFinalizeMessage,
     ConversationFinalization,
     CreateGuardrailRuleRequest,
+    EndVoiceSessionResponse,
     FileUploadIntentRequest,
     FileUploadIntentResponse,
     GuardrailEvent,
@@ -25,7 +26,7 @@ import type {
     SendPublicMessageResponse,
     SourceAction,
     TeamConversationDetail,
-    TeamInboxItem,
+    TeamConversationListItem,
     UpdateGuardrailRuleRequest,
     CreateVoiceTokenResponse,
     CompleteVoiceTurnRequest,
@@ -334,10 +335,10 @@ export interface TeamService
         organizationId: string,
         conversationId?: string,
     ): Promise<GuardrailEvent[]>;
-    listInbox(
+    listConversations(
         organizationId: string,
         includeClosed?: boolean,
-    ): Promise<TeamInboxItem[]>;
+    ): Promise<TeamConversationListItem[]>;
     listRules(organizationId: string): Promise<GuardrailRule[]>;
     loadFinalizationAggregate(
         organizationId: string,
@@ -421,6 +422,12 @@ export interface VoiceService
         conversationId: string,
         requestId: string,
     ): Promise<CreateVoiceTokenResponse>;
+    endSession(
+        request: Request,
+        conversationId: string,
+        voiceSessionId: string,
+        requestId: string,
+    ): Promise<EndVoiceSessionResponse>;
     getConfiguration(
         request: Request,
         voiceSessionId: string,

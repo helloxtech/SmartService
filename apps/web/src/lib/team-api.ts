@@ -7,7 +7,7 @@ import {
     guardrailRuleSchema,
     sendHumanMessageResponseSchema,
     teamConversationDetailSchema,
-    teamInboxResponseSchema,
+    teamConversationListResponseSchema,
     type ClaimConversationResponse,
     type CloseConversationResponse,
     type CreateGuardrailRuleRequest,
@@ -15,7 +15,7 @@ import {
     type GuardrailRule,
     type SendHumanMessageResponse,
     type TeamConversationDetail,
-    type TeamInboxItem,
+    type TeamConversationListItem,
     type UpdateGuardrailRuleRequest,
 } from "@smartservice/contracts";
 import type { Session } from "@supabase/supabase-js";
@@ -144,12 +144,12 @@ async function teamRequest<T>(
 export async function listTeamConversations(
     session: Session,
     includeClosed = false,
-): Promise<TeamInboxItem[]>
+): Promise<TeamConversationListItem[]>
 {
     const response = await teamRequest(
         session,
         `/api/v1/admin/conversations?includeClosed=${includeClosed}`,
-        teamInboxResponseSchema,
+        teamConversationListResponseSchema,
     );
     return response.conversations;
 }

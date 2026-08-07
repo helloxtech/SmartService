@@ -3,6 +3,8 @@ import {
     completeVoiceTurnResponseSchema,
     createVoiceTokenRequestSchema,
     createVoiceTokenResponseSchema,
+    endVoiceSessionRequestSchema,
+    endVoiceSessionResponseSchema,
     recordVoiceTranscriptRequestSchema,
     recordVoiceTranscriptResponseSchema,
     updateVoiceSessionStatusRequestSchema,
@@ -85,6 +87,25 @@ export function createVoiceRouter(
 
         context.header("cache-control", "no-store");
         return context.json(createVoiceTokenResponseSchema.parse(response), 201);
+    });
+
+    router.post("/v1/public/voice/sessions/:voiceSessionId/end", async (context) =>
+    {
+        const voiceSessionId = parseVoiceSessionId(context.req.param("voiceSessionId"));
+        const input = await parseJsonBody(
+            context.req.raw,
+            endVoiceSessionRequestSchema,
+        );
+        const services = getServices(serviceFactory, context.env);
+        const response = await services.voice.endSession(
+            context.req.raw,
+            input.conversationId,
+            voiceSessionId,
+            context.get("requestId"),
+        );
+
+        context.header("cache-control", "no-store");
+        return context.json(endVoiceSessionResponseSchema.parse(response));
     });
 
     router.get("/v1/internal/voice/sessions/:voiceSessionId/config", async (context) =>

@@ -105,6 +105,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CreateVoiceTokenResponse'
+  /v1/public/voice/sessions/{voiceSessionId}/end:
+    post:
+      operationId: endVoiceSession
+      security:
+        - conversationToken: []
+      parameters:
+        - $ref: '#/components/parameters/VoiceSessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [conversationId]
+              properties:
+                conversationId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Customer-ended voice lifecycle state persisted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EndVoiceSessionResponse'
   /v1/internal/voice/sessions/{voiceSessionId}/config:
     get:
       operationId: getVoiceSessionConfiguration
@@ -392,11 +415,11 @@ paths:
           schema: { type: boolean, default: false }
       responses:
         '200':
-          description: Tenant-scoped handoff inbox
+          description: Tenant-scoped cross-channel conversation list
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TeamInboxResponse'
+                $ref: '#/components/schemas/TeamConversationListResponse'
   /v1/admin/conversations/{conversationId}:
     get:
       operationId: getTeamConversation
@@ -663,10 +686,16 @@ components:
       properties:
         agentName: { type: string, minLength: 1, maxLength: 120 }
         expiresAt: { type: string, format: date-time }
-        provider: { type: string, enum: [live, mock] }
+        provider: { type: string, enum: [livekit, mock] }
         roomName: { type: string, minLength: 1, maxLength: 180 }
         token: { type: string, minLength: 16 }
         url: { type: string, format: uri }
+        voiceSessionId: { type: string, format: uuid }
+    EndVoiceSessionResponse:
+      type: object
+      required: [status, voiceSessionId]
+      properties:
+        status: { type: string, enum: [closed, failed] }
         voiceSessionId: { type: string, format: uuid }
     VoiceSessionConfiguration:
       type: object
@@ -1202,7 +1231,7 @@ components:
         currentIntent: { type: string, minLength: 1, maxLength: 240 }
         conversationSummary: { type: string, minLength: 1, maxLength: 4000 }
         suggestedReply: { type: string, minLength: 1, maxLength: 1200 }
-    TeamInboxItem:
+    TeamConversationListItem:
       type: object
       required:
         [
@@ -1211,20 +1240,36 @@ components:
           status,
           handoffReason,
           handoffRequestedAt,
+          latestActivityAt,
           startedAt,
           acceptedBy,
           acceptedAt,
           guardrailCount,
           latestGuardrailCode,
+          preview,
           summary,
+          voiceSessionStatus,
         ]
       properties:
         conversationId: { type: string, format: uuid }
         customer: { $ref: '#/components/schemas/CustomerCard' }
         status:
-          { type: string, enum: [handoff_requested, active_human, closed] }
-        handoffReason: { type: string, minLength: 1, maxLength: 2000 }
-        handoffRequestedAt: { type: string, format: date-time }
+          {
+            type: string,
+            enum: [active_ai, resolved_ai, handoff_requested, active_human, closed],
+          }
+        handoffReason:
+          oneOf:
+            - type: 'null'
+            - type: string
+              minLength: 1
+              maxLength: 2000
+        handoffRequestedAt:
+          oneOf:
+            - type: 'null'
+            - type: string
+              format: date-time
+        latestActivityAt: { type: string, format: date-time }
         startedAt: { type: string, format: date-time }
         acceptedBy:
           oneOf:
@@ -1242,15 +1287,29 @@ components:
             - type: 'null'
             - type: string
               maxLength: 80
-        summary: { $ref: '#/components/schemas/HandoffSummary' }
-    TeamInboxResponse:
+        preview:
+          oneOf:
+            - type: 'null'
+            - type: string
+              minLength: 1
+              maxLength: 4000
+        summary:
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/HandoffSummary'
+        voiceSessionStatus:
+          oneOf:
+            - type: 'null'
+            - type: string
+              enum: [warming, ready, active, handoff, closed, failed]
+    TeamConversationListResponse:
       type: object
       required: [conversations]
       properties:
         conversations:
           type: array
           maxItems: 200
-          items: { $ref: '#/components/schemas/TeamInboxItem' }
+          items: { $ref: '#/components/schemas/TeamConversationListItem' }
     TeamMessage:
       type: object
       required:
@@ -1326,7 +1385,7 @@ components:
         createdAt: { type: string, format: date-time }
     TeamConversationDetail:
       allOf:
-        - $ref: '#/components/schemas/TeamInboxItem'
+        - $ref: '#/components/schemas/TeamConversationListItem'
         - type: object
           required: [messages, guardrailEvents, summaryRecord, voiceSession]
           properties:

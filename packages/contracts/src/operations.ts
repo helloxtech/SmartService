@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
     conversationLanguageSchema,
+    conversationStatusSchema,
     publicCitationSchema,
 } from "./conversation";
 
@@ -176,22 +177,32 @@ export const handoffSummarySchema = z.object({
     triggerReason: z.string().min(1).max(1000),
 });
 
-export const teamInboxItemSchema = z.object({
+export const teamConversationListItemSchema = z.object({
     acceptedAt: z.iso.datetime({ offset: true }).nullable(),
     acceptedBy: z.uuid().nullable(),
     conversationId: z.uuid(),
     customer: customerCardSchema,
     guardrailCount: z.number().int().nonnegative(),
-    handoffReason: z.string().min(1).max(2000),
-    handoffRequestedAt: z.iso.datetime({ offset: true }),
+    handoffReason: z.string().min(1).max(2000).nullable(),
+    handoffRequestedAt: z.iso.datetime({ offset: true }).nullable(),
+    latestActivityAt: z.iso.datetime({ offset: true }),
     latestGuardrailCode: z.string().max(80).nullable(),
+    preview: z.string().min(1).max(4000).nullable(),
     startedAt: z.iso.datetime({ offset: true }),
-    status: z.enum(["handoff_requested", "active_human", "closed"]),
-    summary: handoffSummarySchema,
+    status: conversationStatusSchema,
+    summary: handoffSummarySchema.nullable(),
+    voiceSessionStatus: z.enum([
+        "warming",
+        "ready",
+        "active",
+        "handoff",
+        "closed",
+        "failed",
+    ]).nullable(),
 });
 
-export const teamInboxResponseSchema = z.object({
-    conversations: z.array(teamInboxItemSchema).max(200),
+export const teamConversationListResponseSchema = z.object({
+    conversations: z.array(teamConversationListItemSchema).max(200),
 });
 
 export const teamMessageSchema = z.object({
@@ -241,7 +252,7 @@ export const conversationSummarySchema = conversationFinalizationSchema
         id: z.uuid(),
     });
 
-export const teamConversationDetailSchema = teamInboxItemSchema.extend({
+export const teamConversationDetailSchema = teamConversationListItemSchema.extend({
     guardrailEvents: z.array(guardrailEventSchema.omit({
         blockedCandidate: true,
     })).max(200),
@@ -295,6 +306,6 @@ export type HandoffSummary = z.infer<typeof handoffSummarySchema>;
 export type SendHumanMessageRequest = z.infer<typeof sendHumanMessageRequestSchema>;
 export type SendHumanMessageResponse = z.infer<typeof sendHumanMessageResponseSchema>;
 export type TeamConversationDetail = z.infer<typeof teamConversationDetailSchema>;
-export type TeamInboxItem = z.infer<typeof teamInboxItemSchema>;
+export type TeamConversationListItem = z.infer<typeof teamConversationListItemSchema>;
 export type TeamMessage = z.infer<typeof teamMessageSchema>;
 export type UpdateGuardrailRuleRequest = z.infer<typeof updateGuardrailRuleRequestSchema>;

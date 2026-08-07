@@ -4,7 +4,7 @@ import {
     guardrailCandidateResponseSchema,
     guardrailEventListResponseSchema,
     teamConversationDetailSchema,
-    teamInboxResponseSchema,
+    teamConversationListResponseSchema,
     type ConversationFinalizeMessage,
     type TeamConversationDetail,
 } from "@smartservice/contracts";
@@ -62,8 +62,10 @@ const detail: TeamConversationDetail = {
     guardrailEvents: [guardrailEvent],
     handoffReason: "guardrail",
     handoffRequestedAt: timestamp,
+    latestActivityAt: timestamp,
     latestGuardrailCode: "NO_PRICE_COMMITMENT",
     messages: [],
+    preview: "Give me the final price.",
     startedAt: timestamp,
     status: "handoff_requested",
     summary: {
@@ -77,6 +79,7 @@ const detail: TeamConversationDetail = {
     },
     summaryRecord: null,
     voiceSession: null,
+    voiceSessionStatus: null,
 };
 
 /**
@@ -109,7 +112,7 @@ function createTeamService(): TeamService
             ...guardrailEvent,
             blockedCandidate: "must not appear in normal event list",
         }]),
-        listInbox: vi.fn().mockResolvedValue([detail]),
+        listConversations: vi.fn().mockResolvedValue([detail]),
         listRules: vi.fn().mockResolvedValue([]),
         loadFinalizationAggregate: vi.fn(),
         manageRule: vi.fn(),
@@ -174,7 +177,7 @@ describe("team routes", () =>
         const parsed = teamConversationDetailSchema.parse(body);
 
         expect(response.status).toBe(200);
-        expect(parsed.summary.customerQuestion).toContain("final price");
+        expect(parsed.summary?.customerQuestion).toContain("final price");
         expect(JSON.stringify(parsed.guardrailEvents)).not.toContain("blockedCandidate");
     });
 
@@ -276,6 +279,6 @@ describe("team routes", () =>
         );
         const body: unknown = await response.json();
 
-        expect(teamInboxResponseSchema.parse(body).conversations).toHaveLength(1);
+        expect(teamConversationListResponseSchema.parse(body).conversations).toHaveLength(1);
     });
 });

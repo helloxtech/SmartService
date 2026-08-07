@@ -8,7 +8,7 @@ import type {
     HandoffSummary,
     SendHumanMessageResponse,
     TeamConversationDetail,
-    TeamInboxItem,
+    TeamConversationListItem,
     TeamMessage,
     UpdateGuardrailRuleRequest,
 } from "@smartservice/contracts";
@@ -21,7 +21,7 @@ import {
     handoffSummarySchema,
     sendHumanMessageResponseSchema,
     teamConversationDetailSchema,
-    teamInboxItemSchema,
+    teamConversationListItemSchema,
     teamMessageSchema,
 } from "@smartservice/contracts";
 import {
@@ -66,6 +66,22 @@ const teamConversationRowSchema = z.object({
         "active_human",
         "closed",
     ]),
+    updated_at: z.string(),
+});
+
+const teamListMessageRowSchema = z.object({
+    conversation_id: z.uuid(),
+    created_at: z.string(),
+    text: z.string(),
+});
+
+const teamListVoiceSessionRowSchema = z.object({
+    conversation_id: z.uuid(),
+    created_at: z.string(),
+    ended_at: z.string().nullable(),
+    ready_at: z.string().nullable(),
+    started_at: z.string().nullable(),
+    status: z.enum(["warming", "ready", "active", "handoff", "closed", "failed"]),
 });
 
 const teamVoiceSessionRowSchema = z.object({
@@ -305,6 +321,21 @@ function normalizeHandoffSummary(
     });
 }
 
+/**
+ * latestTimestamp
+ * ----------------
+ * Selects the latest valid ISO timestamp from related conversation activity without trusting nullable database values.
+ *
+ * August 07, 2026: Created by Forrest Zhang for SmartService Cross-Channel Conversation Center
+ */
+function latestTimestamp(...values: Array<string | null | undefined>): string
+{
+    const available = values.filter((value): value is string => value !== null && value !== undefined);
+    return available.reduce((latest, candidate) =>
+        Date.parse(candidate) > Date.parse(latest) ? candidate : latest,
+    );
+}
+
 export interface FinalizationAggregate
 {
     alreadyFinalized: boolean;
@@ -475,55 +506,101 @@ export class SupabaseTeamRepository
     }
 
     /**
-     * listInbox
+     * listConversations
      * ----------------
-     * Loads tenant handoffs, customer cards, summaries, and redacted guardrail indicators for the team queue.
+     * Loads every tenant conversation and joins optional messages, voice state, handoffs, and redacted guardrail indicators.
      *
-     * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Agent Inbox
+     * August 07, 2026: Updated by Forrest Zhang for SmartService Cross-Channel Conversation Center
      */
-    public async listInbox(
+    public async listConversations(
         organizationId: string,
         includeClosed = false,
-    ): Promise<TeamInboxItem[]>
+    ): Promise<TeamConversationListItem[]>
     {
         const client = createServiceClient(this.bindings);
-        const { data: handoffData, error: handoffError } = await client
-            .from("handoffs")
-            .select("conversation_id, reason, summary_snapshot, requested_at, accepted_by, accepted_at")
+        let conversationQuery = client
+            .from("conversations")
+            .select("id, organization_id, channel, status, customer_name, customer_email, customer_phone, customer_company, language, started_at, handoff_requested_at, updated_at")
             .eq("organization_id", organizationId)
-            .order("requested_at", { ascending: false })
+            .order("updated_at", { ascending: false })
             .limit(200);
 
-        if (handoffError !== null)
+        if (!includeClosed)
         {
-            throw new ApiError(503, "INBOX_UNAVAILABLE", "The handoff inbox could not be loaded.");
+            conversationQuery = conversationQuery.neq("status", "closed");
         }
 
-        const handoffs = (handoffData ?? []).map((row: unknown) => handoffRowSchema.parse(row));
-        const conversationIds = handoffs.map((handoff) => handoff.conversation_id);
+        const { data: conversationData, error: conversationError } = await conversationQuery;
+
+        if (conversationError !== null)
+        {
+            throw new ApiError(503, "CONVERSATIONS_UNAVAILABLE", "The conversation list could not be loaded.");
+        }
+
+        const conversations = (conversationData ?? [])
+            .map((row: unknown) => teamConversationRowSchema.parse(row));
+        const conversationIds = conversations.map((conversation) => conversation.id);
 
         if (conversationIds.length === 0)
         {
             return [];
         }
 
-        const { data: conversationData, error: conversationError } = await client
-            .from("conversations")
-            .select("id, organization_id, channel, status, customer_name, customer_email, customer_phone, customer_company, language, started_at, handoff_requested_at")
-            .eq("organization_id", organizationId)
-            .in("id", conversationIds);
+        const [handoffResult, messageResult, voiceResult, events] = await Promise.all([
+            client
+                .from("handoffs")
+                .select("conversation_id, reason, summary_snapshot, requested_at, accepted_by, accepted_at")
+                .eq("organization_id", organizationId)
+                .in("conversation_id", conversationIds)
+                .order("requested_at", { ascending: false })
+                .limit(200),
+            client
+                .from("messages")
+                .select("conversation_id, text, created_at")
+                .eq("organization_id", organizationId)
+                .in("conversation_id", conversationIds)
+                .order("created_at", { ascending: false })
+                .limit(5000),
+            client
+                .from("voice_sessions")
+                .select("conversation_id, status, ready_at, started_at, ended_at, created_at")
+                .eq("organization_id", organizationId)
+                .in("conversation_id", conversationIds)
+                .limit(200),
+            this.listGuardrailEvents(organizationId),
+        ]);
 
-        if (conversationError !== null)
+        if (handoffResult.error !== null || messageResult.error !== null || voiceResult.error !== null)
         {
-            throw new ApiError(503, "INBOX_UNAVAILABLE", "The handoff inbox could not be loaded.");
+            throw new ApiError(503, "CONVERSATIONS_UNAVAILABLE", "The conversation list could not be loaded.");
         }
 
-        const conversations = (conversationData ?? [])
-            .map((row: unknown) => teamConversationRowSchema.parse(row));
-        const conversationById = new Map(
-            conversations.map((conversation) => [conversation.id, conversation]),
+        const handoffByConversation = new Map(
+            (handoffResult.data ?? []).map((row: unknown) =>
+            {
+                const handoff = handoffRowSchema.parse(row);
+                return [handoff.conversation_id, handoff] as const;
+            }),
         );
-        const events = await this.listGuardrailEvents(organizationId);
+        const latestMessageByConversation = new Map<string, z.infer<typeof teamListMessageRowSchema>>();
+
+        for (const input of messageResult.data ?? [])
+        {
+            const message = teamListMessageRowSchema.parse(input);
+
+            if (!latestMessageByConversation.has(message.conversation_id))
+            {
+                latestMessageByConversation.set(message.conversation_id, message);
+            }
+        }
+
+        const voiceByConversation = new Map(
+            (voiceResult.data ?? []).map((row: unknown) =>
+            {
+                const voice = teamListVoiceSessionRowSchema.parse(row);
+                return [voice.conversation_id, voice] as const;
+            }),
+        );
         const eventsByConversation = new Map<string, GuardrailEvent[]>();
 
         for (const event of events)
@@ -533,25 +610,22 @@ export class SupabaseTeamRepository
             eventsByConversation.set(event.conversationId, current);
         }
 
-        return handoffs.flatMap((handoff) =>
+        return conversations.map((conversation) =>
         {
-            const conversation = conversationById.get(handoff.conversation_id);
-
-            if (
-                conversation === undefined
-                || conversation.status === "active_ai"
-                || conversation.status === "resolved_ai"
-                || (!includeClosed && conversation.status === "closed")
-            )
-            {
-                return [];
-            }
-
+            const handoff = handoffByConversation.get(conversation.id);
+            const latestMessage = latestMessageByConversation.get(conversation.id);
+            const voice = voiceByConversation.get(conversation.id);
             const conversationEvents = eventsByConversation.get(conversation.id) ?? [];
+            const summary = handoff === undefined
+                ? null
+                : normalizeHandoffSummary(
+                    handoff.summary_snapshot,
+                    conversation.language,
+                );
 
-            return [teamInboxItemSchema.parse({
-                acceptedAt: handoff.accepted_at,
-                acceptedBy: handoff.accepted_by,
+            return teamConversationListItemSchema.parse({
+                acceptedAt: handoff?.accepted_at ?? null,
+                acceptedBy: handoff?.accepted_by ?? null,
                 conversationId: conversation.id,
                 customer: {
                     channel: conversation.channel,
@@ -562,18 +636,30 @@ export class SupabaseTeamRepository
                     phone: conversation.customer_phone,
                 },
                 guardrailCount: conversationEvents.length,
-                handoffReason: handoff.reason,
+                handoffReason: handoff?.reason ?? null,
                 handoffRequestedAt: conversation.handoff_requested_at
-                    ?? handoff.requested_at,
+                    ?? handoff?.requested_at
+                    ?? null,
+                latestActivityAt: latestTimestamp(
+                    conversation.started_at,
+                    conversation.updated_at,
+                    handoff?.requested_at,
+                    latestMessage?.created_at,
+                    voice?.created_at,
+                    voice?.ready_at,
+                    voice?.started_at,
+                    voice?.ended_at,
+                ),
                 latestGuardrailCode: conversationEvents[0]?.ruleCode ?? null,
+                preview: latestMessage?.text ?? summary?.customerQuestion ?? null,
                 startedAt: conversation.started_at,
                 status: conversation.status,
-                summary: normalizeHandoffSummary(
-                    handoff.summary_snapshot,
-                    conversation.language,
-                ),
-            })];
-        });
+                summary,
+                voiceSessionStatus: voice?.status ?? null,
+            });
+        }).sort((left, right) =>
+            Date.parse(right.latestActivityAt) - Date.parse(left.latestActivityAt),
+        );
     }
 
     /**
@@ -588,15 +674,38 @@ export class SupabaseTeamRepository
         conversationId: string,
     ): Promise<TeamConversationDetail | null>
     {
-        const inbox = await this.listInbox(organizationId, true);
-        const base = inbox.find((item) => item.conversationId === conversationId);
+        const client = createServiceClient(this.bindings);
+        const { data: conversationData, error: conversationError } = await client
+            .from("conversations")
+            .select("id, organization_id, channel, status, customer_name, customer_email, customer_phone, customer_company, language, started_at, handoff_requested_at, updated_at")
+            .eq("organization_id", organizationId)
+            .eq("id", conversationId)
+            .maybeSingle();
 
-        if (base === undefined)
+        if (conversationError !== null)
+        {
+            throw new ApiError(503, "CONVERSATION_UNAVAILABLE", "The conversation could not be loaded.");
+        }
+
+        if (conversationData === null)
         {
             return null;
         }
 
-        const client = createServiceClient(this.bindings);
+        const conversation = teamConversationRowSchema.parse(conversationData);
+        const { data: handoffData, error: handoffError } = await client
+            .from("handoffs")
+            .select("conversation_id, reason, summary_snapshot, requested_at, accepted_by, accepted_at")
+            .eq("organization_id", organizationId)
+            .eq("conversation_id", conversationId)
+            .maybeSingle();
+
+        if (handoffError !== null)
+        {
+            throw new ApiError(503, "CONVERSATION_UNAVAILABLE", "The conversation could not be loaded.");
+        }
+
+        const handoff = handoffData === null ? null : handoffRowSchema.parse(handoffData);
         const { data: messageData, error: messageError } = await client
             .from("messages")
             .select("id, sender_type, sender_user_id, text, decision, created_at")
@@ -721,13 +830,51 @@ export class SupabaseTeamRepository
                         ),
                 };
             })();
+        const handoffSummary = handoff === null
+            ? null
+            : normalizeHandoffSummary(
+                handoff.summary_snapshot,
+                conversation.language,
+            );
+        const latestMessage = rows.at(-1);
 
         return teamConversationDetailSchema.parse({
-            ...base,
+            acceptedAt: handoff?.accepted_at ?? null,
+            acceptedBy: handoff?.accepted_by ?? null,
+            conversationId: conversation.id,
+            customer: {
+                channel: conversation.channel,
+                company: conversation.customer_company,
+                email: conversation.customer_email,
+                language: conversation.language,
+                name: conversation.customer_name,
+                phone: conversation.customer_phone,
+            },
+            guardrailCount: guardrailEvents.length,
             guardrailEvents,
+            handoffReason: handoff?.reason ?? null,
+            handoffRequestedAt: conversation.handoff_requested_at
+                ?? handoff?.requested_at
+                ?? null,
+            latestActivityAt: latestTimestamp(
+                conversation.started_at,
+                conversation.updated_at,
+                handoff?.requested_at,
+                latestMessage?.created_at,
+                voiceSession?.createdAt,
+                voiceSession?.readyAt,
+                voiceSession?.startedAt,
+                voiceSession?.endedAt,
+            ),
+            latestGuardrailCode: guardrailEvents[0]?.ruleCode ?? null,
             messages,
+            preview: latestMessage?.text ?? handoffSummary?.customerQuestion ?? null,
+            startedAt: conversation.started_at,
+            status: conversation.status,
+            summary: handoffSummary,
             summaryRecord,
             voiceSession,
+            voiceSessionStatus: voiceSession?.status ?? null,
         });
     }
 

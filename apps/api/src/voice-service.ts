@@ -1,10 +1,12 @@
 import {
     completeVoiceTurnResponseSchema,
     createVoiceTokenResponseSchema,
+    endVoiceSessionResponseSchema,
     recordVoiceTranscriptResponseSchema,
     type CreateVoiceTokenResponse,
     type CompleteVoiceTurnRequest,
     type CompleteVoiceTurnResponse,
+    type EndVoiceSessionResponse,
     type RecordVoiceTranscriptRequest,
     type RecordVoiceTranscriptResponse,
     type UpdateVoiceSessionStatusRequest,
@@ -410,6 +412,52 @@ export class DefaultVoiceService implements VoiceService
             token: issued.token,
             url: issued.url,
             voiceSessionId: created.voiceSessionId,
+        });
+    }
+
+    /**
+     * endSession
+     * ----------------
+     * Verifies the customer-scoped conversation token and persists the matching voice session's terminal state without closing an ongoing text or handoff conversation.
+     *
+     * August 07, 2026: Created by Forrest Zhang for SmartService Cross-Channel Conversation Center
+     */
+    public async endSession(
+        request: Request,
+        conversationId: string,
+        voiceSessionId: string,
+        requestId: string,
+    ): Promise<EndVoiceSessionResponse>
+    {
+        const claims = await this.conversationTokens.verify(
+            readConversationBearerToken(request),
+            conversationId,
+            "conversation:write",
+        );
+        const session = await this.repository.getSession(voiceSessionId);
+
+        if (
+            session === null
+            || session.organizationId !== claims.org
+            || session.conversationId !== conversationId
+        )
+        {
+            throw new ApiError(404, "VOICE_SESSION_NOT_FOUND", "The voice session does not exist.");
+        }
+
+        if (session.status !== "closed" && session.status !== "failed")
+        {
+            await this.repository.updateStatus(
+                voiceSessionId,
+                "closed",
+                null,
+                requestId,
+            );
+        }
+
+        return endVoiceSessionResponseSchema.parse({
+            status: session.status === "failed" ? "failed" : "closed",
+            voiceSessionId,
         });
     }
 

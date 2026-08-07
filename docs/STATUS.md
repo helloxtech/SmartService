@@ -299,6 +299,15 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 | LiveKit Cloud Agent deployment | Passed for the development startup boundary: active version `hDn8Jig7ijt8` maps to commit `26cf964`, reports Running/Available with one replica, receives named dispatches, reaches the shared API, and reports Ready before microphone publication. Final spoken answer/TTS/interruption/latency evidence remains pending and G2 is not claimed |
 | Cost-bearing provider calls | Bounded live smokes plus free-development LiveKit/WebRTC and Deepgram interim-STT verification only; no paid plan, subscription, or production resource change was made |
 
+## August 7 cross-channel conversation-center local checkpoint
+
+- Scope completed: the team workspace now lists tenant conversations from the canonical `conversations` table, enriches them with latest text, voice lifecycle, optional handoff, and guardrail state, and supports All / Voice / Text / Handoff / Closed filters.
+- Detail access now supports ordinary `active_ai` and `resolved_ai` conversations as read-only records; claim, reply, suggested handoff wording, and close controls remain available only for genuine human-handoff states.
+- Customer-ended browser voice sessions now persist the matching `voice_sessions` terminal status through the conversation-scoped bearer token without automatically closing the underlying cross-channel conversation.
+- Validation passed: workspace strict TypeScript; repository ESLint; API suite 78/78; web unit suite 21/21; focused browser voice suite 5/5; desktop and 390-pixel local conversation-center inspection; voice/text/handoff/closed filters; read-only ordinary voice detail; handoff claim and reply.
+- Local test delivery: Vite development preview provides isolated browser-memory cross-channel fixtures at `/local/conversations`; it is gated by `import.meta.env.DEV`, makes no production or provider calls, and was used because this runtime currently has neither Docker nor the Supabase CLI available.
+- Delivery state: local working-tree changes only. No Git push, GitHub workflow, Cloudflare deployment, hosted database mutation, or paid-provider call was made for this checkpoint.
+
 ## Current blockers
 
 - Hosted Supabase uses current Smart Service display values where local hosted credentials allow updates. A narrow legacy public-key fallback remains temporarily because existing deployed widgets may still reference the older non-secret key.

@@ -166,6 +166,14 @@ async function writeWorkerDevelopmentVariables(filePath, localStatus, voiceServi
         `LOCAL_UPLOAD_SIGNING_SECRET=${randomBytes(32).toString("base64url")}`,
         `CONVERSATION_TOKEN_SECRET=${randomBytes(32).toString("base64url")}`,
         `VOICE_INTERNAL_SERVICE_TOKEN=${voiceServiceToken}`,
+        "CHAT_PROVIDER_MODE=mock",
+        "AUXILIARY_PROVIDER_MODE=mock",
+        "CRAWL_PROVIDER_MODE=mock",
+        "EMBEDDING_PROVIDER_MODE=mock",
+        "INGESTION_PROVIDER_MODE=mock",
+        "TURNSTILE_PROVIDER_MODE=mock",
+        "UPLOAD_PROVIDER_MODE=mock",
+        "VOICE_PROVIDER_MODE=mock",
     ];
     const temporaryPath = `${filePath}.bootstrap`;
     await writeFile(temporaryPath, `${values.join("\n")}\n`, {

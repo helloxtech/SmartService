@@ -20,6 +20,7 @@ import {
 import {
     createPublicConversationWithFallback,
     createVoiceToken,
+    endVoiceSession,
     getConfiguredDemoPublicKeys,
     pollPublicMessages,
 } from "./lib/public-conversation-api";
@@ -203,10 +204,12 @@ export function VoiceExperience({
     const [voiceConversation, setVoiceConversation] = useState<{
         conversationId: string;
         conversationToken: string;
+        voiceSessionId: string;
     } | null>(null);
     const voiceConversationRef = useRef<{
         conversationId: string;
         conversationToken: string;
+        voiceSessionId: string;
     } | null>(null);
     const connection = useRef<VoiceRoomConnection | null>(null);
     const activeConnector = useRef<VoiceRoomConnector | null>(null);
@@ -541,10 +544,12 @@ export function VoiceExperience({
             setVoiceConversation({
                 conversationId: conversation.conversationId,
                 conversationToken: conversation.conversationToken,
+                voiceSessionId: token.voiceSessionId,
             });
             voiceConversationRef.current = {
                 conversationId: conversation.conversationId,
                 conversationToken: conversation.conversationToken,
+                voiceSessionId: token.voiceSessionId,
             };
             const selectedConnector = connector
                 ?? (token.provider === "mock"
@@ -572,6 +577,8 @@ export function VoiceExperience({
     async function endVoice(): Promise<void>
     {
         intentionalShutdown.current = true;
+        const currentConversation = voiceConversationRef.current;
+        let failed = false;
 
         if (reconnectTimer.current !== null)
         {
@@ -579,11 +586,35 @@ export function VoiceExperience({
             reconnectTimer.current = null;
         }
 
-        await connection.current?.disconnect();
+        try
+        {
+            await connection.current?.disconnect();
+        }
+        catch
+        {
+            failed = true;
+        }
+
+        try
+        {
+            if (currentConversation !== null)
+            {
+                await endVoiceSession(
+                    currentConversation.conversationId,
+                    currentConversation.conversationToken,
+                    currentConversation.voiceSessionId,
+                );
+            }
+        }
+        catch
+        {
+            failed = true;
+        }
+
+        setState(failed ? "failed" : "ended");
         connection.current = null;
         activeConnector.current = null;
         voiceConversationRef.current = null;
-        setState("ended");
     }
 
     /**

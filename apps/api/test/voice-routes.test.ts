@@ -1,5 +1,6 @@
 import {
     createVoiceTokenResponseSchema,
+    endVoiceSessionResponseSchema,
 } from "@smartservice/contracts";
 import {
     describe,
@@ -44,6 +45,10 @@ function createVoiceService(): VoiceService
             roomName: "ss-day6-fixture",
             token: "mock.local-token.signature",
             url: "https://mock-livekit.smartservice.local",
+            voiceSessionId,
+        }),
+        endSession: vi.fn().mockResolvedValue({
+            status: "closed",
             voiceSessionId,
         }),
         getConfiguration: vi.fn().mockResolvedValue({
@@ -144,5 +149,29 @@ describe("voice routes", () =>
 
         expect(response.status).toBe(422);
         expect(voice.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it("persists a customer-ended voice session through the public bearer-scoped route", async () =>
+    {
+        const voice = createVoiceService();
+        const response = await requestVoiceApp(
+            voice,
+            `/api/v1/public/voice/sessions/${voiceSessionId}/end`,
+            {
+                body: JSON.stringify({
+                    conversationId,
+                }),
+                headers: {
+                    authorization: "Bearer fixture-conversation-token",
+                    "content-type": "application/json",
+                },
+                method: "POST",
+            },
+        );
+        const payload: unknown = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(endVoiceSessionResponseSchema.parse(payload).status).toBe("closed");
+        expect(voice.endSession).toHaveBeenCalledOnce();
     });
 });

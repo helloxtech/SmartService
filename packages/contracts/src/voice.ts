@@ -29,6 +29,15 @@ export const createVoiceTokenResponseSchema = z.object({
     voiceSessionId: z.uuid(),
 });
 
+export const endVoiceSessionRequestSchema = z.object({
+    conversationId: z.uuid(),
+});
+
+export const endVoiceSessionResponseSchema = z.object({
+    status: z.enum(["closed", "failed"]),
+    voiceSessionId: z.uuid(),
+});
+
 export const voiceSessionConfigurationSchema = z.object({
     conversationId: z.uuid(),
     language: conversationLanguageSchema,
@@ -73,6 +82,7 @@ export type CreateVoiceTokenRequest = z.infer<typeof createVoiceTokenRequestSche
 export type CreateVoiceTokenResponse = z.infer<typeof createVoiceTokenResponseSchema>;
 export type CompleteVoiceTurnRequest = z.infer<typeof completeVoiceTurnRequestSchema>;
 export type CompleteVoiceTurnResponse = z.infer<typeof completeVoiceTurnResponseSchema>;
+export type EndVoiceSessionResponse = z.infer<typeof endVoiceSessionResponseSchema>;
 export type RecordVoiceTranscriptRequest = z.infer<typeof recordVoiceTranscriptRequestSchema>;
 export type RecordVoiceTranscriptResponse = z.infer<typeof recordVoiceTranscriptResponseSchema>;
 export type UpdateVoiceSessionStatusRequest = z.infer<typeof updateVoiceSessionStatusRequestSchema>;

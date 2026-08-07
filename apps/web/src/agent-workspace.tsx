@@ -1,6 +1,6 @@
 import type {
     TeamConversationDetail,
-    TeamInboxItem,
+    TeamConversationListItem,
 } from "@smartservice/contracts";
 import { Button } from "@smartservice/ui";
 import type { Session } from "@supabase/supabase-js";
@@ -37,15 +37,29 @@ import type { UiLanguage } from "./language";
 
 interface AgentWorkspaceProps
 {
+    api?: AgentWorkspaceApi;
     initialConversationId: string | null;
     language?: UiLanguage;
     onOpenConversation(conversationId: string): void;
     session: Session;
 }
 
+type ConversationFilter = "all" | "voice" | "text" | "handoff" | "closed";
+
+const defaultAgentWorkspaceApi = {
+    claim: claimTeamConversation,
+    close: closeTeamConversation,
+    get: getTeamConversation,
+    list: listTeamConversations,
+    send: sendTeamMessage,
+};
+
+export type AgentWorkspaceApi = typeof defaultAgentWorkspaceApi;
+
 const agentCopy: Record<UiLanguage, {
     aiAssist: string;
     aiMessage: string;
+    allFilter: string;
     anotherOwner: string;
     claim: string;
     claimFirst: string;
@@ -54,6 +68,7 @@ const agentCopy: Record<UiLanguage, {
     closeConfirm: string;
     closed: string;
     closedQueued: string;
+    closedFilter: string;
     company: string;
     conversationClosed: string;
     conversations: string;
@@ -69,6 +84,7 @@ const agentCopy: Record<UiLanguage, {
     finalRecord: string;
     humanHandoff: string;
     humanMessage: string;
+    handoffFilter: string;
     inbox: string;
     includeClosed: string;
     intentOutcome: string;
@@ -84,6 +100,7 @@ const agentCopy: Record<UiLanguage, {
     phone: string;
     primaryIntent: string;
     replyPlaceholder: string;
+    readOnly: string;
     runtime: string;
     safeHandling: string;
     selectConversation: string;
@@ -96,14 +113,17 @@ const agentCopy: Record<UiLanguage, {
     summary: string;
     serverTimingNote: string;
     titleBody: string;
+    textFilter: string;
     useSuggestedReply: string;
     voiceSession: string;
+    voiceFilter: string;
     warmup: string;
     whyEscalated: string;
 }> = {
     en: {
         aiAssist: "AI assist",
-        aiMessage: "AI",
+        aiMessage: "Online service",
+        allFilter: "All",
         anotherOwner: "Another operator owns this conversation.",
         claim: "Claim",
         claimFirst: "Claim this conversation to reply.",
@@ -112,6 +132,7 @@ const agentCopy: Record<UiLanguage, {
         closeConfirm: "Close this conversation and generate the final summary?",
         closed: "Conversation closed.",
         closedQueued: "Conversation closed. Final summary is processing asynchronously.",
+        closedFilter: "Closed",
         company: "Company",
         conversationClosed: "Conversation closed",
         conversations: "Conversations",
@@ -127,24 +148,26 @@ const agentCopy: Record<UiLanguage, {
         finalRecord: "Final record",
         humanHandoff: "Human handoff",
         humanMessage: "Human",
-        inbox: "Agent inbox",
+        handoffFilter: "Handoff",
+        inbox: "Conversation center",
         includeClosed: "Include closed",
         intentOutcome: "Intent level / outcome",
         linksAndSources: "Useful sources and links",
-        loading: "Loading inbox…",
+        loading: "Loading conversations…",
         name: "Name",
         nextStep: "Next step",
         noCandidate: "No candidate was generated; the input check blocked first.",
-        noConversations: "No conversations are waiting.",
+        noConversations: "No conversations match this filter.",
         noSamples: "No samples",
         notCompleted: "Not completed",
         notProvided: "Not provided",
         phone: "Phone",
         primaryIntent: "Primary intent",
         replyPlaceholder: "Write a human reply…",
+        readOnly: "This customer-service conversation is read-only. Claim and reply become available only after a specialist handoff.",
         runtime: "Runtime",
         safeHandling: "Safe handling tips",
-        selectConversation: "Select a conversation to review its handoff package.",
+        selectConversation: "Select a conversation to review its transcript and service details.",
         send: "Send",
         serverP50: "Server P50",
         serverP95: "Server P95 / max",
@@ -153,15 +176,18 @@ const agentCopy: Record<UiLanguage, {
         suggestedWording: "Suggested wording",
         summary: "Summary",
         serverTimingNote: "Server assistant timing only; browser turn-to-audio evidence is reported separately.",
-        titleBody: "Review the customer context, source evidence, and suggested next action before claiming.",
+        titleBody: "Review text, voice, active, handed-off, and closed customer conversations in one place.",
+        textFilter: "Text",
         useSuggestedReply: "Use suggested reply",
         voiceSession: "Voice session",
+        voiceFilter: "Voice",
         warmup: "Warmup",
         whyEscalated: "Why escalated",
     },
     "zh-CN": {
         aiAssist: "AI 辅助",
-        aiMessage: "AI",
+        aiMessage: "在线客服",
+        allFilter: "全部",
         anotherOwner: "此会话已由其他客服接管。",
         claim: "接管",
         claimFirst: "请先接管此会话才能回复。",
@@ -170,6 +196,7 @@ const agentCopy: Record<UiLanguage, {
         closeConfirm: "确认结束此会话并生成最终总结？",
         closed: "会话已结束。",
         closedQueued: "会话已结束，最终总结正在异步生成。",
+        closedFilter: "已结束",
         company: "公司",
         conversationClosed: "会话已结束",
         conversations: "会话列表",
@@ -185,24 +212,26 @@ const agentCopy: Record<UiLanguage, {
         finalRecord: "最终记录",
         humanHandoff: "人工接入",
         humanMessage: "人工客服",
-        inbox: "客服会话",
+        handoffFilter: "转人工",
+        inbox: "会话中心",
         includeClosed: "包含已结束",
         intentOutcome: "意图级别 / 结果",
         linksAndSources: "有用来源和链接",
-        loading: "正在加载会话…",
+        loading: "正在加载全部会话…",
         name: "姓名",
         nextStep: "下一步",
         noCandidate: "没有生成候选回答；输入检查已先拦截。",
-        noConversations: "暂无等待处理的会话。",
+        noConversations: "当前筛选条件下暂无会话。",
         noSamples: "暂无样本",
         notCompleted: "未完成",
         notProvided: "未提供",
         phone: "电话",
         primaryIntent: "主要意图",
         replyPlaceholder: "输入人工回复…",
+        readOnly: "此在线客服会话为只读记录；只有客户转接客服专员后，才会出现接管和回复操作。",
         runtime: "运行状态",
         safeHandling: "安全处理提示",
-        selectConversation: "选择一个会话查看接入包。",
+        selectConversation: "选择一个会话查看对话记录和服务详情。",
         send: "发送",
         serverP50: "服务端 P50",
         serverP95: "服务端 P95 / 最大",
@@ -211,9 +240,11 @@ const agentCopy: Record<UiLanguage, {
         suggestedWording: "建议话术",
         summary: "摘要",
         serverTimingNote: "这里只显示服务端助手耗时；浏览器端首音频延迟会单独报告。",
-        titleBody: "接管前先查看客户上下文、证据来源和建议下一步。",
+        titleBody: "在一个页面查看文字、语音、进行中、已转人工和已结束的客户会话。",
+        textFilter: "文字",
         useSuggestedReply: "使用建议回复",
         voiceSession: "语音会话",
+        voiceFilter: "语音",
         warmup: "预热",
         whyEscalated: "转人工原因",
     },
@@ -272,24 +303,73 @@ function displayValue(value: string | null, language: UiLanguage): string
  *
  * July 30, 2026: Created by Forrest Zhang for SmartService Workspace UX
  */
-function formatConversationStatus(status: TeamInboxItem["status"], language: UiLanguage): string
+function formatConversationStatus(
+    conversation: TeamConversationListItem,
+    language: UiLanguage,
+): string
 {
-    if (language === "zh-CN")
+    const labels: Record<UiLanguage, Record<TeamConversationListItem["status"], string>> = {
+        en: {
+            active_ai: "In service",
+            active_human: "Human service",
+            closed: "Closed",
+            handoff_requested: "Awaiting human",
+            resolved_ai: "Resolved",
+        },
+        "zh-CN": {
+            active_ai: "客服处理中",
+            active_human: "人工处理中",
+            closed: "已结束",
+            handoff_requested: "等待人工",
+            resolved_ai: "客服已解决",
+        },
+    };
+
+    if (conversation.status === "active_ai" && conversation.customer.channel === "voice")
     {
-        if (status === "active_human")
+        if (conversation.voiceSessionStatus === "closed")
         {
-            return "人工处理中";
+            return language === "zh-CN" ? "通话已结束" : "Voice ended";
         }
 
-        if (status === "closed")
+        if (conversation.voiceSessionStatus === "failed")
         {
-            return "已结束";
+            return language === "zh-CN" ? "通话未完成" : "Voice failed";
         }
-
-        return "等待接管";
     }
 
-    return status.replace("_", " ");
+    return labels[language][conversation.status];
+}
+
+/**
+ * matchesConversationFilter
+ * ----------------
+ * Applies the operator's channel or workflow filter to the complete tenant conversation list.
+ *
+ * August 07, 2026: Created by Forrest Zhang for SmartService Cross-Channel Conversation Center
+ */
+function matchesConversationFilter(
+    conversation: TeamConversationListItem,
+    filter: ConversationFilter,
+): boolean
+{
+    if (filter === "voice" || filter === "text")
+    {
+        return conversation.customer.channel === filter;
+    }
+
+    if (filter === "handoff")
+    {
+        return conversation.status === "handoff_requested"
+            || conversation.status === "active_human";
+    }
+
+    if (filter === "closed")
+    {
+        return conversation.status === "closed";
+    }
+
+    return true;
 }
 
 /**
@@ -360,13 +440,20 @@ function buildSuggestedActions(
     language: UiLanguage,
 ): string[]
 {
+    if (detail.summary === null)
+    {
+        return [];
+    }
+
+    const summary = detail.summary;
+
     if (language === "zh-CN")
     {
         return [
             detail.acceptedBy === null
                 ? "先点击“接管”，避免客户误以为已经有人回复。"
                 : "继续用人工身份回复；AI 已停止自动回答。",
-            detail.summary.nextStep,
+            summary.nextStep,
             sourceCount > 0
                 ? "回复前查看下方来源；如果有网页链接，可直接打开确认。"
                 : "当前没有可点击来源；如需事实答案，请先到知识库补充资料。",
@@ -380,7 +467,7 @@ function buildSuggestedActions(
         detail.acceptedBy === null
             ? "Claim the conversation before replying so the customer sees a clear takeover."
             : "Continue as the human owner; AI automatic replies are stopped.",
-        detail.summary.nextStep,
+        summary.nextStep,
         sourceCount > 0
             ? "Review the sources below; open any webpage links before making a factual commitment."
             : "No clickable source is available; add approved knowledge before giving company-specific facts.",
@@ -397,9 +484,30 @@ function buildSuggestedActions(
  *
  * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Agent Inbox
  */
-function statusBadgeClass(status: TeamInboxItem["status"]): string
+function statusBadgeClass(conversation: TeamConversationListItem): string
 {
+    const status = conversation.status;
+
+    if (
+        status === "active_ai"
+        && conversation.customer.channel === "voice"
+        && (conversation.voiceSessionStatus === "closed" || conversation.voiceSessionStatus === "failed")
+    )
+    {
+        return "border-slate-200 bg-slate-100 text-slate-700";
+    }
+
     if (status === "active_human")
+    {
+        return "border-violet-200 bg-violet-50 text-violet-800";
+    }
+
+    if (status === "active_ai")
+    {
+        return "border-sky-200 bg-sky-50 text-sky-800";
+    }
+
+    if (status === "resolved_ai")
     {
         return "border-emerald-200 bg-emerald-50 text-emerald-800";
     }
@@ -420,6 +528,7 @@ function statusBadgeClass(status: TeamInboxItem["status"]): string
  * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Agent Workspace
  */
 export function AgentWorkspace({
+    api = defaultAgentWorkspaceApi,
     initialConversationId,
     language = "en",
     onOpenConversation,
@@ -427,14 +536,12 @@ export function AgentWorkspace({
 }: AgentWorkspaceProps): JSX.Element
 {
     const copy = agentCopy[language];
-    const [conversations, setConversations] = useState<TeamInboxItem[]>([]);
+    const [conversations, setConversations] = useState<TeamConversationListItem[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(
         initialConversationId,
     );
     const [detail, setDetail] = useState<TeamConversationDetail | null>(null);
-    const [includeClosed, setIncludeClosed] = useState(
-        initialConversationId !== null,
-    );
+    const [filter, setFilter] = useState<ConversationFilter>("all");
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
     const [reply, setReply] = useState("");
@@ -455,7 +562,7 @@ export function AgentWorkspace({
         {
             try
             {
-                const inbox = await listTeamConversations(session, includeClosed);
+                const inbox = await api.list(session, true);
 
                 if (!active)
                 {
@@ -463,9 +570,16 @@ export function AgentWorkspace({
                 }
 
                 setConversations(inbox);
-                const targetId = selectedId ?? inbox[0]?.conversationId ?? null;
+                const visibleInbox = inbox.filter((conversation) =>
+                    matchesConversationFilter(conversation, filter),
+                );
+                const selectedIsVisible = selectedId !== null
+                    && visibleInbox.some((conversation) => conversation.conversationId === selectedId);
+                const targetId = selectedIsVisible
+                    ? selectedId
+                    : visibleInbox[0]?.conversationId ?? null;
 
-                if (selectedId === null && targetId !== null)
+                if (selectedId !== targetId)
                 {
                     setSelectedId(targetId);
                 }
@@ -477,7 +591,7 @@ export function AgentWorkspace({
                     return;
                 }
 
-                const currentDetail = await getTeamConversation(session, targetId);
+                const currentDetail = await api.get(session, targetId);
 
                 if (active)
                 {
@@ -506,7 +620,7 @@ export function AgentWorkspace({
             active = false;
             globalThis.clearInterval(intervalId);
         };
-    }, [includeClosed, selectedId, session]);
+    }, [api, filter, selectedId, session]);
 
     /**
      * refreshSelected
@@ -518,8 +632,8 @@ export function AgentWorkspace({
     async function refreshSelected(conversationId: string): Promise<void>
     {
         const [inbox, currentDetail] = await Promise.all([
-            listTeamConversations(session, includeClosed),
-            getTeamConversation(session, conversationId),
+            api.list(session, true),
+            api.get(session, conversationId),
         ]);
         setConversations(inbox);
         setDetail(currentDetail);
@@ -544,7 +658,7 @@ export function AgentWorkspace({
 
         try
         {
-            await claimTeamConversation(session, detail.conversationId);
+            await api.claim(session, detail.conversationId);
             await refreshSelected(detail.conversationId);
             setMessage(copy.claimed);
         }
@@ -579,7 +693,7 @@ export function AgentWorkspace({
 
         try
         {
-            await sendTeamMessage(
+            await api.send(
                 session,
                 detail.conversationId,
                 reply.trim(),
@@ -606,7 +720,7 @@ export function AgentWorkspace({
      */
     function handleUseSuggestedReply(): void
     {
-        if (detail !== null)
+        if (detail?.summary !== null && detail?.summary !== undefined)
         {
             setReply(normalizeVisibleDemoBrand(detail.summary.suggestedReply));
         }
@@ -634,8 +748,8 @@ export function AgentWorkspace({
 
         try
         {
-            await closeTeamConversation(session, detail.conversationId);
-            setIncludeClosed(true);
+            await api.close(session, detail.conversationId);
+            setFilter("closed");
             await refreshSelected(detail.conversationId);
             setMessage(copy.closedQueued);
         }
@@ -652,14 +766,24 @@ export function AgentWorkspace({
     const ownsConversation = detail?.acceptedBy === session.user.id;
     const canReply = detail?.status === "active_human" && ownsConversation;
     const usefulCitations = detail === null ? [] : collectUsefulCitations(detail);
-    const suggestedActions = detail === null
+    const suggestedActions = detail?.summary === null || detail === null
         ? []
         : buildSuggestedActions(detail, usefulCitations.length, language);
+    const visibleConversations = conversations.filter((conversation) =>
+        matchesConversationFilter(conversation, filter),
+    );
+    const filterOptions: Array<{ label: string; value: ConversationFilter }> = [
+        { label: copy.allFilter, value: "all" },
+        { label: copy.voiceFilter, value: "voice" },
+        { label: copy.textFilter, value: "text" },
+        { label: copy.handoffFilter, value: "handoff" },
+        { label: copy.closedFilter, value: "closed" },
+    ];
 
     return (
         <section aria-labelledby="inbox-heading" className="space-y-4">
             <h2 className="sr-only" id="inbox-heading">
-                {copy.humanHandoff} · {copy.inbox}
+                {copy.inbox}
             </h2>
 
             {message === null
@@ -672,19 +796,28 @@ export function AgentWorkspace({
 
             <div className="grid min-h-[calc(100vh-9rem)] overflow-hidden rounded-[2rem] border border-white/70 bg-white/90 shadow-[0_28px_90px_rgba(15,23,42,0.12)] backdrop-blur lg:grid-cols-[360px_minmax(0,1fr)]">
                 <aside className="border-b border-slate-200 bg-slate-50/80 lg:border-b-0 lg:border-r">
-                    <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
-                        <p className="text-sm font-bold">{copy.conversations}</p>
-                        <div className="flex items-center gap-2">
-                            <label className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 shadow-sm">
-                                <input
-                                    checked={includeClosed}
-                                    className="mr-1.5 size-3 rounded border-slate-300 align-middle"
-                                    onChange={(event) => setIncludeClosed(event.target.checked)}
-                                    type="checkbox"
-                                />
-                                {copy.includeClosed}
-                            </label>
-                            <RefreshCw aria-hidden="true" className="size-4 text-slate-400" />
+                    <div className="space-y-3 border-b border-slate-200 px-4 py-4">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-sm font-bold">{copy.inbox}</p>
+                                <p className="mt-1 text-xs leading-5 text-slate-500">{copy.titleBody}</p>
+                            </div>
+                            <RefreshCw aria-hidden="true" className="mt-1 size-4 shrink-0 text-slate-400" />
+                        </div>
+                        <div aria-label={copy.conversations} className="flex flex-wrap gap-1.5" role="group">
+                            {filterOptions.map((option) => (
+                                <button
+                                    aria-pressed={filter === option.value}
+                                    className={filter === option.value
+                                        ? "rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white"
+                                        : "rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:border-sky-300 hover:text-sky-800"}
+                                    key={option.value}
+                                    onClick={() => setFilter(option.value)}
+                                    type="button"
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
 
@@ -695,7 +828,7 @@ export function AgentWorkspace({
                                 {copy.loading}
                             </p>
                         )
-                        : conversations.length === 0
+                        : visibleConversations.length === 0
                             ? (
                                 <div className="p-6 text-center text-sm text-slate-500">
                                     <CheckCircle2 aria-hidden="true" className="mx-auto mb-3 size-7 text-emerald-600" />
@@ -704,7 +837,7 @@ export function AgentWorkspace({
                             )
                             : (
                                 <div className="max-h-[calc(100vh-13rem)] min-h-[560px] overflow-y-auto">
-                                    {conversations.map((conversation) => (
+                                    {visibleConversations.map((conversation) => (
                                         <button
                                             className={conversation.conversationId === selectedId
                                                 ? "block w-full border-b border-slate-200 bg-white px-4 py-4 text-left shadow-[inset_3px_0_0_rgb(2,132,199)]"
@@ -718,19 +851,31 @@ export function AgentWorkspace({
                                             type="button"
                                         >
                                             <div className="flex items-start justify-between gap-2">
-                                                <p className="truncate text-sm font-bold">
-                                                    {displayValue(conversation.customer.name, language)}
-                                                </p>
-                                                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusBadgeClass(conversation.status)}`}>
-                                                    {formatConversationStatus(conversation.status, language)}
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-sm font-bold">
+                                                        {displayValue(conversation.customer.name, language)}
+                                                    </p>
+                                                    <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                                                        {conversation.customer.channel === "voice"
+                                                            ? <Headphones aria-hidden="true" className="size-3" />
+                                                            : <MessageSquareText aria-hidden="true" className="size-3" />}
+                                                        {conversation.customer.channel === "voice"
+                                                            ? copy.voiceFilter
+                                                            : copy.textFilter}
+                                                    </span>
+                                                </div>
+                                                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusBadgeClass(conversation)}`}>
+                                                    {formatConversationStatus(conversation, language)}
                                                 </span>
                                             </div>
                                             <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">
-                                                {normalizeVisibleDemoBrand(conversation.summary.customerQuestion)}
+                                                {conversation.preview === null
+                                                    ? copy.notProvided
+                                                    : normalizeVisibleDemoBrand(conversation.preview)}
                                             </p>
                                             <p className="mt-2 flex items-center gap-1 text-[11px] text-slate-400">
                                                 <Clock3 aria-hidden="true" className="size-3" />
-                                                {formatTime(conversation.handoffRequestedAt)}
+                                                {formatTime(conversation.latestActivityAt)}
                                             </p>
                                         </button>
                                     ))}
@@ -830,9 +975,11 @@ export function AgentWorkspace({
                                                 <Headphones aria-hidden="true" className="size-4" />
                                                 {detail.status === "closed"
                                                     ? copy.closed
-                                                    : detail.acceptedBy === null
+                                                    : detail.status === "handoff_requested"
                                                         ? copy.claimFirst
-                                                        : copy.anotherOwner}
+                                                        : detail.status === "active_human"
+                                                            ? copy.anotherOwner
+                                                            : copy.readOnly}
                                             </p>
                                         )}
                                 </div>
@@ -903,74 +1050,80 @@ export function AgentWorkspace({
                                         </section>
                                     )}
 
-                                <section className="rounded-[1.5rem] border border-sky-200 bg-gradient-to-br from-sky-50 to-white p-5 shadow-sm">
-                                    <h3 className="flex items-center gap-2 text-sm font-bold text-sky-950">
-                                        <MessageSquareText aria-hidden="true" className="size-4" />
-                                        {copy.handoffPackage}
-                                    </h3>
-                                    <dl className="mt-4 space-y-3 text-xs leading-5 text-sky-950">
-                                        <div className="rounded-2xl border border-sky-100 bg-white/80 p-3">
-                                            <dt className="font-bold">{copy.summary}</dt>
-                                            <dd className="mt-1">{normalizeVisibleDemoBrand(detail.summary.conversationSummary)}</dd>
-                                        </div>
-                                        <div>
-                                            <dt className="font-bold">{copy.currentIntent}</dt>
-                                            <dd>{normalizeVisibleDemoBrand(detail.summary.currentIntent)}</dd>
-                                        </div>
-                                        <div>
-                                            <dt className="font-bold">{copy.whyEscalated}</dt>
-                                            <dd>{normalizeVisibleDemoBrand(detail.summary.triggerReason)}</dd>
-                                        </div>
-                                        <div>
-                                            <dt className="font-bold">{copy.nextStep}</dt>
-                                            <dd>{normalizeVisibleDemoBrand(detail.summary.nextStep)}</dd>
-                                        </div>
-                                    </dl>
-                                    {detail.summary.confirmedFacts.length === 0
-                                        ? null
-                                        : (
-                                            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                                <p className="text-xs font-bold text-slate-700">{copy.facts}</p>
-                                                <ul className="mt-2 list-disc space-y-1 pl-4 text-xs leading-5 text-slate-700">
-                                                    {detail.summary.confirmedFacts.map((fact) => (
-                                                        <li key={fact}>{normalizeVisibleDemoBrand(fact)}</li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-                                    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <p className="text-xs font-bold text-emerald-950">{copy.suggestedReply}</p>
-                                            <Button
-                                                disabled={!canReply}
-                                                onClick={handleUseSuggestedReply}
-                                                size="sm"
-                                                type="button"
-                                                variant="outline"
-                                            >
-                                                {copy.useSuggestedReply}
-                                            </Button>
-                                        </div>
-                                        <p className="mt-2 text-xs leading-5 text-emerald-950">
-                                            {normalizeVisibleDemoBrand(detail.summary.suggestedReply)}
-                                        </p>
-                                    </div>
-                                </section>
+                                {detail.summary === null
+                                    ? null
+                                    : (
+                                        <>
+                                            <section className="rounded-[1.5rem] border border-sky-200 bg-gradient-to-br from-sky-50 to-white p-5 shadow-sm">
+                                                <h3 className="flex items-center gap-2 text-sm font-bold text-sky-950">
+                                                    <MessageSquareText aria-hidden="true" className="size-4" />
+                                                    {copy.handoffPackage}
+                                                </h3>
+                                                <dl className="mt-4 space-y-3 text-xs leading-5 text-sky-950">
+                                                    <div className="rounded-2xl border border-sky-100 bg-white/80 p-3">
+                                                        <dt className="font-bold">{copy.summary}</dt>
+                                                        <dd className="mt-1">{normalizeVisibleDemoBrand(detail.summary.conversationSummary)}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt className="font-bold">{copy.currentIntent}</dt>
+                                                        <dd>{normalizeVisibleDemoBrand(detail.summary.currentIntent)}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt className="font-bold">{copy.whyEscalated}</dt>
+                                                        <dd>{normalizeVisibleDemoBrand(detail.summary.triggerReason)}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt className="font-bold">{copy.nextStep}</dt>
+                                                        <dd>{normalizeVisibleDemoBrand(detail.summary.nextStep)}</dd>
+                                                    </div>
+                                                </dl>
+                                                {detail.summary.confirmedFacts.length === 0
+                                                    ? null
+                                                    : (
+                                                        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                                            <p className="text-xs font-bold text-slate-700">{copy.facts}</p>
+                                                            <ul className="mt-2 list-disc space-y-1 pl-4 text-xs leading-5 text-slate-700">
+                                                                {detail.summary.confirmedFacts.map((fact) => (
+                                                                    <li key={fact}>{normalizeVisibleDemoBrand(fact)}</li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    )}
+                                                <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <p className="text-xs font-bold text-emerald-950">{copy.suggestedReply}</p>
+                                                        <Button
+                                                            disabled={!canReply}
+                                                            onClick={handleUseSuggestedReply}
+                                                            size="sm"
+                                                            type="button"
+                                                            variant="outline"
+                                                        >
+                                                            {copy.useSuggestedReply}
+                                                        </Button>
+                                                    </div>
+                                                    <p className="mt-2 text-xs leading-5 text-emerald-950">
+                                                        {normalizeVisibleDemoBrand(detail.summary.suggestedReply)}
+                                                    </p>
+                                                </div>
+                                            </section>
 
-                                <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
-                                    <h3 className="flex items-center gap-2 text-sm font-bold text-slate-950">
-                                        <ListChecks aria-hidden="true" className="size-4 text-sky-700" />
-                                        {copy.suggestedActions}
-                                    </h3>
-                                    <ol className="mt-3 space-y-2 text-xs leading-5 text-slate-700">
-                                        {suggestedActions.map((action) => (
-                                            <li className="flex gap-2" key={action}>
-                                                <CheckCircle2 aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
-                                                <span>{normalizeVisibleDemoBrand(action)}</span>
-                                            </li>
-                                        ))}
-                                    </ol>
-                                </section>
+                                            <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
+                                                <h3 className="flex items-center gap-2 text-sm font-bold text-slate-950">
+                                                    <ListChecks aria-hidden="true" className="size-4 text-sky-700" />
+                                                    {copy.suggestedActions}
+                                                </h3>
+                                                <ol className="mt-3 space-y-2 text-xs leading-5 text-slate-700">
+                                                    {suggestedActions.map((action) => (
+                                                        <li className="flex gap-2" key={action}>
+                                                            <CheckCircle2 aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+                                                            <span>{normalizeVisibleDemoBrand(action)}</span>
+                                                        </li>
+                                                    ))}
+                                                </ol>
+                                            </section>
+                                        </>
+                                    )}
 
                                 <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
                                     <h3 className="flex items-center gap-2 text-sm font-bold text-slate-950">

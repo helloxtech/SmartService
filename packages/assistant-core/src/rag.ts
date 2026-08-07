@@ -684,6 +684,45 @@ function findRequestedCurrentRoleConstraint(
 }
 
 /**
+ * hasExplicitCurrentRoleHolderName
+ * ----------------
+ * Requires a person-like name in an explicit current-role assignment so a heading or bare title cannot answer a customer asking who holds a role.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Current Role Accuracy
+ */
+function hasExplicitCurrentRoleHolderName(answer: string): boolean
+{
+    const candidates = [
+        answer.match(
+            /(?:校长|负责人|院长|主任|经理|店长|老板|业主|总裁|会长|董事长)\s*(?:是|为|：|:)\s*([^,.;，。；\n]+)/u,
+        )?.[1],
+        answer.match(
+            /\b(?:principal|person in charge|head|lead|manager|owner|president|chief executive officer|ceo|chairperson|chairman|chairwoman|director)\b\s*(?:is|:|-)\s*([^,.;，。；\n]+)/iu,
+        )?.[1],
+        answer.match(
+            /([^,.;，。；\n]+?)\s*(?:担任|现任)\s*(?:校长|负责人|院长|主任|经理|店长|老板|业主|总裁|会长|董事长)/u,
+        )?.[1],
+        answer.match(
+            /([^,.;，。；\n]+?)\s+is\s+(?:the\s+)?(?:current\s+)?(?:principal|person in charge|head|lead|manager|owner|president|chief executive officer|ceo|chairperson|chairman|chairwoman|director)\b/iu,
+        )?.[1],
+    ].filter((candidate): candidate is string => candidate !== undefined);
+
+    return candidates.some((candidate) =>
+    {
+        const normalized = candidate
+            .replace(/^(?:prof(?:essor)?\.?|dr\.?|mr\.?|mrs\.?|ms\.?)\s+/iu, "")
+            .replace(/(?:教授|博士|先生|女士|老师)$/u, "")
+            .trim();
+
+        return !/无法|不能|未知|未确认|尚未|暂时|\b(?:unknown|unconfirmed|unavailable|not confirmed)\b/iu.test(normalized)
+            && (
+                /^\p{Script=Han}{2,8}$/u.test(normalized)
+                || /^\p{Lu}[\p{L}'’-]*(?:\s+\p{Lu}[\p{L}'’-]*){0,3}$/u.test(normalized)
+            );
+    });
+}
+
+/**
  * prependUnconfirmedCurrentRole
  * ----------------
  * Adds the missing current role explicitly when a generated answer mentions only adjacent historical people or titles.
@@ -841,13 +880,17 @@ function appendSupportSpecialistOption(
         return trimmed;
     }
 
-    const sentenceEnd = /[.!?。！？]$/u.test(trimmed)
-        ? ""
-        : language === "zh-CN" ? "。" : ".";
+    if (language === "zh-CN")
+    {
+        const separator = /[。！？]$/u.test(trimmed)
+            ? ""
+            : /[.!?]$/u.test(trimmed) ? " " : "。";
 
-    return language === "zh-CN"
-        ? `${trimmed}${sentenceEnd}您可以选择请客服专员进一步核实。`
-        : `${trimmed}${sentenceEnd} You can ask a support specialist to verify it further.`;
+        return `${trimmed}${separator}您可以选择请客服专员进一步核实。`;
+    }
+
+    const separator = /[.!?]$/u.test(trimmed) ? " " : ". ";
+    return `${trimmed}${separator}You can ask a support specialist to verify it further.`;
 }
 
 /**
@@ -953,32 +996,42 @@ export function validateGroundedAnswer(
 
         for (const [index, part] of orderedPartAnswers.entries())
         {
+            const questionPart = questionParts[index] ?? "";
+            const roleConstraint = findRequestedCurrentRoleConstraint(questionPart);
+            const supported = part.supported && (
+                roleConstraint === null
+                || hasExplicitCurrentRoleHolderName(part.answer)
+            );
             const uniquePartCitationIds = new Set(part.citationChunkIds);
 
-            if (uniquePartCitationIds.size !== part.citationChunkIds.length)
+            if (supported && uniquePartCitationIds.size !== part.citationChunkIds.length)
             {
                 throw new RagValidationError("A question part returned duplicate citation identifiers.");
             }
 
-            if (part.citationChunkIds.some((chunkId) => !retrievedIds.has(chunkId)))
+            if (supported && part.citationChunkIds.some((chunkId) => !retrievedIds.has(chunkId)))
             {
                 throw new RagValidationError("A question part cited evidence outside the retrieval result.");
             }
 
-            if (part.supported && part.citationChunkIds.length === 0)
+            if (supported && part.citationChunkIds.length === 0)
             {
                 throw new RagValidationError("A supported question part requires a citation.");
             }
 
-            const normalizedPart = part.supported
-                ? part
+            const normalizedPart = supported
+                ? {
+                    ...part,
+                    supported: true,
+                }
                 : {
                     ...part,
                     answer: createUnconfirmedQuestionPartAnswer(
-                        questionParts[index] ?? "",
+                        questionPart,
                         context.language,
                     ),
                     citationChunkIds: [],
+                    supported: false,
                 };
 
             normalizedPartAnswers.push(normalizedPart);
@@ -1091,9 +1144,9 @@ export function buildRagPrompt(input: RagGenerationInput): {
             "Never substitute a nearby product, instrument, person, course, service, model, plan, or identifier.",
             "For a multi-part question, address every part separately. Answer supported parts and say plainly which specific parts you could not find.",
             "QUESTION_PARTS is the server's ordered decomposition of the latest customer turn. Return exactly one questionPartAnswers item for every entry, using its zero-based partIndex and the same order; never omit or merge a part.",
-            "Each supported part must contain a direct customer-facing answer and its exact citation IDs. Each unconfirmed part must set supported=false, use no citations, and state the specific limitation. The overall answer and citations must faithfully combine all part items.",
+            "Each supported part must contain a complete, natural customer-facing sentence and its exact citation IDs; never return only a heading, isolated number, yes/no token, date, price, or address. Each unconfirmed part must set supported=false, use no citations, and state the specific limitation. The overall answer and citations must faithfully combine all part items.",
             "If at least one question part is supported, set the overall decision to answer and use the union of the supported parts' citations. If no part is supported, set the overall decision to clarify with no citations and an appropriate missing or conflicting knowledge reason.",
-            "Do not infer a current role-holder, offering, price, availability, service or delivery mode, or location from an adjacent fact. A founder, former employee, or different title does not establish the requested current role.",
+            "Do not infer a current role-holder, offering, price, availability, service or delivery mode, or location from an adjacent fact. A bare role heading, founder, former employee, or different title does not establish the named person who currently holds a requested role.",
             "Never claim that a product or service does not exist or is unavailable unless EVIDENCE says so. For decision=clarify, explain the exact limitation conversationally and offer support-specialist verification.",
             "Never use internal phrases such as 'evidence', 'approved knowledge', 'insufficient evidence', 'reliable answer', 'retrieval', or 'source materials' in customer-facing answer text. In Chinese, do not say '根据我查到的资料' or '我查资料'.",
             "Follow the language of the latest customer question.",
@@ -1140,6 +1193,7 @@ export function buildRagRepairPrompt(
             "Re-evaluate the customer question from the supplied EVIDENCE; do not repeat or defend the previous response.",
             "Return exactly one JSON object matching the required schema, with every required field and no Markdown or surrounding commentary.",
             "Return exactly one questionPartAnswers item for every QUESTION_PARTS entry, with consecutive partIndex values starting at zero.",
+            "Write every supported part as a complete customer-facing sentence, never as only a title, number, yes/no token, date, price, or address.",
             "If any part is supported, use overall decision=answer and the union of its supported-part citations; use decision=clarify only when no part is supported.",
             "For decision=answer, copy one to five citationChunkIds exactly from EVIDENCE. Never invent, alter, or omit an ID needed to support a factual answer.",
             "If the supplied EVIDENCE cannot support the requested fact, use decision=clarify with no citations and the appropriate missing or conflicting knowledge reason.",

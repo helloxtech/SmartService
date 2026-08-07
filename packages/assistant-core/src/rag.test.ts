@@ -529,6 +529,106 @@ describe("grounded RAG", () =>
         expect(answer.questionPartAnswers?.[1]?.citationChunkIds).toEqual([]);
     });
 
+    it("does not treat a bare role heading as the person who currently holds that role", () =>
+    {
+        const answer = validateGroundedAnswer({
+            answer: "President. Founded in 2001.",
+            citationChunkIds: [fixtureEvidence.chunkId],
+            confidence: 0.8,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "principal and founding year",
+            questionPartAnswers: [{
+                answer: "President",
+                citationChunkIds: [fixtureEvidence.chunkId],
+                partIndex: 0,
+                supported: true,
+            }, {
+                answer: "学校成立于2001年。",
+                citationChunkIds: [fixtureEvidence.chunkId],
+                partIndex: 1,
+                supported: true,
+            }],
+        }, evidence, {
+            language: "zh-CN",
+            questionParts: [
+                "你们学校校长是谁",
+                "哪年成立的",
+            ],
+        });
+
+        expect(answer.answer).toContain("1. 关于“你们学校校长是谁”，目前我这边还无法确认。");
+        expect(answer.answer).not.toContain("President");
+        expect(answer.answer).toContain("2. 学校成立于2001年。");
+        expect(answer.questionPartAnswers?.[0]).toMatchObject({
+            citationChunkIds: [],
+            supported: false,
+        });
+    });
+
+    it("accepts an explicitly named current role holder for a non-school tenant", () =>
+    {
+        const answer = validateGroundedAnswer({
+            answer: "The current manager is Alice Chen. We open at 9 AM.",
+            citationChunkIds: [fixtureEvidence.chunkId],
+            confidence: 0.8,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "manager and hours",
+            questionPartAnswers: [{
+                answer: "The current manager is Alice Chen.",
+                citationChunkIds: [fixtureEvidence.chunkId],
+                partIndex: 0,
+                supported: true,
+            }, {
+                answer: "We open at 9 AM.",
+                citationChunkIds: [fixtureEvidence.chunkId],
+                partIndex: 1,
+                supported: true,
+            }],
+        }, evidence, {
+            language: "en",
+            questionParts: [
+                "Who is the current manager?",
+                "When do you open?",
+            ],
+        });
+
+        expect(answer.answer).toContain("1. The current manager is Alice Chen.");
+        expect(answer.questionPartAnswers?.[0]?.supported).toBe(true);
+    });
+
+    it("separates a Chinese specialist option from an English-period company fact", () =>
+    {
+        const answer = validateGroundedAnswer({
+            answer: "One item is unavailable and one is supported.",
+            citationChunkIds: [fixtureEvidence.chunkId],
+            confidence: 0.8,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "delivery and address",
+            questionPartAnswers: [{
+                answer: "Unconfirmed.",
+                citationChunkIds: [],
+                partIndex: 0,
+                supported: false,
+            }, {
+                answer: "学校地址是2335-8888 Odlin Cres, Richmond, B.C.",
+                citationChunkIds: [fixtureEvidence.chunkId],
+                partIndex: 1,
+                supported: true,
+            }],
+        }, evidence, {
+            language: "zh-CN",
+            questionParts: [
+                "是否支持送货",
+                "地址在哪里",
+            ],
+        });
+
+        expect(answer.answer).toContain("B.C. 您可以选择请客服专员进一步核实。");
+    });
+
     it("never asks a customer to retry after an unavailable confirmation", () =>
     {
         const answer = createSafeClarification(

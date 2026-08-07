@@ -310,7 +310,7 @@ describe("tenant-generic turn failure isolation", () =>
         }));
         expect(harness.retrieveEvidence).toHaveBeenCalledTimes(2);
         expect(response.answer).toContain("1. The warranty is one year.");
-        expect(response.answer).toContain("2. I cannot confirm the price yet.");
+        expect(response.answer).toContain("2. I cannot confirm “What does it cost” yet.");
         expect(response.answer).toContain("support specialist");
     });
 

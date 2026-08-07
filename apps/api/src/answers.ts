@@ -1,9 +1,9 @@
 import {
+    buildRagAnswerJsonSchema,
     buildRagRepairPrompt,
     buildRagPrompt,
     DeterministicRagAnswerProvider,
     RagValidationError,
-    ragAnswerJsonSchema,
     ragPromptVersion,
     validateGroundedAnswer,
     type RagAnswerProvider,
@@ -59,6 +59,39 @@ function readAnswerErrorCode(error: unknown): string
         : error instanceof Error
             ? error.name.slice(0, 120)
             : "UNKNOWN_ERROR";
+}
+
+/**
+ * readRagValidationCode
+ * ----------------
+ * Maps fixed server validation messages to content-free diagnostic categories without logging model or customer text.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Multipart Answer Completeness
+ */
+function readRagValidationCode(error: unknown): string | null
+{
+    if (!(error instanceof RagValidationError))
+    {
+        return null;
+    }
+
+    switch (error.message)
+    {
+        case "The model did not address every customer question part.":
+            return "multipart_part_count";
+        case "The model returned incomplete or duplicate question-part coverage.":
+            return "multipart_part_index";
+        case "A question part returned duplicate citation identifiers.":
+            return "multipart_duplicate_citation";
+        case "A question part cited evidence outside the retrieval result.":
+            return "multipart_unknown_citation";
+        case "A supported question part requires a citation.":
+            return "multipart_supported_without_citation";
+        case "The complete multipart answer is too long.":
+            return "multipart_answer_too_long";
+        default:
+            return "grounding_validation";
+    }
 }
 
 /**
@@ -147,7 +180,7 @@ export class OpenAiRagAnswerProvider implements RagAnswerProvider
             prompt: buildRagPrompt(input),
             promptVersion: ragPromptVersion,
             reasoningEffort: "low",
-            schema: ragAnswerJsonSchema,
+            schema: buildRagAnswerJsonSchema(input.questionParts?.length ?? 1),
             timeoutMs: Math.min(6_500, totalTimeoutMs),
             totalTimeoutMs,
         });
@@ -232,7 +265,7 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
                     promptVersion: isRepairAttempt
                         ? `${ragPromptVersion}-repair`
                         : ragPromptVersion,
-                    schema: ragAnswerJsonSchema,
+                    schema: buildRagAnswerJsonSchema(input.questionParts?.length ?? 1),
                     timeoutMs: attempt === 1
                         ? Math.min(6_500, remainingMs)
                         : remainingMs,
@@ -286,6 +319,7 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
                         model: this.model,
                         nextAttempt: 2,
                         repairReason,
+                        validationCode: readRagValidationCode(error),
                     }));
                     await waitForWorkersAiRepair();
                 }
@@ -299,6 +333,7 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
             latencyMs: Date.now() - startedAt,
             model: this.model,
             repairReason,
+            validationCode: readRagValidationCode(lastError),
         }));
 
         throw lastError ?? new ApiError(

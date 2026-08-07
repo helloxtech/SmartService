@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    buildRagAnswerJsonSchema,
     buildRagRepairPrompt,
     buildCrossLanguageRetrievalQuestion,
     buildRagPrompt,
@@ -437,6 +438,23 @@ describe("grounded RAG", () =>
         expect(prompt.system).toContain("never omit or merge a part");
     });
 
+    it("binds Structured Output to the exact server-planned part count", () =>
+    {
+        const schema = buildRagAnswerJsonSchema(4) as {
+            properties: {
+                questionPartAnswers: {
+                    maxItems: number;
+                    minItems: number;
+                };
+            };
+        };
+
+        expect(schema.properties.questionPartAnswers).toMatchObject({
+            maxItems: 4,
+            minItems: 4,
+        });
+    });
+
     it("fails closed when a multipart answer omits one customer question", () =>
     {
         expect(() => validateGroundedAnswer({
@@ -471,10 +489,10 @@ describe("grounded RAG", () =>
     {
         const answer = validateGroundedAnswer({
             answer: "Model aggregate is replaced by validated parts.",
-            citationChunkIds: [fixtureEvidence.chunkId],
+            citationChunkIds: [],
             confidence: 0.8,
-            decision: "answer",
-            handoffReason: null,
+            decision: "clarify",
+            handoffReason: "missing_knowledge",
             normalizedQuestion: "warranty price hours",
             questionPartAnswers: [{
                 answer: "The warranty is one year.",
@@ -483,7 +501,7 @@ describe("grounded RAG", () =>
                 supported: true,
             }, {
                 answer: "I cannot confirm the price yet.",
-                citationChunkIds: [],
+                citationChunkIds: [fixtureEvidence.chunkId],
                 partIndex: 1,
                 supported: false,
             }, {
@@ -502,10 +520,13 @@ describe("grounded RAG", () =>
         });
 
         expect(answer.answer).toContain("1. The warranty is one year.");
-        expect(answer.answer).toContain("2. I cannot confirm the price yet.");
-        expect(answer.answer).toContain("3. I cannot confirm the opening hours yet.");
+        expect(answer.answer).toContain("2. I cannot confirm “What does it cost” yet.");
+        expect(answer.answer).toContain("3. I cannot confirm “When are you open” yet.");
         expect(answer.answer).toContain("support specialist");
         expect(answer.citationChunkIds).toEqual([fixtureEvidence.chunkId]);
+        expect(answer.decision).toBe("answer");
+        expect(answer.handoffReason).toBeNull();
+        expect(answer.questionPartAnswers?.[1]?.citationChunkIds).toEqual([]);
     });
 
     it("never asks a customer to retry after an unavailable confirmation", () =>

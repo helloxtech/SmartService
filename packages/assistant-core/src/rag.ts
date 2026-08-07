@@ -257,6 +257,30 @@ export const ragAnswerJsonSchema = {
     type: "object",
 } as const;
 
+/**
+ * buildRagAnswerJsonSchema
+ * ----------------
+ * Binds the Structured Output array cardinality to the server-planned question count so the provider cannot silently omit a multipart item.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Multipart Answer Completeness
+ */
+export function buildRagAnswerJsonSchema(questionPartCount: number): Record<string, unknown>
+{
+    const boundedCount = Math.min(5, Math.max(1, Math.trunc(questionPartCount)));
+
+    return {
+        ...ragAnswerJsonSchema,
+        properties: {
+            ...ragAnswerJsonSchema.properties,
+            questionPartAnswers: {
+                ...ragAnswerJsonSchema.properties.questionPartAnswers,
+                maxItems: boundedCount,
+                minItems: boundedCount,
+            },
+        },
+    };
+}
+
 export class RagValidationError extends Error
 {
     /**
@@ -864,6 +888,28 @@ export function enforceCustomerControlledHandoff(
 }
 
 /**
+ * createUnconfirmedQuestionPartAnswer
+ * ----------------
+ * Replaces model-written unsupported-part text with one bounded company-service limitation tied to the exact server-planned question.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Multipart Answer Completeness
+ */
+function createUnconfirmedQuestionPartAnswer(
+    questionPart: string,
+    language: ConversationLanguage,
+): string
+{
+    const label = questionPart
+        .replace(/[?？]+$/u, "")
+        .trim()
+        .slice(0, 160);
+
+    return language === "zh-CN"
+        ? `关于“${label}”，目前我这边还无法确认。`
+        : `I cannot confirm “${label}” yet.`;
+}
+
+/**
  * validateGroundedAnswer
  * ----------------
  * Enforces citation membership, decision consistency, uniqueness, and handoff safety after Structured Output parsing.
@@ -878,6 +924,101 @@ export function validateGroundedAnswer(
 {
     const answer = ragAnswerSchema.parse(candidate);
     const retrievedIds = new Set(retrievedEvidence.map((item) => item.chunkId));
+    const questionParts = context?.questionParts
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0)
+        .slice(0, 5) ?? [];
+
+    if (questionParts.length > 1 && context !== undefined)
+    {
+        const partAnswers = answer.questionPartAnswers;
+
+        if (partAnswers === undefined || partAnswers.length !== questionParts.length)
+        {
+            throw new RagValidationError("The model did not address every customer question part.");
+        }
+
+        const orderedPartAnswers = [...partAnswers].sort((left, right) =>
+            left.partIndex - right.partIndex,
+        );
+        const expectedIndexes = questionParts.map((_, index) => index);
+
+        if (orderedPartAnswers.some((part, index) => part.partIndex !== expectedIndexes[index]))
+        {
+            throw new RagValidationError("The model returned incomplete or duplicate question-part coverage.");
+        }
+
+        const normalizedPartAnswers: NonNullable<RagAnswer["questionPartAnswers"]> = [];
+        const selectedCitationIds: string[] = [];
+
+        for (const [index, part] of orderedPartAnswers.entries())
+        {
+            const uniquePartCitationIds = new Set(part.citationChunkIds);
+
+            if (uniquePartCitationIds.size !== part.citationChunkIds.length)
+            {
+                throw new RagValidationError("A question part returned duplicate citation identifiers.");
+            }
+
+            if (part.citationChunkIds.some((chunkId) => !retrievedIds.has(chunkId)))
+            {
+                throw new RagValidationError("A question part cited evidence outside the retrieval result.");
+            }
+
+            if (part.supported && part.citationChunkIds.length === 0)
+            {
+                throw new RagValidationError("A supported question part requires a citation.");
+            }
+
+            const normalizedPart = part.supported
+                ? part
+                : {
+                    ...part,
+                    answer: createUnconfirmedQuestionPartAnswer(
+                        questionParts[index] ?? "",
+                        context.language,
+                    ),
+                    citationChunkIds: [],
+                };
+
+            normalizedPartAnswers.push(normalizedPart);
+
+            normalizedPart.citationChunkIds.forEach((chunkId) =>
+            {
+                if (!selectedCitationIds.includes(chunkId))
+                {
+                    selectedCitationIds.push(chunkId);
+                }
+            });
+        }
+
+        const hasSupportedPart = normalizedPartAnswers.some((part) => part.supported);
+        const composedAnswer = normalizedPartAnswers
+            .map((part, index) => `${index + 1}. ${part.answer.trim()}`)
+            .join("\n");
+        const customerAnswer = normalizedPartAnswers.some((part) => !part.supported)
+            ? appendSupportSpecialistOption(composedAnswer, context.language)
+            : composedAnswer;
+
+        if (customerAnswer.length > 1_600)
+        {
+            throw new RagValidationError("The complete multipart answer is too long.");
+        }
+
+        return ragAnswerSchema.parse({
+            ...answer,
+            answer: customerAnswer,
+            citationChunkIds: selectedCitationIds,
+            decision: hasSupportedPart ? "answer" : "clarify",
+            handoffReason: hasSupportedPart
+                ? null
+                : answer.handoffReason === "conflicting_knowledge"
+                    ? "conflicting_knowledge"
+                    : "missing_knowledge",
+            questionPartAnswers: normalizedPartAnswers,
+        });
+    }
+
     const uniqueCitationIds = new Set(answer.citationChunkIds);
 
     if (uniqueCitationIds.size !== answer.citationChunkIds.length)
@@ -904,102 +1045,6 @@ export function validateGroundedAnswer(
     )
     {
         throw new RagValidationError("A handoff requires a reason and cannot present factual citations.");
-    }
-
-    const questionParts = context?.questionParts
-        .map((part) => part.trim())
-        .filter((part) => part.length > 0)
-        .slice(0, 5) ?? [];
-
-    if (questionParts.length > 1 && context !== undefined)
-    {
-        const partAnswers = answer.questionPartAnswers;
-
-        if (partAnswers === undefined || partAnswers.length !== questionParts.length)
-        {
-            throw new RagValidationError("The model did not address every customer question part.");
-        }
-
-        const orderedPartAnswers = [...partAnswers].sort((left, right) =>
-            left.partIndex - right.partIndex,
-        );
-        const expectedIndexes = questionParts.map((_, index) => index);
-
-        if (orderedPartAnswers.some((part, index) => part.partIndex !== expectedIndexes[index]))
-        {
-            throw new RagValidationError("The model returned incomplete or duplicate question-part coverage.");
-        }
-
-        const selectedCitationIds: string[] = [];
-
-        for (const part of orderedPartAnswers)
-        {
-            if (part.citationChunkIds.some((chunkId) => !retrievedIds.has(chunkId)))
-            {
-                throw new RagValidationError("A question part cited evidence outside the retrieval result.");
-            }
-
-            if (part.supported && part.citationChunkIds.length === 0)
-            {
-                throw new RagValidationError("A supported question part requires a citation.");
-            }
-
-            if (!part.supported && part.citationChunkIds.length > 0)
-            {
-                throw new RagValidationError("An unconfirmed question part cannot cite a factual source.");
-            }
-
-            part.citationChunkIds.forEach((chunkId) =>
-            {
-                if (!selectedCitationIds.includes(chunkId))
-                {
-                    selectedCitationIds.push(chunkId);
-                }
-            });
-        }
-
-        const selectedCitationSet = new Set(selectedCitationIds);
-
-        if (
-            selectedCitationIds.length !== answer.citationChunkIds.length
-            || answer.citationChunkIds.some((chunkId) => !selectedCitationSet.has(chunkId))
-        )
-        {
-            throw new RagValidationError("The overall citations do not match the per-part citations.");
-        }
-
-        const hasSupportedPart = orderedPartAnswers.some((part) => part.supported);
-
-        if (
-            (hasSupportedPart && (answer.decision !== "answer" || answer.handoffReason !== null))
-            || (!hasSupportedPart && (
-                answer.decision !== "clarify"
-                || answer.handoffReason === null
-                || answer.citationChunkIds.length > 0
-            ))
-        )
-        {
-            throw new RagValidationError("The overall decision does not match the question-part results.");
-        }
-
-        const composedAnswer = orderedPartAnswers
-            .map((part, index) => `${index + 1}. ${part.answer.trim()}`)
-            .join("\n");
-        const customerAnswer = orderedPartAnswers.some((part) => !part.supported)
-            ? appendSupportSpecialistOption(composedAnswer, context.language)
-            : composedAnswer;
-
-        if (customerAnswer.length > 1_600)
-        {
-            throw new RagValidationError("The complete multipart answer is too long.");
-        }
-
-        return ragAnswerSchema.parse({
-            ...answer,
-            answer: customerAnswer,
-            citationChunkIds: selectedCitationIds,
-            questionPartAnswers: orderedPartAnswers,
-        });
     }
 
     return answer;

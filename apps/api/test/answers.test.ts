@@ -280,7 +280,7 @@ describe("Workers AI RAG answer provider", () =>
                     }],
                 },
             });
-        vi.spyOn(console, "warn").mockImplementation(() => undefined);
+        const warnMock = vi.spyOn(console, "warn").mockImplementation(() => undefined);
         vi.spyOn(console, "info").mockImplementation(() => undefined);
         const provider = new WorkersAiRagAnswerProvider({
             AI: {
@@ -303,7 +303,10 @@ describe("Workers AI RAG answer provider", () =>
             recoveryMode: "same_provider_repair",
         });
         expect(result.answer.answer).toContain("1.");
-        expect(result.answer.answer).toContain("2. I cannot confirm the price yet.");
+        expect(result.answer.answer).toContain("2. I cannot confirm “What is the price” yet.");
+        expect(warnMock).toHaveBeenCalledWith(expect.stringContaining(
+            '"validationCode":"multipart_part_count"',
+        ));
     });
 
     it("applies the same corrective contract to a non-school service tenant", async () =>

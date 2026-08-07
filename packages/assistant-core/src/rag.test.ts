@@ -590,6 +590,32 @@ describe("grounded RAG", () =>
         });
     });
 
+    it("does not combine one requested-role mention with a different nearby role assignment", () =>
+    {
+        const misleadingEvidence = {
+            ...fixtureEvidence,
+            content: "Principal menu item. President: Alice Chen. Founded by Alice Chen.",
+        };
+        const answer = validateGroundedAnswer({
+            answer: "The current principal is Alice Chen.",
+            citationChunkIds: [fixtureEvidence.chunkId],
+            confidence: 0.8,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "current principal",
+        }, [misleadingEvidence], {
+            language: "en",
+            questionParts: ["Who is the current principal?"],
+        });
+
+        expect(answer).toMatchObject({
+            citationChunkIds: [],
+            decision: "clarify",
+            handoffReason: "missing_knowledge",
+        });
+        expect(answer.answer).toContain("support specialist");
+    });
+
     it("accepts an explicitly named current role holder for a non-school tenant", () =>
     {
         const managerEvidence = {
@@ -662,6 +688,35 @@ describe("grounded RAG", () =>
                 "When do you open?",
             ],
         })).toThrow("retrieved only for another part");
+    });
+
+    it("rejects internal response-control syntax from customer-facing part text", () =>
+    {
+        expect(() => validateGroundedAnswer({
+            answer: "Internal controls.",
+            citationChunkIds: [fixtureEvidence.chunkId],
+            confidence: 0.8,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "warranty and hours",
+            questionPartAnswers: [{
+                answer: "decision=answer",
+                citationChunkIds: [fixtureEvidence.chunkId],
+                partIndex: 0,
+                supported: true,
+            }, {
+                answer: "We open at 9 AM.",
+                citationChunkIds: [fixtureEvidence.chunkId],
+                partIndex: 1,
+                supported: true,
+            }],
+        }, evidence, {
+            language: "en",
+            questionParts: [
+                "What is the warranty?",
+                "When do you open?",
+            ],
+        })).toThrow("internal response-control text");
     });
 
     it("requires explicit cited delivery-mode language before claiming at-home service", () =>

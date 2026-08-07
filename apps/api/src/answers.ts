@@ -91,6 +91,10 @@ function readRagValidationCode(error: unknown): string | null
             return "multipart_supported_without_citation";
         case "The complete multipart answer is too long.":
             return "multipart_answer_too_long";
+        case "A question part exposed internal response-control text.":
+            return "multipart_internal_control_text";
+        case "The answer exposed internal response-control text.":
+            return "answer_internal_control_text";
         default:
             return "grounding_validation";
     }

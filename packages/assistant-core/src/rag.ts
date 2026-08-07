@@ -686,43 +686,65 @@ function findRequestedCurrentRoleConstraint(
 }
 
 /**
- * hasExplicitCurrentRoleHolderName
+ * isPersonLikeRoleHolderName
  * ----------------
- * Requires a person-like name in an explicit current-role assignment so a heading or bare title cannot answer a customer asking who holds a role.
+ * Validates one bounded role-assignment candidate as a person-like name while excluding limitation language and bare headings.
  *
  * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Current Role Accuracy
  */
-function hasExplicitCurrentRoleHolderName(answer: string): boolean
+function isPersonLikeRoleHolderName(candidate: string): boolean
 {
-    const candidates = [
-        answer.match(
-            /(?:校长|负责人|院长|主任|经理|店长|老板|业主|总裁|会长|董事长)[ \t]*(?:是|为|：|:|\r?\n)[ \t]*([^,.;，。；\n]+)/u,
-        )?.[1],
-        answer.match(
-            /\b(?:principal|person in charge|head|lead|manager|owner|president|chief executive officer|ceo|chairperson|chairman|chairwoman|director)\b[ \t]*(?:is|:|-|\r?\n)[ \t]*([^,.;，。；\n]+)/iu,
-        )?.[1],
-        answer.match(
-            /([^,.;，。；\n]+?)\s*(?:担任|现任)\s*(?:校长|负责人|院长|主任|经理|店长|老板|业主|总裁|会长|董事长)/u,
-        )?.[1],
-        answer.match(
-            /([^,.;，。；\n]+?)\s+is\s+(?:the\s+)?(?:current\s+)?(?:principal|person in charge|head|lead|manager|owner|president|chief executive officer|ceo|chairperson|chairman|chairwoman|director)\b/iu,
-        )?.[1],
-    ].filter((candidate): candidate is string => candidate !== undefined);
+    const normalized = candidate
+        .replace(/^\d+[.)、]\s*/u, "")
+        .replace(/^[#*_\s-]+/u, "")
+        .replace(/^(?:prof(?:essor)?\.?|dr\.?|mr\.?|mrs\.?|ms\.?)\s+/iu, "")
+        .replace(/(?:教授|博士|先生|女士|老师)$/u, "")
+        .trim();
 
-    return candidates.some((candidate) =>
+    return !/无法|不能|未知|未确认|尚未|暂时|\b(?:unknown|unconfirmed|unavailable|not confirmed)\b/iu.test(normalized)
+        && (
+            /^\p{Script=Han}{2,8}$/u.test(normalized)
+            || /^\p{Lu}[\p{L}'’-]*(?:\s+\p{Lu}[\p{L}'’-]*){1,3}$/u.test(normalized)
+        );
+}
+
+/**
+ * hasExplicitRequestedRoleHolderName
+ * ----------------
+ * Requires the exact requested role phrase and a person-like name to participate in the same explicit assignment instead of matching unrelated text elsewhere.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Current Role Accuracy
+ */
+function hasExplicitRequestedRoleHolderName(
+    content: string,
+    constraint: CurrentRoleConstraint,
+): boolean
+{
+    return constraint.answerPatterns.some((pattern) =>
     {
-        const normalized = candidate
-            .replace(/^\d+[.)、]\s*/u, "")
-            .replace(/^[#*_\s-]+/u, "")
-            .replace(/^(?:prof(?:essor)?\.?|dr\.?|mr\.?|mrs\.?|ms\.?)\s+/iu, "")
-            .replace(/(?:教授|博士|先生|女士|老师)$/u, "")
-            .trim();
+        const match = pattern.exec(content);
 
-        return !/无法|不能|未知|未确认|尚未|暂时|\b(?:unknown|unconfirmed|unavailable|not confirmed)\b/iu.test(normalized)
-            && (
-                /^\p{Script=Han}{2,8}$/u.test(normalized)
-                || /^\p{Lu}[\p{L}'’-]*(?:\s+\p{Lu}[\p{L}'’-]*){0,3}$/u.test(normalized)
-            );
+        if (match?.index === undefined || match[0] === undefined)
+        {
+            return false;
+        }
+
+        const precedingText = content.slice(Math.max(0, match.index - 100), match.index);
+        const followingText = content.slice(match.index + match[0].length, match.index + 140);
+        const precedingCandidate = precedingText.match(
+            /([^,.;，。；\n]+?)(?:担任|现任|\bis\s+(?:the\s+)?(?:current\s+)?)\s*$/iu,
+        )?.[1];
+        const followingCandidate = followingText.match(
+            /^[ \t]*(?:是|为|：|:|\bis\b|-)[ \t]*([^,.;，。；\n]+)/iu,
+        )?.[1];
+
+        return (
+            precedingCandidate !== undefined
+            && isPersonLikeRoleHolderName(precedingCandidate)
+        ) || (
+            followingCandidate !== undefined
+            && isPersonLikeRoleHolderName(followingCandidate)
+        );
     });
 }
 
@@ -739,8 +761,7 @@ function evidenceSupportsCurrentRoleHolder(
 ): boolean
 {
     return citedEvidence.some((item) =>
-        constraint.answerPatterns.some((pattern) => pattern.test(item.content))
-        && hasExplicitCurrentRoleHolderName(item.content),
+        hasExplicitRequestedRoleHolderName(item.content, constraint),
     );
 }
 
@@ -785,6 +806,20 @@ function evidenceSupportsDeliveryModeAnswer(
     return (claimsRemote || claimsInPerson)
         && (!claimsRemote || supportsRemote)
         && (!claimsInPerson || supportsInPerson);
+}
+
+/**
+ * containsInternalResponseControlText
+ * ----------------
+ * Detects Structured Output field syntax that must never be presented as a customer-facing answer sentence.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Multipart Answer Completeness
+ */
+function containsInternalResponseControlText(answer: string): boolean
+{
+    return /\b(?:decision|handoffReason|citationChunkIds|questionPartAnswers|partIndex|supported)\s*[:=]/iu.test(
+        answer,
+    );
 }
 
 /**
@@ -1066,6 +1101,11 @@ export function validateGroundedAnswer(
             const allowedPartEvidenceIds = context.questionPartEvidenceIds?.[index];
             const uniquePartCitationIds = new Set(part.citationChunkIds);
 
+            if (containsInternalResponseControlText(part.answer))
+            {
+                throw new RagValidationError("A question part exposed internal response-control text.");
+            }
+
             if (part.supported && uniquePartCitationIds.size !== part.citationChunkIds.length)
             {
                 throw new RagValidationError("A question part returned duplicate citation identifiers.");
@@ -1099,7 +1139,7 @@ export function validateGroundedAnswer(
                 && (
                     roleConstraint === null
                     || (
-                        hasExplicitCurrentRoleHolderName(part.answer)
+                        hasExplicitRequestedRoleHolderName(part.answer, roleConstraint)
                         && evidenceSupportsCurrentRoleHolder(roleConstraint, citedEvidence)
                     )
                 )
@@ -1189,6 +1229,39 @@ export function validateGroundedAnswer(
         throw new RagValidationError("A handoff requires a reason and cannot present factual citations.");
     }
 
+    if (answer.decision === "answer" && context !== undefined)
+    {
+        if (containsInternalResponseControlText(answer.answer))
+        {
+            throw new RagValidationError("The answer exposed internal response-control text.");
+        }
+
+        const questionPart = questionParts[0] ?? "";
+        const roleConstraint = findRequestedCurrentRoleConstraint(questionPart);
+        const citedEvidence = retrievedEvidence.filter((item) =>
+            answer.citationChunkIds.includes(item.chunkId),
+        );
+        const hasSemanticSupport = (
+            roleConstraint === null
+            || (
+                hasExplicitRequestedRoleHolderName(answer.answer, roleConstraint)
+                && evidenceSupportsCurrentRoleHolder(roleConstraint, citedEvidence)
+            )
+        ) && (
+            !questionRequestsDeliveryMode(questionPart)
+            || evidenceSupportsDeliveryModeAnswer(answer.answer, citedEvidence)
+        );
+
+        if (!hasSemanticSupport)
+        {
+            return createSafeClarification(
+                questionPart,
+                context.language,
+                "missing_knowledge",
+            );
+        }
+    }
+
     return answer;
 }
 
@@ -1242,6 +1315,7 @@ export function buildRagPrompt(input: RagGenerationInput): {
             "QUESTION_PARTS is the server's ordered decomposition of the latest customer turn. Return exactly one questionPartAnswers item for every entry, using its zero-based partIndex and the same order; never omit or merge a part.",
             "QUESTION_PART_EVIDENCE lists the only citation IDs allowed for each corresponding part. Never use evidence retrieved for a different part to answer it; an empty list means that part is unconfirmed.",
             "Each supported part must contain a complete, natural customer-facing sentence and its exact citation IDs; never return only a heading, isolated number, yes/no token, date, price, or address. Each unconfirmed part must set supported=false, use no citations, and state the specific limitation. The overall answer and citations must faithfully combine all part items.",
+            "Customer-facing answer fields must never contain schema or control syntax such as decision=answer, handoffReason, citationChunkIds, partIndex, or supported.",
             "If at least one question part is supported, set the overall decision to answer and use the union of the supported parts' citations. If no part is supported, set the overall decision to clarify with no citations and an appropriate missing or conflicting knowledge reason.",
             "Do not infer a current role-holder, offering, price, availability, service or delivery mode, or location from an adjacent fact. A bare role heading, founder, former employee, or different title does not establish the named person who currently holds a requested role.",
             "Never claim that a product or service does not exist or is unavailable unless EVIDENCE says so. For decision=clarify, explain the exact limitation conversationally and offer support-specialist verification.",

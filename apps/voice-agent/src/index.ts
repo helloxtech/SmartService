@@ -1,8 +1,8 @@
 export {
     buildVoiceFailureSpeech,
     createVoiceAgent,
-    findLatestUserText,
     normalizeVoiceSpeech,
+    VoiceTurnCoordinator,
     VOICE_TURN_SETTINGS,
 } from "./agent";
 export {

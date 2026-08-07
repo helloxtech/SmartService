@@ -11,6 +11,8 @@ import type { CreateVoiceTokenResponse } from "@smartservice/contracts";
 
 export interface VoiceRoomCallbacks
 {
+    onAudioPlaybackBlocked(): void;
+    onAudioPlaybackReady(): void;
     onAudioPlaybackStarted(startedAt: string): void;
     onDisconnected(): void;
     onReconnected(): void;
@@ -22,6 +24,7 @@ export interface VoiceRoomCallbacks
 export interface VoiceRoomConnection
 {
     disconnect(): Promise<void>;
+    enableAudioPlayback(): Promise<void>;
 }
 
 export interface VoiceRoomConnector
@@ -193,6 +196,18 @@ class LiveKitVoiceRoomConnection implements VoiceRoomConnection
 
         await this.room.disconnect();
     }
+
+    /**
+     * enableAudioPlayback
+     * ----------------
+     * Retries LiveKit audio playback from an explicit customer click so restrictive mobile browsers can authorize remote speech.
+     *
+     * August 07, 2026: Created by Forrest Zhang for SmartService Mobile Voice Playback
+     */
+    public async enableAudioPlayback(): Promise<void>
+    {
+        await this.room.startAudio();
+    }
 }
 
 export class LiveKitVoiceRoomConnector implements VoiceRoomConnector
@@ -237,6 +252,16 @@ export class LiveKitVoiceRoomConnector implements VoiceRoomConnector
             if (permissionGranted)
             {
                 await room.localParticipant.setMicrophoneEnabled(true);
+
+                try
+                {
+                    await room.startAudio();
+                    callbacks.onAudioPlaybackReady();
+                }
+                catch
+                {
+                    callbacks.onAudioPlaybackBlocked();
+                }
             }
         }
 
@@ -252,6 +277,17 @@ export class LiveKitVoiceRoomConnector implements VoiceRoomConnector
             if (readAgentReady(participant))
             {
                 void markReady();
+            }
+        });
+        room.on(RoomEvent.AudioPlaybackStatusChanged, (canPlayAudio) =>
+        {
+            if (canPlayAudio)
+            {
+                callbacks.onAudioPlaybackReady();
+            }
+            else
+            {
+                callbacks.onAudioPlaybackBlocked();
             }
         });
         room.on(RoomEvent.TranscriptionReceived, (
@@ -335,6 +371,17 @@ export class MockVoiceRoomConnector implements VoiceRoomConnector
             async disconnect(): Promise<void>
             {
                 callbacks.onDisconnected();
+            },
+            /**
+             * enableAudioPlayback
+             * ----------------
+             * Completes the zero-network playback gesture contract for deterministic mock sessions.
+             *
+             * August 07, 2026: Created by Forrest Zhang for SmartService Mobile Voice Playback
+             */
+            async enableAudioPlayback(): Promise<void>
+            {
+                callbacks.onAudioPlaybackReady();
             },
         };
     }

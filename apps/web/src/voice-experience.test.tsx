@@ -171,6 +171,17 @@ describe("VoiceExperience", () =>
                     {
                         callbacks.onDisconnected();
                     },
+                    /**
+                     * enableAudioPlayback
+                     * ----------------
+                     * Confirms playback for the isolated Ready fixture without browser media.
+                     *
+                     * August 07, 2026: Created by Forrest Zhang for SmartService Mobile Voice Playback
+                     */
+                    async enableAudioPlayback()
+                    {
+                        callbacks.onAudioPlaybackReady();
+                    },
                 };
             },
         };
@@ -222,6 +233,17 @@ describe("VoiceExperience", () =>
                     {
                         callbacks?.onDisconnected();
                     },
+                    /**
+                     * enableAudioPlayback
+                     * ----------------
+                     * Confirms playback for the permission-denial fixture without browser media.
+                     *
+                     * August 07, 2026: Created by Forrest Zhang for SmartService Mobile Voice Playback
+                     */
+                    async enableAudioPlayback()
+                    {
+                        callbacks?.onAudioPlaybackReady();
+                    },
                 };
             },
         };
@@ -238,6 +260,71 @@ describe("VoiceExperience", () =>
 
         expect(await screen.findByText(/Microphone access was denied/u)).toBeInTheDocument();
         expect(screen.getByRole("link", { name: /Continue by text/u })).toHaveAttribute("href", "/chat");
+    });
+
+    it("offers a direct tap to enable reply audio when a mobile browser blocks autoplay", async () =>
+    {
+        const fetchMock = createFetchMock();
+        const enableAudioPlayback = vi.fn(async () => undefined);
+        const connector: VoiceRoomConnector = {
+            /**
+             * connect
+             * ----------------
+             * Reports a mobile autoplay block after Ready so the customer-facing recovery control can be exercised.
+             *
+             * August 07, 2026: Created by Forrest Zhang for SmartService Mobile Voice Playback
+             */
+            async connect(_token, callbacks)
+            {
+                await callbacks.onReady();
+                callbacks.onAudioPlaybackBlocked();
+                return {
+                    /**
+                     * disconnect
+                     * ----------------
+                     * Ends the autoplay fixture without external media.
+                     *
+                     * August 07, 2026: Created by Forrest Zhang for SmartService Mobile Voice Playback
+                     */
+                    async disconnect()
+                    {
+                        callbacks.onDisconnected();
+                    },
+                    /**
+                     * enableAudioPlayback
+                     * ----------------
+                     * Simulates a successful user-gesture playback unlock.
+                     *
+                     * August 07, 2026: Created by Forrest Zhang for SmartService Mobile Voice Playback
+                     */
+                    async enableAudioPlayback()
+                    {
+                        await enableAudioPlayback();
+                        callbacks.onAudioPlaybackReady();
+                    },
+                };
+            },
+        };
+        vi.stubGlobal("fetch", fetchMock);
+        const user = userEvent.setup();
+        render(
+            <VoiceExperience
+                connector={connector}
+                requestMicrophone={vi.fn(async () => undefined)}
+            />,
+        );
+
+        await user.click(screen.getByRole("button", { name: /Start voice/u }));
+        const enableButton = await screen.findByRole("button", { name: /Enable reply audio/u });
+        expect(screen.getByText(/browser blocked customer-service audio/u)).toBeInTheDocument();
+
+        await user.click(enableButton);
+
+        expect(enableAudioPlayback).toHaveBeenCalledOnce();
+        await waitFor(() =>
+        {
+            expect(screen.queryByRole("button", { name: /Enable reply audio/u })).not.toBeInTheDocument();
+        });
     });
 
     it("refreshes the room token once after an unrecoverable disconnect", async () =>
@@ -270,6 +357,17 @@ describe("VoiceExperience", () =>
                     async disconnect()
                     {
                         receivedCallbacks.onDisconnected();
+                    },
+                    /**
+                     * enableAudioPlayback
+                     * ----------------
+                     * Confirms playback for the reconnect fixture without browser media.
+                     *
+                     * August 07, 2026: Created by Forrest Zhang for SmartService Mobile Voice Playback
+                     */
+                    async enableAudioPlayback()
+                    {
+                        receivedCallbacks.onAudioPlaybackReady();
                     },
                 };
             },

@@ -8,6 +8,7 @@ import {
     Mic,
     MicOff,
     ShieldCheck,
+    Volume2,
 } from "lucide-react";
 import {
     useEffect,
@@ -53,6 +54,8 @@ export interface VoiceExperienceProps
 }
 
 const voiceCopy: Record<UiLanguage, {
+    audioBlockedNotice: string;
+    enableAudio: string;
     answersLabel: string;
     continueText: string;
     endVoice: string;
@@ -70,8 +73,10 @@ const voiceCopy: Record<UiLanguage, {
     voiceTitle: string;
 }> = {
     en: {
+        audioBlockedNotice: "Your browser blocked customer-service audio. Tap once to hear replies.",
         answersLabel: "Customer service answers",
         continueText: "Continue by text",
+        enableAudio: "Enable reply audio",
         endVoice: "End voice",
         languageLabel: "Voice language",
         languageOptionEnglish: "English",
@@ -97,8 +102,10 @@ const voiceCopy: Record<UiLanguage, {
         voiceTitle: "A support specialist can now review the transcript and continue with your enquiry.",
     },
     "zh-CN": {
+        audioBlockedNotice: "浏览器阻止了客服语音播放，请点击一次开启声音。",
         answersLabel: "客服回答",
         continueText: "继续文字聊天",
+        enableAudio: "开启回复声音",
         endVoice: "结束语音",
         languageLabel: "语音语言",
         languageOptionEnglish: "英文",
@@ -189,6 +196,7 @@ export function VoiceExperience({
     const copy = voiceCopy[uiLanguage];
     const [language, setLanguage] = useState<ConversationLanguage>("zh-CN");
     const [state, setState] = useState<VoiceUiState>("idle");
+    const [audioPlaybackBlocked, setAudioPlaybackBlocked] = useState(false);
     const [transcript, setTranscript] = useState("");
     const [lastPlaybackStartedAt, setLastPlaybackStartedAt] = useState<string | null>(null);
     const [messages, setMessages] = useState<PublicMessage[]>([]);
@@ -379,6 +387,28 @@ export function VoiceExperience({
     {
         return {
             /**
+             * onAudioPlaybackBlocked
+             * ----------------
+             * Exposes the browser's autoplay restriction so mobile customers receive a direct tap-to-enable control.
+             *
+             * August 07, 2026: Created by Forrest Zhang for SmartService Mobile Voice Playback
+             */
+            onAudioPlaybackBlocked(): void
+            {
+                setAudioPlaybackBlocked(true);
+            },
+            /**
+             * onAudioPlaybackReady
+             * ----------------
+             * Hides the manual playback control as soon as LiveKit confirms that remote speech may play.
+             *
+             * August 07, 2026: Created by Forrest Zhang for SmartService Mobile Voice Playback
+             */
+            onAudioPlaybackReady(): void
+            {
+                setAudioPlaybackBlocked(false);
+            },
+            /**
              * onAudioPlaybackStarted
              * ----------------
              * Stores the browser-observed start of each audible Agent speech burst for honest latency evidence.
@@ -483,6 +513,7 @@ export function VoiceExperience({
     async function startVoice(): Promise<void>
     {
         setState("warming");
+        setAudioPlaybackBlocked(false);
         setTranscript("");
         setLastPlaybackStartedAt(null);
         setMessages([]);
@@ -555,6 +586,26 @@ export function VoiceExperience({
         setState("ended");
     }
 
+    /**
+     * enableAudioPlayback
+     * ----------------
+     * Retries LiveKit playback directly from the customer's tap, which satisfies restrictive mobile autoplay policies.
+     *
+     * August 07, 2026: Created by Forrest Zhang for SmartService Mobile Voice Playback
+     */
+    async function enableAudioPlayback(): Promise<void>
+    {
+        try
+        {
+            await connection.current?.enableAudioPlayback();
+            setAudioPlaybackBlocked(false);
+        }
+        catch
+        {
+            setAudioPlaybackBlocked(true);
+        }
+    }
+
     return (
         <main className="min-h-screen bg-slate-950 px-5 py-10 text-white">
             <section className="mx-auto max-w-3xl rounded-[2rem] border border-white/10 bg-slate-900 p-7 shadow-2xl">
@@ -606,6 +657,21 @@ export function VoiceExperience({
                         {copy.continueText}
                     </a>
                 </div>
+
+                {audioPlaybackBlocked
+                    ? (
+                        <div
+                            className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300/30 bg-amber-950/40 p-4 text-amber-100"
+                            role="status"
+                        >
+                            <p>{copy.audioBlockedNotice}</p>
+                            <Button onClick={() => void enableAudioPlayback()} variant="outline">
+                                <Volume2 aria-hidden="true" className="mr-2 size-4" />
+                                {copy.enableAudio}
+                            </Button>
+                        </div>
+                    )
+                    : null}
 
                 <div aria-live="polite" className="mt-8 min-h-32 rounded-2xl bg-slate-950 p-5">
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{copy.transcriptTitle}</p>

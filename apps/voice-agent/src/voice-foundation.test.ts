@@ -1,9 +1,16 @@
-import { describe, expect, it, vi } from "vitest";
+import {
+    afterEach,
+    describe,
+    expect,
+    it,
+    vi,
+} from "vitest";
 
 import { readVoiceAgentConfiguration } from "./config";
 import {
     buildVoiceFailureSpeech,
     normalizeVoiceSpeech,
+    VoiceTurnCoordinator,
     VOICE_STT_SETTINGS,
     VOICE_TURN_SETTINGS,
 } from "./agent";
@@ -11,6 +18,11 @@ import { VoiceInternalApiClient } from "./internal-api";
 import { readVoiceSessionId } from "./metadata";
 
 const voiceSessionId = "11111111-1111-4111-8111-111111111111";
+
+afterEach(() =>
+{
+    vi.restoreAllMocks();
+});
 
 describe("voice agent foundation", () =>
 {
@@ -59,7 +71,7 @@ describe("voice agent foundation", () =>
         )).toBe("N F 500 supports 300 litres per minute at 20 degrees Celsius.");
     });
 
-    it("locks multilingual adaptive interruption and guardrail-safe preemptive generation", () =>
+    it("locks multilingual adaptive interruption and final-turn-only generation", () =>
     {
         expect(VOICE_TURN_SETTINGS).toMatchObject({
             endpointing: {
@@ -74,10 +86,84 @@ describe("voice agent foundation", () =>
                 resumeFalseInterruption: true,
             },
             preemptiveGeneration: {
-                enabled: true,
+                enabled: false,
+                maxRetries: 0,
                 preemptiveTts: false,
             },
         });
+    });
+
+    it("sends a committed STT turn through the shared assistant before scheduling TTS", async () =>
+    {
+        vi.spyOn(console, "info").mockImplementation(() => undefined);
+        const completeTurn = vi.fn().mockResolvedValue({
+            answer: "我们提供古筝课程。",
+            citations: [],
+            decision: "answer",
+            handoff: null,
+            messageId: "33333333-3333-4333-8333-333333333333",
+            spokenText: "我们提供古筝课程。",
+        });
+        const updateStatus = vi.fn().mockResolvedValue(undefined);
+        const waitForPlayout = vi.fn().mockResolvedValue(undefined);
+        const say = vi.fn(() => ({
+            waitForPlayout,
+        }));
+        const shutdown = vi.fn();
+        const coordinator = new VoiceTurnCoordinator({
+            api: {
+                completeTurn,
+                updateStatus,
+            },
+            language: "zh-CN",
+            say,
+            shutdown,
+            voiceSessionId,
+        });
+
+        await coordinator.handleFinalTurn("  请问有古筝课程吗？  ");
+        await Promise.resolve();
+
+        expect(completeTurn).toHaveBeenCalledOnce();
+        expect(completeTurn.mock.calls[0]?.[2]).toBe("请问有古筝课程吗？");
+        expect(say).toHaveBeenCalledWith("我们提供古筝课程。");
+        expect(waitForPlayout).toHaveBeenCalledOnce();
+        expect(updateStatus).not.toHaveBeenCalled();
+        expect(shutdown).not.toHaveBeenCalled();
+    });
+
+    it("fails closed and stops the voice session when the shared turn service fails", async () =>
+    {
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+        vi.spyOn(console, "info").mockImplementation(() => undefined);
+        const completeTurn = vi.fn().mockRejectedValue(new Error("provider unavailable"));
+        const updateStatus = vi.fn().mockResolvedValue(undefined);
+        const waitForPlayout = vi.fn().mockResolvedValue(undefined);
+        const say = vi.fn(() => ({
+            waitForPlayout,
+        }));
+        const shutdown = vi.fn();
+        const coordinator = new VoiceTurnCoordinator({
+            api: {
+                completeTurn,
+                updateStatus,
+            },
+            language: "zh-CN",
+            say,
+            shutdown,
+            voiceSessionId,
+        });
+
+        await coordinator.handleFinalTurn("请介绍课程。");
+        await Promise.resolve();
+
+        expect(updateStatus).toHaveBeenCalledWith(
+            voiceSessionId,
+            "failed",
+            "VOICE_TURN_SERVICE_UNAVAILABLE",
+        );
+        expect(say).toHaveBeenCalledWith(buildVoiceFailureSpeech("zh-CN"));
+        expect(shutdown).toHaveBeenCalledWith("voice_service_failure");
     });
 
     it("uses fixed bilingual provider-failure speech without upstream error content", () =>

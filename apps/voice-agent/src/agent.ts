@@ -29,8 +29,8 @@ export const VOICE_TURN_SETTINGS = {
         resumeFalseInterruption: true,
     },
     preemptiveGeneration: {
-        enabled: true,
-        maxRetries: 3,
+        enabled: false,
+        maxRetries: 0,
         maxSpeechDuration: 10_000,
         preemptiveTts: false,
     },
@@ -81,33 +81,187 @@ export function normalizeVoiceSpeech(
         .trim();
 }
 
-/**
- * findLatestUserText
- * ----------------
- * Reads the most recent non-empty user message from a LiveKit chat context without accepting assistant or tool content.
- *
- * July 27, 2026: Created by Forrest Zhang for SmartService Day 8 Turn and Interruption
- */
-export function findLatestUserText(
-    chatContext: Parameters<NonNullable<Parameters<typeof voice.Agent.create>[0]["llmNode"]>>[1],
-): string | null
+interface VoiceSpeechHandle
 {
-    for (let index = chatContext.items.length - 1; index >= 0; index -= 1)
+    waitForPlayout(): Promise<void>;
+}
+
+interface VoiceTurnCoordinatorOptions
+{
+    api: Pick<VoiceInternalApiClient, "completeTurn" | "updateStatus">;
+    language: "zh-CN" | "en";
+    say(text: string): VoiceSpeechHandle;
+    shutdown(reason: string): void;
+    voiceSessionId: string;
+}
+
+export class VoiceTurnCoordinator
+{
+    private activeController: AbortController | null = null;
+
+    /**
+     * VoiceTurnCoordinator
+     * ----------------
+     * Coordinates one final STT turn with the shared server assistant and schedules only its approved speech for TTS.
+     *
+     * August 07, 2026: Created by Forrest Zhang for SmartService Mobile Voice Turn Completion
+     */
+    public constructor(private readonly options: VoiceTurnCoordinatorOptions)
     {
-        const item = chatContext.items[index];
+    }
 
-        if (item?.type === "message" && item.role === "user")
+    /**
+     * abortActiveTurn
+     * ----------------
+     * Cancels an in-flight server turn when newer customer speech supersedes it or the room is shutting down.
+     *
+     * August 07, 2026: Created by Forrest Zhang for SmartService Mobile Voice Turn Completion
+     */
+    public abortActiveTurn(): void
+    {
+        this.activeController?.abort();
+    }
+
+    /**
+     * handleFinalTurn
+     * ----------------
+     * Sends one completed customer utterance through the shared grounded assistant, schedules approved TTS, and fails closed without logging transcript content.
+     *
+     * August 07, 2026: Created by Forrest Zhang for SmartService Mobile Voice Turn Completion
+     */
+    public async handleFinalTurn(text: string): Promise<void>
+    {
+        const normalizedText = text.trim();
+
+        if (normalizedText.length === 0)
         {
-            const text = item.textContent?.trim();
+            return;
+        }
 
-            if (text !== undefined && text.length > 0)
+        this.abortActiveTurn();
+        const controller = new AbortController();
+        const startedAt = Date.now();
+        this.activeController = controller;
+        console.info(JSON.stringify({
+            event: "voice.turn.finalized",
+            transcriptLength: normalizedText.length,
+            voiceSessionId: this.options.voiceSessionId,
+        }));
+
+        try
+        {
+            const result = await this.options.api.completeTurn(
+                this.options.voiceSessionId,
+                crypto.randomUUID(),
+                normalizedText,
+                new Date().toISOString(),
+                controller.signal,
+            );
+
+            if (controller.signal.aborted)
             {
-                return text;
+                return;
+            }
+
+            const speechHandle = this.options.say(normalizeVoiceSpeech(
+                result.spokenText,
+                this.options.language,
+            ));
+            console.info(JSON.stringify({
+                decision: result.decision,
+                elapsedMs: Date.now() - startedAt,
+                event: "voice.turn.speech_scheduled",
+                voiceSessionId: this.options.voiceSessionId,
+            }));
+            void speechHandle.waitForPlayout().then(
+                () =>
+                {
+                    console.info(JSON.stringify({
+                        event: "voice.turn.playout_completed",
+                        voiceSessionId: this.options.voiceSessionId,
+                    }));
+
+                    if (result.decision === "handoff")
+                    {
+                        this.options.shutdown("voice_handoff");
+                    }
+                },
+                () =>
+                {
+                    console.error(JSON.stringify({
+                        errorCode: "VOICE_PLAYOUT_FAILED",
+                        event: "voice.turn.playout_failed",
+                        voiceSessionId: this.options.voiceSessionId,
+                    }));
+
+                    if (result.decision === "handoff")
+                    {
+                        this.options.shutdown("voice_handoff");
+                    }
+                },
+            );
+        }
+        catch (error: unknown)
+        {
+            if (controller.signal.aborted)
+            {
+                console.info(JSON.stringify({
+                    event: "voice.turn.superseded",
+                    voiceSessionId: this.options.voiceSessionId,
+                }));
+                return;
+            }
+
+            try
+            {
+                await this.options.api.updateStatus(
+                    this.options.voiceSessionId,
+                    "failed",
+                    "VOICE_TURN_SERVICE_UNAVAILABLE",
+                );
+            }
+            catch
+            {
+                // The fixed failure speech below remains safe when status reporting is unavailable.
+            }
+
+            console.error(JSON.stringify({
+                errorCode: error instanceof DOMException && error.name === "TimeoutError"
+                    ? "VOICE_TURN_TIMEOUT"
+                    : "VOICE_TURN_SERVICE_UNAVAILABLE",
+                event: "voice.turn.failed_closed",
+                voiceSessionId: this.options.voiceSessionId,
+            }));
+
+            try
+            {
+                const speechHandle = this.options.say(buildVoiceFailureSpeech(
+                    this.options.language,
+                ));
+                void speechHandle.waitForPlayout().then(
+                    () =>
+                    {
+                        this.options.shutdown("voice_service_failure");
+                    },
+                    () =>
+                    {
+                        this.options.shutdown("voice_service_failure");
+                    },
+                );
+            }
+            catch
+            {
+                this.options.shutdown("voice_service_failure");
+            }
+        }
+        finally
+        {
+            if (this.activeController === controller)
+            {
+                this.activeController = null;
             }
         }
     }
-
-    return null;
 }
 
 /**
@@ -155,105 +309,52 @@ async function runVoiceJob(
                 }),
             },
         });
-        let activeTurnController: AbortController | null = null;
-        let activeSpeechHandle: ReturnType<voice.AgentSession["say"]> | null = null;
+        const turnCoordinator = new VoiceTurnCoordinator({
+            api,
+            language: sessionConfiguration.language,
+            say(text)
+            {
+                return session.say(text, {
+                    addToChatCtx: true,
+                    allowInterruptions: true,
+                });
+            },
+            shutdown(reason)
+            {
+                context.shutdown(reason);
+            },
+            voiceSessionId,
+        });
         const agent = voice.Agent.create({
             instructions: sessionConfiguration.language === "zh-CN"
                 ? "准确听取客户的中文问题，只朗读服务器批准的简短回答。"
                 : "Listen accurately and speak only the short server-approved answer.",
             /**
-             * llmNode
+             * onUserTurnCompleted
              * ----------------
-             * Uses LiveKit's turn lifecycle for preemptive generation and cancellation while delegating all answer, citation, and guardrail decisions to the shared server pipeline.
+             * Runs the shared grounded assistant exactly once after LiveKit commits the customer's final semantic turn.
              *
-             * July 27, 2026: Created by Forrest Zhang for SmartService Day 8 Turn and Interruption
+             * August 07, 2026: Updated by Forrest Zhang for SmartService Mobile Voice Turn Completion
              */
-            async *llmNode(_agentContext, chatContext)
+            async onUserTurnCompleted(_agentContext, _chatContext, newMessage)
             {
-                const text = findLatestUserText(chatContext);
+                const text = newMessage.textContent?.trim();
 
-                if (text === null)
+                if (text === undefined || text.length === 0)
                 {
                     return;
                 }
 
-                activeTurnController?.abort();
-                const controller = new AbortController();
-                activeTurnController = controller;
-                const speechHandle = activeSpeechHandle;
-
-                try
-                {
-                    const result = await api.completeTurn(
-                        voiceSessionId,
-                        crypto.randomUUID(),
-                        text,
-                        new Date().toISOString(),
-                        controller.signal,
-                    );
-                    yield normalizeVoiceSpeech(
-                        result.spokenText,
-                        sessionConfiguration.language,
-                    );
-
-                    if (result.decision === "handoff" && speechHandle !== null)
-                    {
-                        void speechHandle.waitForPlayout().finally(() =>
-                        {
-                            context.shutdown("voice_handoff");
-                        });
-                    }
-                }
-                catch (error: unknown)
-                {
-                    if (controller.signal.aborted)
-                    {
-                        return;
-                    }
-
-                    try
-                    {
-                        await api.updateStatus(
-                            voiceSessionId,
-                            "failed",
-                            "VOICE_TURN_SERVICE_UNAVAILABLE",
-                        );
-                    }
-                    catch
-                    {
-                        // The fixed fallback below remains safe when status reporting is also unavailable.
-                    }
-
-                    console.error(JSON.stringify({
-                        errorCode: error instanceof DOMException && error.name === "TimeoutError"
-                            ? "VOICE_TURN_TIMEOUT"
-                            : "VOICE_TURN_SERVICE_UNAVAILABLE",
-                        event: "voice.turn.failed_closed",
-                        voiceSessionId,
-                    }));
-                    yield buildVoiceFailureSpeech(sessionConfiguration.language);
-
-                    if (speechHandle !== null)
-                    {
-                        void speechHandle.waitForPlayout().finally(() =>
-                        {
-                            context.shutdown("voice_service_failure");
-                        });
-                    }
-                }
-                finally
-                {
-                    if (activeTurnController === controller)
-                    {
-                        activeTurnController = null;
-                    }
-                }
+                await turnCoordinator.handleFinalTurn(text);
             },
         });
 
-        session.on(voice.AgentSessionEventTypes.SpeechCreated, (event) =>
+        session.on(voice.AgentSessionEventTypes.UserInputTranscribed, (event) =>
         {
-            activeSpeechHandle = event.speechHandle;
+            if (!event.isFinal && event.transcript.trim().length > 0)
+            {
+                turnCoordinator.abortActiveTurn();
+            }
         });
         session.on(voice.AgentSessionEventTypes.AgentFalseInterruption, (event) =>
         {
@@ -290,7 +391,7 @@ async function runVoiceJob(
         });
         context.addShutdownCallback(async () =>
         {
-            activeTurnController?.abort();
+            turnCoordinator.abortActiveTurn();
         });
         await api.updateStatus(voiceSessionId, "ready");
     }

@@ -4,6 +4,7 @@ import { readVoiceAgentConfiguration } from "./config";
 import {
     buildVoiceFailureSpeech,
     normalizeVoiceSpeech,
+    VOICE_STT_SETTINGS,
     VOICE_TURN_SETTINGS,
 } from "./agent";
 import { VoiceInternalApiClient } from "./internal-api";
@@ -42,6 +43,12 @@ describe("voice agent foundation", () =>
 
         expect(configuration.DEEPGRAM_STT_MODEL).toBe("nova-3");
         expect(configuration.DEEPGRAM_STT_LANGUAGE).toBe("zh-CN");
+    });
+
+    it("keeps STT tenant-neutral instead of biasing recognition toward demo products", () =>
+    {
+        expect(VOICE_STT_SETTINGS.model).toBe("nova-3");
+        expect(VOICE_STT_SETTINGS).not.toHaveProperty("keyterm");
     });
 
     it("normalizes product models and units without adding internal identifiers", () =>

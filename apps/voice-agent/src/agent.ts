@@ -36,6 +36,14 @@ export const VOICE_TURN_SETTINGS = {
     },
 } as const;
 
+export const VOICE_STT_SETTINGS = {
+    interimResults: true,
+    model: "nova-3",
+    noDelay: true,
+    punctuate: true,
+    smartFormat: true,
+} as const;
+
 /**
  * buildVoiceFailureSpeech
  * ----------------
@@ -124,14 +132,9 @@ async function runVoiceJob(
     {
         const sessionConfiguration = await api.getConfiguration(voiceSessionId);
         const stt = new deepgram.STT({
+            ...VOICE_STT_SETTINGS,
             apiKey: configuration.DEEPGRAM_API_KEY,
-            interimResults: true,
-            keyterm: ["XFlow", "NF-200", "NF-500"],
             language: sessionConfiguration.language,
-            model: "nova-3",
-            noDelay: true,
-            punctuate: true,
-            smartFormat: true,
         });
         const tts = new elevenlabs.TTS({
             apiKey: configuration.ELEVENLABS_API_KEY,

@@ -23,6 +23,33 @@ export const workersAiChatModels = [
 
 export type WorkersAiChatModel = typeof workersAiChatModels[number];
 
+const workersAiChatModelSchema = z.enum(workersAiChatModels);
+
+/**
+ * parseWorkersAiChatModel
+ * ----------------
+ * Selects one explicitly supported Cloudflare-hosted JSON-mode model and rejects untested runtime aliases.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Customer Answer Latency Hardening
+ */
+export function parseWorkersAiChatModel(value: string | undefined): WorkersAiChatModel
+{
+    const result = workersAiChatModelSchema.safeParse(
+        value ?? "@cf/meta/llama-3.1-8b-instruct-fast",
+    );
+
+    if (!result.success)
+    {
+        throw new ApiError(
+            503,
+            "CHAT_WORKERS_AI_MODEL_INVALID",
+            "The Workers AI chat model is not supported.",
+        );
+    }
+
+    return result.data;
+}
+
 interface WorkersAiJsonModeRunner
 {
     run(
@@ -44,6 +71,7 @@ interface WorkersAiJsonModeRunner
 export interface WorkersAiStructuredOutputRequest
 {
     ai: Ai;
+    component?: string;
     description: string;
     gatewayId: string;
     maxOutputTokens: number;
@@ -55,6 +83,7 @@ export interface WorkersAiStructuredOutputRequest
     };
     promptVersion: string;
     schema: Record<string, unknown>;
+    tags?: string[];
     timeoutMs: number;
 }
 
@@ -125,13 +154,13 @@ export async function requestWorkersAiStructuredOutput(
                 collectLog: false,
                 id: input.gatewayId,
                 metadata: {
-                    component: "rag-answer",
+                    component: input.component ?? "rag-answer",
                     promptVersion: input.promptVersion,
                 },
                 requestTimeoutMs: input.timeoutMs,
             },
             signal: AbortSignal.timeout(input.timeoutMs),
-            tags: ["smartservice", "rag-answer"],
+            tags: input.tags ?? ["smartservice", "rag-answer"],
         });
         const response = workersAiChatCompletionSchema.parse(rawResponse);
         const structuredOutput = response.response

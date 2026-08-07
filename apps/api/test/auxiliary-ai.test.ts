@@ -8,8 +8,10 @@ import {
 } from "vitest";
 
 import {
+    createGuardrailSupervisor,
     OpenAiConversationFinalizer,
     OpenAiGuardrailSupervisor,
+    WorkersAiGuardrailSupervisor,
 } from "../src/auxiliary-ai";
 import type { SmartServiceBindings } from "../src/types";
 
@@ -28,6 +30,7 @@ const rule: GuardrailRule = {
 
 afterEach(() =>
 {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
 });
 
@@ -160,5 +163,105 @@ describe("OpenAI auxiliary adapters", () =>
 
         expect(result.finalization.ticket).toBeNull();
         expect(result.finalization.primaryIntent).toBe("Warranty question");
+    });
+});
+
+describe("Workers AI auxiliary adapter", () =>
+{
+    it("uses the fast Cloudflare model for strict per-turn supervision without OpenAI", async () =>
+    {
+        const runMock = vi.fn().mockResolvedValue({
+            response: {
+                allowed: true,
+                requestHandoff: false,
+                safeResponse: null,
+                violations: [],
+            },
+            usage: {
+                completion_tokens: 18,
+                prompt_tokens: 210,
+            },
+        });
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const bindings = {
+            AI: {
+                run: runMock,
+            } as unknown as Ai,
+            AUXILIARY_PROVIDER_MODE: "live",
+            CHAT_SUPERVISOR_PROVIDER: "workers-ai",
+            CHAT_WORKERS_AI_MODEL: "@cf/meta/llama-3.1-8b-instruct-fast",
+            WORKERS_AI_GATEWAY_ID: "default",
+        } as SmartServiceBindings;
+        const selected = createGuardrailSupervisor(bindings);
+
+        expect(selected).toBeInstanceOf(WorkersAiGuardrailSupervisor);
+        const result = await selected.supervise({
+            candidateAnswer: "The warranty is one year.",
+            evidence: [{
+                chunkId: "10000000-0000-4000-a000-000000000002",
+                content: "The warranty is one year.",
+            }],
+            language: "en",
+            rules: [rule],
+            userMessage: "What is the warranty?",
+        });
+        const [model, request, options] = runMock.mock.calls[0] as [
+            string,
+            Record<string, unknown>,
+            { tags: string[] },
+        ];
+
+        expect(model).toBe("@cf/meta/llama-3.1-8b-instruct-fast");
+        expect(request).toMatchObject({
+            max_tokens: 500,
+            response_format: {
+                type: "json_schema",
+            },
+        });
+        expect(options.tags).toEqual(["smartservice", "guardrail-supervisor"]);
+        expect(result).toMatchObject({
+            evaluation: {
+                allowed: true,
+            },
+            inputTokens: 210,
+            outputTokens: 18,
+        });
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("fails closed when Cloudflare returns a rule code the tenant did not enable", async () =>
+    {
+        vi.spyOn(console, "info").mockImplementation(() => undefined);
+        vi.spyOn(console, "warn").mockImplementation(() => undefined);
+        const runMock = vi.fn().mockResolvedValue({
+            response: {
+                allowed: false,
+                requestHandoff: true,
+                safeResponse: "Blocked.",
+                violations: [{
+                    reason: "An unknown rule was selected.",
+                    ruleCode: "UNKNOWN_RULE",
+                    severity: "high",
+                }],
+            },
+        });
+        const provider = new WorkersAiGuardrailSupervisor({
+            AI: {
+                run: runMock,
+            } as unknown as Ai,
+            CHAT_WORKERS_AI_MODEL: "@cf/meta/llama-3.1-8b-instruct-fast",
+        } as SmartServiceBindings);
+
+        await expect(provider.supervise({
+            candidateAnswer: "The final price is guaranteed.",
+            evidence: [],
+            language: "en",
+            rules: [rule],
+            userMessage: "Give me the final price.",
+        })).rejects.toMatchObject({
+            code: "GUARDRAIL_RESPONSE_INVALID",
+        });
+        expect(runMock).toHaveBeenCalledTimes(2);
     });
 });

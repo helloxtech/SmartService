@@ -12,43 +12,15 @@ import {
     type RagRepairReason,
 } from "@smartservice/assistant-core";
 import { ragAnswerSchema } from "@smartservice/contracts";
-import { z } from "zod";
 
 import { ApiError } from "./errors";
 import { requestStructuredOutput } from "./openai-structured-output";
 import type { SmartServiceBindings } from "./types";
 import {
     requestWorkersAiStructuredOutput,
-    workersAiChatModels,
+    parseWorkersAiChatModel,
     type WorkersAiChatModel,
 } from "./workers-ai-structured-output";
-
-const workersAiChatModelSchema = z.enum(workersAiChatModels);
-
-/**
- * parseWorkersAiChatModel
- * ----------------
- * Selects one explicitly supported Cloudflare-hosted JSON-mode model so production can change latency or quality profiles without a code rewrite.
- *
- * August 06, 2026: Created by Forrest Zhang for Customer Answer Latency Hardening
- */
-function parseWorkersAiChatModel(bindings: SmartServiceBindings): WorkersAiChatModel
-{
-    const result = workersAiChatModelSchema.safeParse(
-        bindings.CHAT_WORKERS_AI_MODEL ?? "@cf/meta/llama-3.1-8b-instruct-fast",
-    );
-
-    if (!result.success)
-    {
-        throw new ApiError(
-            503,
-            "CHAT_WORKERS_AI_MODEL_INVALID",
-            "The primary answer model is not supported.",
-        );
-    }
-
-    return result.data;
-}
 
 /**
  * parseAnswerBudgetMs
@@ -204,7 +176,7 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
      */
     public constructor(private readonly bindings: SmartServiceBindings)
     {
-        this.model = parseWorkersAiChatModel(bindings);
+        this.model = parseWorkersAiChatModel(bindings.CHAT_WORKERS_AI_MODEL);
     }
 
     /**

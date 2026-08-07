@@ -24,6 +24,29 @@ import { ApiError } from "./errors";
 import { requestStructuredOutput } from "./openai-structured-output";
 import type { SmartServiceBindings } from "./types";
 
+/**
+ * parseSupervisionBudgetMs
+ * ----------------
+ * Reads the customer-turn output-supervision wall-clock budget while preserving a bounded retry window and fail-closed behavior.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Customer Answer Latency Hardening
+ */
+function parseSupervisionBudgetMs(bindings: SmartServiceBindings): number
+{
+    const value = Number.parseInt(bindings.CHAT_SUPERVISION_BUDGET_MS ?? "4500", 10);
+
+    if (!Number.isInteger(value) || value < 2_000 || value > 10_000)
+    {
+        throw new ApiError(
+            503,
+            "CHAT_SUPERVISION_BUDGET_INVALID",
+            "The customer answer supervision budget is not valid.",
+        );
+    }
+
+    return value;
+}
+
 export class OpenAiGuardrailSupervisor implements GuardrailSupervisor
 {
     public readonly model: string;
@@ -57,20 +80,22 @@ export class OpenAiGuardrailSupervisor implements GuardrailSupervisor
             throw new ApiError(503, "OPENAI_CONFIGURATION_MISSING", "The guardrail provider is not configured.");
         }
 
+        const totalTimeoutMs = parseSupervisionBudgetMs(this.bindings);
         const result = await requestStructuredOutput({
             apiKey,
             description: "A safety decision over one candidate answer and enabled tenant guardrail rules.",
             errorCode: "GUARDRAIL_PROVIDER_FAILED",
             errorMessage: "The guardrail provider request failed.",
             eventName: "guardrail.supervisor.failed",
-            maxOutputTokens: 1_500,
+            maxOutputTokens: 900,
             model: this.model,
             name: "smartservice_guardrail_evaluation",
             prompt: buildGuardrailPrompt(input),
             promptVersion: guardrailPromptVersion,
             reasoningEffort: "low",
             schema: guardrailEvaluationJsonSchema,
-            timeoutMs: 8_000,
+            timeoutMs: Math.min(3_500, totalTimeoutMs),
+            totalTimeoutMs,
         });
         const evaluation = guardrailEvaluationSchema.parse(result.value);
         const allowedCodes = new Set(

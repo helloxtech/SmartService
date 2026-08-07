@@ -39,21 +39,30 @@ interface FailureHarness
     answers: RagAnswerProvider;
     embeddings: EmbeddingProvider;
     persistedTurns: CompleteTurnInput[];
+    retrieveEvidence: ReturnType<typeof vi.fn>;
     service: DefaultPublicConversationService;
 }
 
 /**
  * createFailureHarness
  * ----------------
- * Builds a zero-network voice-turn harness that can fail either query embedding or answer generation and capture the persisted fail-closed audit.
+ * Builds a zero-network voice-turn harness that can complete normally or fail query embedding or answer generation while capturing the persisted audit.
  *
  * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Answer Reliability
  */
 function createFailureHarness(
-    failurePoint: "answer_generation" | "query_embedding",
+    failurePoint: "answer_generation" | "query_embedding" | null,
 ): FailureHarness
 {
     const persistedTurns: CompleteTurnInput[] = [];
+    const retrieveEvidence = vi.fn().mockResolvedValue([{
+        chunkId: evidenceChunkId,
+        combinedScore: 0.93,
+        content: "Appointments may be rescheduled without a fee at least 24 hours in advance.",
+        sourceLocator: {
+            title: "Appointment policy",
+        },
+    }]);
     const repository = {
         completeTurn: vi.fn().mockImplementation(async (input: CompleteTurnInput) =>
         {
@@ -93,14 +102,7 @@ function createFailureHarness(
         }),
         refreshIncrementalSummary: vi.fn().mockResolvedValue(undefined),
         refreshHandoffSnapshot: vi.fn().mockResolvedValue(undefined),
-        retrieveEvidence: vi.fn().mockResolvedValue([{
-            chunkId: evidenceChunkId,
-            combinedScore: 0.93,
-            content: "Appointments may be rescheduled without a fee at least 24 hours in advance.",
-            sourceLocator: {
-                title: "Appointment policy",
-            },
-        }]),
+        retrieveEvidence,
     } as unknown as SupabaseConversationRepository;
     const embeddings: EmbeddingProvider = {
         embed: vi.fn().mockImplementation(async () =>
@@ -120,11 +122,29 @@ function createFailureHarness(
     const answers: RagAnswerProvider = {
         generate: vi.fn().mockImplementation(async () =>
         {
-            throw new ApiError(
-                502,
-                "WORKERS_AI_PROVIDER_FAILED",
-                "The primary answer provider request failed.",
-            );
+            if (failurePoint === "answer_generation")
+            {
+                throw new ApiError(
+                    502,
+                    "WORKERS_AI_PROVIDER_FAILED",
+                    "The primary answer provider request failed.",
+                );
+            }
+
+            return {
+                answer: {
+                    answer: "I can confirm the appointment policy with a support specialist if needed.",
+                    citationChunkIds: [],
+                    confidence: 0.4,
+                    decision: "clarify",
+                    handoffReason: "missing_knowledge",
+                    normalizedQuestion: "can i move my appointment",
+                },
+                inputTokens: 80,
+                model: "@cf/zai-org/glm-4.7-flash",
+                outputTokens: 20,
+                provider: "cloudflare-workers-ai",
+            };
         }),
         model: "@cf/zai-org/glm-4.7-flash",
         provider: "cloudflare-workers-ai",
@@ -132,7 +152,16 @@ function createFailureHarness(
     const guardrails: GuardrailSupervisor = {
         model: "gpt-5-nano",
         provider: "openai",
-        supervise: vi.fn(),
+        supervise: vi.fn().mockResolvedValue({
+            evaluation: {
+                allowed: true,
+                requestHandoff: false,
+                safeResponse: null,
+                violations: [],
+            },
+            inputTokens: 30,
+            outputTokens: 10,
+        }),
     };
     const turnstile: TurnstileVerifier = {
         verify: vi.fn().mockResolvedValue(undefined),
@@ -148,6 +177,7 @@ function createFailureHarness(
         answers,
         embeddings,
         persistedTurns,
+        retrieveEvidence,
         service: new DefaultPublicConversationService(
             bindings,
             repository,
@@ -186,6 +216,44 @@ describe("explicit customer handoff intent", () =>
 
 describe("tenant-generic turn failure isolation", () =>
 {
+    it("uses the smaller single-question evidence window and records successful stage timings", async () =>
+    {
+        const harness = createFailureHarness(null);
+        const response = await harness.service.sendTrusted(
+            organizationId,
+            conversationId,
+            {
+                clientMessageId: crypto.randomUUID(),
+                text: "Can I move my appointment?",
+            },
+            "request-success-timing-test",
+        );
+        const turn = harness.persistedTurns[0];
+
+        expect(response).toMatchObject({
+            decision: "clarify",
+            handoff: null,
+        });
+        expect(harness.retrieveEvidence).toHaveBeenCalledWith(
+            organizationId,
+            expect.any(String),
+            expect.any(Array),
+            expect.any(Number),
+            3,
+        );
+        expect(turn?.retrievalMetadata).toMatchObject({
+            processing: {
+                failedStage: null,
+                stageDurationsMs: expect.objectContaining({
+                    answer_generation: expect.any(Number),
+                    knowledge_retrieval: expect.any(Number),
+                    output_supervision: expect.any(Number),
+                    query_embedding: expect.any(Number),
+                }),
+            },
+        });
+    });
+
     it.each([{
         errorCode: "EMBEDDING_PROVIDER_FAILED",
         expectedModel: "text-embedding-3-large",
@@ -247,6 +315,11 @@ describe("tenant-generic turn failure isolation", () =>
                 failedStage: failurePoint,
                 generationAttempts: null,
                 generationRecoveryMode: null,
+                stageDurationsMs: expect.objectContaining({
+                    conversation_context: expect.any(Number),
+                    guardrail_configuration: expect.any(Number),
+                    input_guardrail: expect.any(Number),
+                }),
             },
         });
         expect(errorMock).toHaveBeenCalledWith(expect.stringContaining(

@@ -50,6 +50,8 @@ export async function requestWorkersAiStructuredOutput(
     input: WorkersAiStructuredOutputRequest,
 ): Promise<WorkersAiStructuredOutputResult>
 {
+    const startedAt = Date.now();
+
     try
     {
         const rawResponse = await input.ai.run(input.model, {
@@ -121,6 +123,7 @@ export async function requestWorkersAiStructuredOutput(
         console.info(JSON.stringify({
             event: "workers_ai.structured_output.succeeded",
             inputTokens: response.usage?.prompt_tokens ?? null,
+            latencyMs: Date.now() - startedAt,
             model: input.model,
             outputTokens: response.usage?.completion_tokens ?? null,
             promptVersion: input.promptVersion,
@@ -141,6 +144,7 @@ export async function requestWorkersAiStructuredOutput(
                     ? error.name.slice(0, 120)
                     : "UNKNOWN_ERROR",
             event: "workers_ai.structured_output.failed",
+            latencyMs: Date.now() - startedAt,
             model: input.model,
             promptVersion: input.promptVersion,
         }));

@@ -49,9 +49,11 @@ import type {
 export type SmartServiceBindings = Omit<
     Env,
     | "AI"
+    | "CHAT_ANSWER_BUDGET_MS"
     | "CHAT_FALLBACK_PROVIDER"
     | "CHAT_PRIMARY_PROVIDER"
     | "CHAT_PROVIDER_MODE"
+    | "CHAT_SUPERVISION_BUDGET_MS"
     | "CRAWL_PROVIDER_MODE"
     | "EMBEDDING_PROVIDER_MODE"
     | "AUXILIARY_PROVIDER_MODE"
@@ -72,9 +74,11 @@ export type SmartServiceBindings = Omit<
     AUXILIARY_PROVIDER_MODE?: "live" | "mock";
     CLOUDFLARE_ACCOUNT_ID?: string;
     CLOUDFLARE_BROWSER_RUN_API_TOKEN?: string;
+    CHAT_ANSWER_BUDGET_MS?: string;
     CHAT_FALLBACK_PROVIDER?: "none" | "openai";
     CHAT_PRIMARY_PROVIDER?: "openai" | "workers-ai";
     CHAT_PROVIDER_MODE?: "live" | "mock";
+    CHAT_SUPERVISION_BUDGET_MS?: string;
     CONVERSATION_TOKEN_SECRET?: string;
     CONVERSATION_TOKEN_TTL_MINUTES?: string;
     CRAWL_PROVIDER_MODE?: "live" | "mock";

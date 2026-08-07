@@ -103,10 +103,55 @@ type TurnProcessingStage =
     | "query_embedding"
     | "query_planning";
 
+type TurnStageDurationsMs = Partial<Record<TurnProcessingStage, number>>;
+
+type TimedTurnStageResult<Value> = {
+    durationMs: number;
+    ok: true;
+    value: Value;
+} | {
+    durationMs: number;
+    error: unknown;
+    ok: false;
+};
+
 interface TurnStageAttribution
 {
     model: string;
     provider: string;
+}
+
+/**
+ * timeTurnStage
+ * ----------------
+ * Measures one asynchronous content-free pipeline stage and returns its error as data so independent database reads can run in parallel without losing attribution.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Customer Answer Latency Hardening
+ */
+async function timeTurnStage<Value>(
+    operation: () => Promise<Value>,
+): Promise<TimedTurnStageResult<Value>>
+{
+    const startedAt = Date.now();
+
+    try
+    {
+        const value = await operation();
+
+        return {
+            durationMs: Date.now() - startedAt,
+            ok: true,
+            value,
+        };
+    }
+    catch (error: unknown)
+    {
+        return {
+            durationMs: Date.now() - startedAt,
+            error,
+            ok: false,
+        };
+    }
 }
 
 /**
@@ -717,17 +762,19 @@ export class DefaultPublicConversationService implements PublicConversationServi
             supervisorProvider: input.guardrail.provider,
             violations: input.evaluation.violations,
         });
-        await this.refreshOperationalContext(
-            input.organizationId,
-            input.conversationId,
-            input.requestId,
-            true,
-        );
-        const response = await this.repository.loadResponse(
-            input.organizationId,
-            input.conversationId,
-            messageId,
-        );
+        const [response] = await Promise.all([
+            this.repository.loadResponse(
+                input.organizationId,
+                input.conversationId,
+                messageId,
+            ),
+            this.refreshOperationalContext(
+                input.organizationId,
+                input.conversationId,
+                input.requestId,
+                true,
+            ),
+        ]);
 
         return sendPublicMessageResponseSchema.parse(response);
     }
@@ -867,6 +914,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
         }
 
         const startedAt = Date.now();
+        const stageDurationsMs: TurnStageDurationsMs = {};
         let evidence: RetrievedEvidence[] = [];
         let retrievalCrossLanguageExpanded = false;
         let retrievalContextualized = false;
@@ -895,9 +943,33 @@ export class DefaultPublicConversationService implements PublicConversationServi
             else
             {
                 currentStage = "guardrail_configuration";
-                const rules: GuardrailRule[] = await this.repository.listGuardrailRules(
-                    organizationId,
-                );
+                const [rulesResult, recentMessagesResult] = await Promise.all([
+                    timeTurnStage(() => this.repository.listGuardrailRules(
+                        organizationId,
+                    )),
+                    timeTurnStage(() => this.repository.listRecentMessages(
+                        organizationId,
+                        conversationId,
+                        customerMessage.id,
+                    )),
+                ]);
+                stageDurationsMs.guardrail_configuration = rulesResult.durationMs;
+                stageDurationsMs.conversation_context = recentMessagesResult.durationMs;
+
+                if (!rulesResult.ok)
+                {
+                    currentStage = "guardrail_configuration";
+                    throw rulesResult.error;
+                }
+
+                if (!recentMessagesResult.ok)
+                {
+                    currentStage = "conversation_context";
+                    throw recentMessagesResult.error;
+                }
+
+                const rules: GuardrailRule[] = rulesResult.value;
+                const recentMessages = recentMessagesResult.value;
                 currentStage = "input_guardrail";
                 const inputGuardrailStartedAt = Date.now();
                 const inputEvaluation = evaluateDeterministicGuardrails({
@@ -907,6 +979,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                     rules,
                     userMessage: input.text,
                 });
+                stageDurationsMs.input_guardrail = Date.now() - inputGuardrailStartedAt;
 
                 if (!inputEvaluation.allowed)
                 {
@@ -936,13 +1009,8 @@ export class DefaultPublicConversationService implements PublicConversationServi
                     });
                 }
 
-                currentStage = "conversation_context";
-                const recentMessages = await this.repository.listRecentMessages(
-                    organizationId,
-                    conversationId,
-                    customerMessage.id,
-                );
                 currentStage = "query_planning";
+                const queryPlanningStartedAt = Date.now();
                 const configuredThreshold = parseThreshold(this.bindings);
                 const focusedRetrievalQuestions = buildRetrievalQuestions(
                     input.text,
@@ -963,8 +1031,19 @@ export class DefaultPublicConversationService implements PublicConversationServi
                     || focusedRetrievalQuestions[0] !== input.text.trim();
                 retrievalMinimumThreshold = Math.min(...retrievalThresholds);
                 retrievalQueryCount = focusedRetrievalQuestions.length;
+                stageDurationsMs.query_planning = Date.now() - queryPlanningStartedAt;
                 currentStage = "query_embedding";
-                const vectors = await this.embeddings.embed(retrievalQuestions);
+                const queryEmbeddingStartedAt = Date.now();
+                let vectors: number[][];
+
+                try
+                {
+                    vectors = await this.embeddings.embed(retrievalQuestions);
+                }
+                finally
+                {
+                    stageDurationsMs.query_embedding = Date.now() - queryEmbeddingStartedAt;
+                }
 
                 if (vectors.length !== retrievalQuestions.length)
                 {
@@ -972,40 +1051,55 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 }
 
                 currentStage = "knowledge_retrieval";
-                const retrievalResultSets = await Promise.all(
-                    retrievalQuestions.map(async (retrievalQuestion, index) =>
-                    {
-                        const queryEmbedding = vectors[index];
+                const knowledgeRetrievalStartedAt = Date.now();
+                let retrievalResultSets: RetrievedEvidence[][];
 
-                        if (queryEmbedding === undefined)
+                try
+                {
+                    retrievalResultSets = await Promise.all(
+                        retrievalQuestions.map(async (retrievalQuestion, index) =>
                         {
-                            throw new ApiError(502, "QUERY_EMBEDDING_INVALID", "The query embedding is not valid.");
-                        }
+                            const queryEmbedding = vectors[index];
 
-                        const resultSet = await this.repository.retrieveEvidence(
-                            organizationId,
-                            retrievalQuestion,
-                            queryEmbedding,
-                            retrievalThresholds[index] ?? configuredThreshold,
-                            4,
-                        );
-                        const focusedRetrievalQuestion = focusedRetrievalQuestions[index]
-                            ?? input.text;
-                        const entityQuestion = focusedRetrievalQuestions.length === 1
-                            && focusedRetrievalQuestion !== input.text.trim()
-                            ? [...recentMessages]
-                                .reverse()
-                                .find((message) => message.senderType === "customer")
-                                ?.text ?? input.text
-                            : focusedRetrievalQuestion;
+                            if (queryEmbedding === undefined)
+                            {
+                                throw new ApiError(502, "QUERY_EMBEDDING_INVALID", "The query embedding is not valid.");
+                            }
 
-                        return filterEvidenceForExactEntities(
-                            entityQuestion,
-                            resultSet,
-                        );
-                    }),
+                            const resultSet = await this.repository.retrieveEvidence(
+                                organizationId,
+                                retrievalQuestion,
+                                queryEmbedding,
+                                retrievalThresholds[index] ?? configuredThreshold,
+                                3,
+                            );
+                            const focusedRetrievalQuestion = focusedRetrievalQuestions[index]
+                                ?? input.text;
+                            const entityQuestion = focusedRetrievalQuestions.length === 1
+                                && focusedRetrievalQuestion !== input.text.trim()
+                                ? [...recentMessages]
+                                    .reverse()
+                                    .find((message) => message.senderType === "customer")
+                                    ?.text ?? input.text
+                                : focusedRetrievalQuestion;
+
+                            return filterEvidenceForExactEntities(
+                                entityQuestion,
+                                resultSet,
+                            );
+                        }),
+                    );
+                }
+                finally
+                {
+                    stageDurationsMs.knowledge_retrieval = Date.now() - knowledgeRetrievalStartedAt;
+                }
+
+                const mergedEvidenceLimit = Math.min(
+                    8,
+                    Math.max(3, focusedRetrievalQuestions.length * 2),
                 );
-                evidence = mergeRetrievedEvidence(retrievalResultSets, 8);
+                evidence = mergeRetrievedEvidence(retrievalResultSets, mergedEvidenceLimit);
 
                 if (evidence.length === 0)
                 {
@@ -1016,34 +1110,43 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 else
                 {
                     currentStage = "answer_generation";
-                    const generationInput = {
-                        evidence,
-                        language,
-                        question: input.text,
-                        recentMessages,
-                    };
-                    const approvedManualAnswer = createApprovedManualAnswer(generationInput);
+                    const answerGenerationStartedAt = Date.now();
 
-                    if (approvedManualAnswer !== null)
+                    try
                     {
-                        provider = "deterministic";
-                        model = "approved-manual-v1";
-                        answer = approvedManualAnswer;
-                    }
-                    else
-                    {
-                        const generated = await this.answers.generate(generationInput);
-                        generationAttempts = generated.generationAttempts ?? 1;
-                        generationRecoveryMode = generated.recoveryMode ?? "none";
-                        inputTokens = generated.inputTokens;
-                        model = generated.model;
-                        outputTokens = generated.outputTokens;
-                        provider = generated.provider;
-                        answer = enforceCustomerControlledHandoff(
-                            validateGroundedAnswer(generated.answer, evidence),
-                            input.text,
+                        const generationInput = {
+                            evidence,
                             language,
-                        );
+                            question: input.text,
+                            recentMessages,
+                        };
+                        const approvedManualAnswer = createApprovedManualAnswer(generationInput);
+
+                        if (approvedManualAnswer !== null)
+                        {
+                            provider = "deterministic";
+                            model = "approved-manual-v1";
+                            answer = approvedManualAnswer;
+                        }
+                        else
+                        {
+                            const generated = await this.answers.generate(generationInput);
+                            generationAttempts = generated.generationAttempts ?? 1;
+                            generationRecoveryMode = generated.recoveryMode ?? "none";
+                            inputTokens = generated.inputTokens;
+                            model = generated.model;
+                            outputTokens = generated.outputTokens;
+                            provider = generated.provider;
+                            answer = enforceCustomerControlledHandoff(
+                                validateGroundedAnswer(generated.answer, evidence),
+                                input.text,
+                                language,
+                            );
+                        }
+                    }
+                    finally
+                    {
+                        stageDurationsMs.answer_generation = Date.now() - answerGenerationStartedAt;
                     }
 
                     if (
@@ -1073,6 +1176,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                             rules,
                             userMessage: input.text,
                         });
+                        stageDurationsMs.output_guardrail = Date.now() - outputGuardrailStartedAt;
 
                         if (!outputEvaluation.allowed)
                         {
@@ -1095,14 +1199,23 @@ export class DefaultPublicConversationService implements PublicConversationServi
                         }
 
                         currentStage = "output_supervision";
-                        const supervisionStartedAt = Date.now();
-                        const supervision = await this.guardrails.supervise({
-                            candidateAnswer: answer.answer,
-                            evidence: citedEvidence,
-                            language,
-                            rules,
-                            userMessage: input.text,
-                        });
+                        const supervisionResult = await timeTurnStage(() =>
+                            this.guardrails.supervise({
+                                candidateAnswer: answer.answer,
+                                evidence: citedEvidence,
+                                language,
+                                rules,
+                                userMessage: input.text,
+                            }),
+                        );
+                        stageDurationsMs.output_supervision = supervisionResult.durationMs;
+
+                        if (!supervisionResult.ok)
+                        {
+                            throw supervisionResult.error;
+                        }
+
+                        const supervision = supervisionResult.value;
 
                         if (!supervision.evaluation.allowed)
                         {
@@ -1113,7 +1226,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                                 evaluation: supervision.evaluation,
                                 guardrail: {
                                     inputTokens: supervision.inputTokens,
-                                    latencyMs: Date.now() - supervisionStartedAt,
+                                    latencyMs: supervisionResult.durationMs,
                                     model: this.guardrails.model,
                                     outputTokens: supervision.outputTokens,
                                     provider: this.guardrails.provider,
@@ -1157,6 +1270,14 @@ export class DefaultPublicConversationService implements PublicConversationServi
             }));
         }
 
+        console.info(JSON.stringify({
+            event: "public.turn.pipeline.completed",
+            failedStage,
+            latencyMs: Date.now() - startedAt,
+            requestId,
+            stageDurationsMs,
+        }));
+
         const citations = buildCitationWrites(answer.citationChunkIds, evidence);
         const messageId = await this.repository.completeTurn({
             aiStatus,
@@ -1187,6 +1308,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                     failedStage,
                     generationAttempts,
                     generationRecoveryMode,
+                    stageDurationsMs,
                 },
                 queryCount: retrievalQueryCount,
                 normalizedQuestion: answer.normalizedQuestion,
@@ -1198,17 +1320,19 @@ export class DefaultPublicConversationService implements PublicConversationServi
             },
             retrievedChunkIds: evidence.map((item) => item.chunkId),
         });
-        await this.refreshOperationalContext(
-            organizationId,
-            conversationId,
-            requestId,
-            answer.decision === "handoff",
-        );
-        const response = await this.repository.loadResponse(
-            organizationId,
-            conversationId,
-            messageId,
-        );
+        const [response] = await Promise.all([
+            this.repository.loadResponse(
+                organizationId,
+                conversationId,
+                messageId,
+            ),
+            this.refreshOperationalContext(
+                organizationId,
+                conversationId,
+                requestId,
+                answer.decision === "handoff",
+            ),
+        ]);
 
         return sendPublicMessageResponseSchema.parse(response);
     }

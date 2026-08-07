@@ -129,7 +129,7 @@ describe("Workers AI RAG answer provider", () =>
             chat_template_kwargs: {
                 enable_thinking: false,
             },
-            max_completion_tokens: 1_800,
+            max_completion_tokens: 900,
             response_format: {
                 json_schema: {
                     strict: true,
@@ -142,6 +142,7 @@ describe("Workers AI RAG answer provider", () =>
         expect(options.gateway).toMatchObject({
             collectLog: false,
             id: "default",
+            requestTimeoutMs: 6_500,
         });
         expect(options.tags).toEqual(["smartservice", "rag-answer"]);
         expect(result).toMatchObject({

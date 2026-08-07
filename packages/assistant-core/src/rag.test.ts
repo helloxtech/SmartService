@@ -390,6 +390,31 @@ describe("grounded RAG", () =>
         expect(prompt.system).not.toContain("school");
     });
 
+    it("bounds short-answer prompt evidence and recent context without changing citation identity", () =>
+    {
+        const prompt = buildRagPrompt({
+            evidence: [{
+                ...fixtureEvidence,
+                content: "Guzheng course details. ".repeat(300),
+            }],
+            language: "en",
+            question: "Do you offer Guzheng lessons?",
+            recentMessages: Array.from({ length: 6 }, (_, index) => ({
+                senderType: index % 2 === 0 ? "customer" as const : "ai" as const,
+                text: `Message ${index} `.repeat(100),
+            })),
+        });
+        const payload = JSON.parse(prompt.user) as {
+            EVIDENCE: Array<{ chunkId: string; content: string }>;
+            RECENT_MESSAGES: Array<{ text: string }>;
+        };
+
+        expect(payload.EVIDENCE[0]?.chunkId).toBe(fixtureEvidence.chunkId);
+        expect(payload.EVIDENCE[0]?.content.length).toBeLessThanOrEqual(2_800);
+        expect(payload.RECENT_MESSAGES).toHaveLength(4);
+        expect(payload.RECENT_MESSAGES.every((message) => message.text.length <= 800)).toBe(true);
+    });
+
     it("never asks a customer to retry after an unavailable confirmation", () =>
     {
         const answer = createSafeClarification(

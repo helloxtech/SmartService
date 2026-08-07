@@ -21,6 +21,29 @@ import { requestWorkersAiStructuredOutput } from "./workers-ai-structured-output
 const workersAiChatModel = "@cf/zai-org/glm-4.7-flash" as const;
 
 /**
+ * parseAnswerBudgetMs
+ * ----------------
+ * Reads the tenant-generic grounded-answer wall-clock budget while rejecting values that would create an unusably short or unbounded customer wait.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Customer Answer Latency Hardening
+ */
+function parseAnswerBudgetMs(bindings: SmartServiceBindings): number
+{
+    const value = Number.parseInt(bindings.CHAT_ANSWER_BUDGET_MS ?? "8500", 10);
+
+    if (!Number.isInteger(value) || value < 3_000 || value > 15_000)
+    {
+        throw new ApiError(
+            503,
+            "CHAT_ANSWER_BUDGET_INVALID",
+            "The customer answer latency budget is not valid.",
+        );
+    }
+
+    return value;
+}
+
+/**
  * readAnswerErrorCode
  * ----------------
  * Converts a provider or validation failure into a bounded content-free code for structured reliability logs.
@@ -72,7 +95,7 @@ async function waitForWorkersAiRepair(): Promise<void>
 {
     await new Promise<void>((resolve) =>
     {
-        setTimeout(resolve, 250);
+        setTimeout(resolve, 100);
     });
 }
 
@@ -96,7 +119,7 @@ export class OpenAiRagAnswerProvider implements RagAnswerProvider
     /**
      * generate
      * ----------------
-     * Requests a strict RAG Structured Output with no provider-side storage, a 15-second timeout, and one retry.
+     * Requests a strict RAG Structured Output with no provider-side storage and a shared bounded retry budget.
      *
      * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Grounded Text Q&A
      */
@@ -109,20 +132,22 @@ export class OpenAiRagAnswerProvider implements RagAnswerProvider
             throw new ApiError(503, "OPENAI_CONFIGURATION_MISSING", "The answer provider is not configured.");
         }
 
+        const totalTimeoutMs = parseAnswerBudgetMs(this.bindings);
         const result = await requestStructuredOutput({
             apiKey,
             description: "A grounded customer-service answer or safe handoff decision.",
             errorCode: "ANSWER_PROVIDER_FAILED",
             errorMessage: "The answer provider request failed.",
             eventName: "rag.answer.failed",
-            maxOutputTokens: 2_500,
+            maxOutputTokens: 1_000,
             model: this.model,
             name: "smartservice_rag_answer",
             prompt: buildRagPrompt(input),
             promptVersion: ragPromptVersion,
             reasoningEffort: "low",
             schema: ragAnswerJsonSchema,
-            timeoutMs: 15_000,
+            timeoutMs: Math.min(6_500, totalTimeoutMs),
+            totalTimeoutMs,
         });
 
         return {
@@ -154,7 +179,7 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
     /**
      * generate
      * ----------------
-     * Requests a bounded non-thinking GLM answer in JSON Schema mode with one same-model retry after provider, schema, or citation validation failure.
+     * Requests a bounded non-thinking GLM answer in JSON Schema mode with one same-model repair inside one shared wall-clock budget.
      *
      * August 03, 2026: Updated by Forrest Zhang for SmartService Primary-Only Reliability
      */
@@ -173,9 +198,21 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
 
         let lastError: unknown;
         let repairReason: RagRepairReason = "provider_failure";
+        let attempts = 0;
+        const startedAt = Date.now();
+        const totalTimeoutMs = parseAnswerBudgetMs(this.bindings);
 
         for (let attempt = 1; attempt <= 2; attempt += 1)
         {
+            const remainingMs = totalTimeoutMs - (Date.now() - startedAt);
+
+            if (remainingMs <= 150)
+            {
+                break;
+            }
+
+            attempts = attempt;
+
             try
             {
                 const isRepairAttempt = attempt === 2;
@@ -183,7 +220,7 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
                     ai,
                     description: "A grounded customer-service answer or safe clarification decision.",
                     gatewayId: this.bindings.WORKERS_AI_GATEWAY_ID ?? "default",
-                    maxOutputTokens: 1_800,
+                    maxOutputTokens: 900,
                     model: this.model,
                     name: "smartservice_rag_answer",
                     prompt: isRepairAttempt
@@ -193,7 +230,9 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
                         ? `${ragPromptVersion}-repair`
                         : ragPromptVersion,
                     schema: ragAnswerJsonSchema,
-                    timeoutMs: 12_000,
+                    timeoutMs: attempt === 1
+                        ? Math.min(6_500, remainingMs)
+                        : remainingMs,
                 });
                 const answer = validateGroundedAnswer(
                     ragAnswerSchema.parse(result.value),
@@ -226,7 +265,10 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
             {
                 lastError = error;
 
-                if (attempt === 1)
+                if (
+                    attempt === 1
+                    && totalTimeoutMs - (Date.now() - startedAt) > 150
+                )
                 {
                     repairReason = classifyRagRepairReason(error);
                     console.warn(JSON.stringify({
@@ -244,14 +286,19 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
         }
 
         console.error(JSON.stringify({
-            attempts: 2,
+            attempts,
             errorCode: readAnswerErrorCode(lastError),
             event: "workers_ai.answer.failed",
+            latencyMs: Date.now() - startedAt,
             model: this.model,
             repairReason,
         }));
 
-        throw lastError;
+        throw lastError ?? new ApiError(
+            502,
+            "WORKERS_AI_TIME_BUDGET_EXCEEDED",
+            "The primary answer provider exceeded its latency budget.",
+        );
     }
 }
 

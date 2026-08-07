@@ -31,6 +31,7 @@ export interface StructuredOutputRequest
     errorMessage: string;
     eventName: string;
     maxOutputTokens: number;
+    maxAttempts?: 1 | 2;
     model: string;
     name: string;
     prompt: {
@@ -41,6 +42,7 @@ export interface StructuredOutputRequest
     reasoningEffort?: "minimal" | "low" | "medium" | "high";
     schema: Record<string, unknown>;
     timeoutMs: number;
+    totalTimeoutMs?: number;
 }
 
 export interface StructuredOutputResult
@@ -116,10 +118,24 @@ export async function requestStructuredOutput(
     input: StructuredOutputRequest,
 ): Promise<StructuredOutputResult>
 {
+    const startedAt = Date.now();
+    const maxAttempts = input.maxAttempts ?? 2;
+    const totalTimeoutMs = input.totalTimeoutMs
+        ?? (input.timeoutMs * maxAttempts) + (500 * (maxAttempts - 1));
+    const deadlineAt = startedAt + totalTimeoutMs;
+    let attempts = 0;
     let lastStatus = 0;
 
-    for (let attempt = 1; attempt <= 2; attempt += 1)
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1)
     {
+        const remainingMs = deadlineAt - Date.now();
+
+        if (remainingMs <= 0)
+        {
+            break;
+        }
+
+        attempts = attempt;
         let response: Response;
 
         try
@@ -158,12 +174,12 @@ export async function requestStructuredOutput(
                     "x-client-request-id": crypto.randomUUID(),
                 },
                 method: "POST",
-                signal: AbortSignal.timeout(input.timeoutMs),
+                signal: AbortSignal.timeout(Math.max(1, Math.min(input.timeoutMs, remainingMs))),
             });
         }
         catch
         {
-            if (attempt < 2)
+            if (attempt < maxAttempts && deadlineAt - Date.now() > 500)
             {
                 await waitForResponseRetry();
                 continue;
@@ -216,14 +232,29 @@ export async function requestStructuredOutput(
                 );
             }
 
-            return {
+            const output = {
                 inputTokens: payload.usage?.input_tokens ?? null,
                 outputTokens: payload.usage?.output_tokens ?? null,
                 value,
             };
+
+            console.info(JSON.stringify({
+                attempts,
+                component: input.name,
+                event: "structured_output.succeeded",
+                latencyMs: Date.now() - startedAt,
+                model: input.model,
+                promptVersion: input.promptVersion,
+            }));
+
+            return output;
         }
 
-        if (!isRetryableResponseStatus(response.status) || attempt === 2)
+        if (
+            !isRetryableResponseStatus(response.status)
+            || attempt === maxAttempts
+            || deadlineAt - Date.now() <= 500
+        )
         {
             break;
         }
@@ -232,7 +263,9 @@ export async function requestStructuredOutput(
     }
 
     console.error(JSON.stringify({
+        attempts,
         event: input.eventName,
+        latencyMs: Date.now() - startedAt,
         model: input.model,
         promptVersion: input.promptVersion,
         status: lastStatus,

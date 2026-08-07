@@ -24,7 +24,14 @@ export interface RagGenerationInput
     evidence: readonly RetrievedEvidence[];
     language: ConversationLanguage;
     question: string;
+    questionParts?: readonly string[];
     recentMessages: readonly RecentConversationMessage[];
+}
+
+export interface RagValidationContext
+{
+    language: ConversationLanguage;
+    questionParts: readonly string[];
 }
 
 export interface RagGenerationResult
@@ -47,7 +54,7 @@ export interface RagAnswerProvider
 
 export type RagRepairReason = "grounding_validation" | "provider_failure" | "response_format";
 
-export const ragPromptVersion = "rag-answer-v7";
+export const ragPromptVersion = "rag-answer-v8";
 
 interface ExactEntityConstraint
 {
@@ -200,6 +207,43 @@ export const ragAnswerJsonSchema = {
             minLength: 1,
             type: "string",
         },
+        questionPartAnswers: {
+            items: {
+                additionalProperties: false,
+                properties: {
+                    answer: {
+                        maxLength: 280,
+                        minLength: 1,
+                        type: "string",
+                    },
+                    citationChunkIds: {
+                        items: {
+                            format: "uuid",
+                            type: "string",
+                        },
+                        maxItems: 5,
+                        type: "array",
+                    },
+                    partIndex: {
+                        maximum: 4,
+                        minimum: 0,
+                        type: "integer",
+                    },
+                    supported: {
+                        type: "boolean",
+                    },
+                },
+                required: [
+                    "answer",
+                    "citationChunkIds",
+                    "partIndex",
+                    "supported",
+                ],
+                type: "object",
+            },
+            maxItems: 5,
+            type: "array",
+        },
     },
     required: [
         "answer",
@@ -208,6 +252,7 @@ export const ragAnswerJsonSchema = {
         "decision",
         "handoffReason",
         "normalizedQuestion",
+        "questionPartAnswers",
     ],
     type: "object",
 } as const;
@@ -828,6 +873,7 @@ export function enforceCustomerControlledHandoff(
 export function validateGroundedAnswer(
     candidate: unknown,
     retrievedEvidence: readonly RetrievedEvidence[],
+    context?: RagValidationContext,
 ): RagAnswer
 {
     const answer = ragAnswerSchema.parse(candidate);
@@ -860,6 +906,102 @@ export function validateGroundedAnswer(
         throw new RagValidationError("A handoff requires a reason and cannot present factual citations.");
     }
 
+    const questionParts = context?.questionParts
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0)
+        .slice(0, 5) ?? [];
+
+    if (questionParts.length > 1 && context !== undefined)
+    {
+        const partAnswers = answer.questionPartAnswers;
+
+        if (partAnswers === undefined || partAnswers.length !== questionParts.length)
+        {
+            throw new RagValidationError("The model did not address every customer question part.");
+        }
+
+        const orderedPartAnswers = [...partAnswers].sort((left, right) =>
+            left.partIndex - right.partIndex,
+        );
+        const expectedIndexes = questionParts.map((_, index) => index);
+
+        if (orderedPartAnswers.some((part, index) => part.partIndex !== expectedIndexes[index]))
+        {
+            throw new RagValidationError("The model returned incomplete or duplicate question-part coverage.");
+        }
+
+        const selectedCitationIds: string[] = [];
+
+        for (const part of orderedPartAnswers)
+        {
+            if (part.citationChunkIds.some((chunkId) => !retrievedIds.has(chunkId)))
+            {
+                throw new RagValidationError("A question part cited evidence outside the retrieval result.");
+            }
+
+            if (part.supported && part.citationChunkIds.length === 0)
+            {
+                throw new RagValidationError("A supported question part requires a citation.");
+            }
+
+            if (!part.supported && part.citationChunkIds.length > 0)
+            {
+                throw new RagValidationError("An unconfirmed question part cannot cite a factual source.");
+            }
+
+            part.citationChunkIds.forEach((chunkId) =>
+            {
+                if (!selectedCitationIds.includes(chunkId))
+                {
+                    selectedCitationIds.push(chunkId);
+                }
+            });
+        }
+
+        const selectedCitationSet = new Set(selectedCitationIds);
+
+        if (
+            selectedCitationIds.length !== answer.citationChunkIds.length
+            || answer.citationChunkIds.some((chunkId) => !selectedCitationSet.has(chunkId))
+        )
+        {
+            throw new RagValidationError("The overall citations do not match the per-part citations.");
+        }
+
+        const hasSupportedPart = orderedPartAnswers.some((part) => part.supported);
+
+        if (
+            (hasSupportedPart && (answer.decision !== "answer" || answer.handoffReason !== null))
+            || (!hasSupportedPart && (
+                answer.decision !== "clarify"
+                || answer.handoffReason === null
+                || answer.citationChunkIds.length > 0
+            ))
+        )
+        {
+            throw new RagValidationError("The overall decision does not match the question-part results.");
+        }
+
+        const composedAnswer = orderedPartAnswers
+            .map((part, index) => `${index + 1}. ${part.answer.trim()}`)
+            .join("\n");
+        const customerAnswer = orderedPartAnswers.some((part) => !part.supported)
+            ? appendSupportSpecialistOption(composedAnswer, context.language)
+            : composedAnswer;
+
+        if (customerAnswer.length > 1_600)
+        {
+            throw new RagValidationError("The complete multipart answer is too long.");
+        }
+
+        return ragAnswerSchema.parse({
+            ...answer,
+            answer: customerAnswer,
+            citationChunkIds: selectedCitationIds,
+            questionPartAnswers: orderedPartAnswers,
+        });
+    }
+
     return answer;
 }
 
@@ -887,6 +1029,10 @@ export function buildRagPrompt(input: RagGenerationInput): {
             senderType: message.senderType,
             text: message.text.slice(0, 800),
         }));
+    const questionParts = (input.questionParts ?? [input.question])
+        .map((part) => part.trim().slice(0, 500))
+        .filter((part) => part.length > 0)
+        .slice(0, 5);
 
     return {
         system: [
@@ -899,6 +1045,9 @@ export function buildRagPrompt(input: RagGenerationInput): {
             "When a detail cannot be confirmed, say so plainly and offer support-specialist verification without claiming a transfer has happened.",
             "Never substitute a nearby product, instrument, person, course, service, model, plan, or identifier.",
             "For a multi-part question, address every part separately. Answer supported parts and say plainly which specific parts you could not find.",
+            "QUESTION_PARTS is the server's ordered decomposition of the latest customer turn. Return exactly one questionPartAnswers item for every entry, using its zero-based partIndex and the same order; never omit or merge a part.",
+            "Each supported part must contain a direct customer-facing answer and its exact citation IDs. Each unconfirmed part must set supported=false, use no citations, and state the specific limitation. The overall answer and citations must faithfully combine all part items.",
+            "If at least one question part is supported, set the overall decision to answer and use the union of the supported parts' citations. If no part is supported, set the overall decision to clarify with no citations and an appropriate missing or conflicting knowledge reason.",
             "Do not infer a current role-holder, offering, price, availability, service or delivery mode, or location from an adjacent fact. A founder, former employee, or different title does not establish the requested current role.",
             "Never claim that a product or service does not exist or is unavailable unless EVIDENCE says so. For decision=clarify, explain the exact limitation conversationally and offer support-specialist verification.",
             "Never use internal phrases such as 'evidence', 'approved knowledge', 'insufficient evidence', 'reliable answer', 'retrieval', or 'source materials' in customer-facing answer text. In Chinese, do not say '根据我查到的资料' or '我查资料'.",
@@ -910,6 +1059,7 @@ export function buildRagPrompt(input: RagGenerationInput): {
             EVIDENCE: evidence,
             LANGUAGE: input.language,
             QUESTION: input.question,
+            QUESTION_PARTS: questionParts,
             RECENT_MESSAGES: recentMessages,
         }),
     };
@@ -932,7 +1082,7 @@ export function buildRagRepairPrompt(
 {
     const prompt = buildRagPrompt(input);
     const failedRequirement = reason === "grounding_validation"
-        ? "The previous response used citations or a decision that did not satisfy the grounding rules."
+        ? "The previous response omitted a question part, or its citations or a decision did not satisfy the grounding and part-coverage rules."
         : reason === "response_format"
             ? "The previous response did not satisfy the required JSON object and field contract."
             : "The previous provider attempt did not complete successfully.";
@@ -944,6 +1094,8 @@ export function buildRagRepairPrompt(
             failedRequirement,
             "Re-evaluate the customer question from the supplied EVIDENCE; do not repeat or defend the previous response.",
             "Return exactly one JSON object matching the required schema, with every required field and no Markdown or surrounding commentary.",
+            "Return exactly one questionPartAnswers item for every QUESTION_PARTS entry, with consecutive partIndex values starting at zero.",
+            "If any part is supported, use overall decision=answer and the union of its supported-part citations; use decision=clarify only when no part is supported.",
             "For decision=answer, copy one to five citationChunkIds exactly from EVIDENCE. Never invent, alter, or omit an ID needed to support a factual answer.",
             "If the supplied EVIDENCE cannot support the requested fact, use decision=clarify with no citations and the appropriate missing or conflicting knowledge reason.",
         ].join("\n"),

@@ -415,6 +415,99 @@ describe("grounded RAG", () =>
         expect(payload.RECENT_MESSAGES.every((message) => message.text.length <= 800)).toBe(true);
     });
 
+    it("passes the server-decomposed question parts to the model in stable order", () =>
+    {
+        const questionParts = [
+            "What is the warranty?",
+            "What does it cost?",
+            "When are you open?",
+        ];
+        const prompt = buildRagPrompt({
+            evidence,
+            language: "en",
+            question: questionParts.join(" "),
+            questionParts,
+            recentMessages: [],
+        });
+        const payload = JSON.parse(prompt.user) as {
+            QUESTION_PARTS: string[];
+        };
+
+        expect(payload.QUESTION_PARTS).toEqual(questionParts);
+        expect(prompt.system).toContain("never omit or merge a part");
+    });
+
+    it("fails closed when a multipart answer omits one customer question", () =>
+    {
+        expect(() => validateGroundedAnswer({
+            answer: "Partial answer.",
+            citationChunkIds: [fixtureEvidence.chunkId],
+            confidence: 0.8,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "warranty price hours",
+            questionPartAnswers: [{
+                answer: "The warranty is one year.",
+                citationChunkIds: [fixtureEvidence.chunkId],
+                partIndex: 0,
+                supported: true,
+            }, {
+                answer: "I cannot confirm the price yet.",
+                citationChunkIds: [],
+                partIndex: 1,
+                supported: false,
+            }],
+        }, evidence, {
+            language: "en",
+            questionParts: [
+                "What is the warranty?",
+                "What does it cost?",
+                "When are you open?",
+            ],
+        })).toThrow("did not address every customer question part");
+    });
+
+    it("composes every supported and unconfirmed multipart result in order", () =>
+    {
+        const answer = validateGroundedAnswer({
+            answer: "Model aggregate is replaced by validated parts.",
+            citationChunkIds: [fixtureEvidence.chunkId],
+            confidence: 0.8,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "warranty price hours",
+            questionPartAnswers: [{
+                answer: "The warranty is one year.",
+                citationChunkIds: [fixtureEvidence.chunkId],
+                partIndex: 0,
+                supported: true,
+            }, {
+                answer: "I cannot confirm the price yet.",
+                citationChunkIds: [],
+                partIndex: 1,
+                supported: false,
+            }, {
+                answer: "I cannot confirm the opening hours yet.",
+                citationChunkIds: [],
+                partIndex: 2,
+                supported: false,
+            }],
+        }, evidence, {
+            language: "en",
+            questionParts: [
+                "What is the warranty?",
+                "What does it cost?",
+                "When are you open?",
+            ],
+        });
+
+        expect(answer.answer).toContain("1. The warranty is one year.");
+        expect(answer.answer).toContain("2. I cannot confirm the price yet.");
+        expect(answer.answer).toContain("3. I cannot confirm the opening hours yet.");
+        expect(answer.answer).toContain("support specialist");
+        expect(answer.citationChunkIds).toEqual([fixtureEvidence.chunkId]);
+    });
+
     it("never asks a customer to retry after an unavailable confirmation", () =>
     {
         const answer = createSafeClarification(

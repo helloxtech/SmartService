@@ -249,6 +249,63 @@ describe("Workers AI RAG answer provider", () =>
         ));
     });
 
+    it("repairs a multipart response that omits one server-planned question", async () =>
+    {
+        const baseAnswer = createGroundedAnswer();
+        const runMock = vi.fn()
+            .mockResolvedValueOnce({
+                response: {
+                    ...baseAnswer,
+                    questionPartAnswers: [{
+                        answer: baseAnswer.answer,
+                        citationChunkIds: baseAnswer.citationChunkIds,
+                        partIndex: 0,
+                        supported: true,
+                    }],
+                },
+            })
+            .mockResolvedValueOnce({
+                response: {
+                    ...baseAnswer,
+                    questionPartAnswers: [{
+                        answer: baseAnswer.answer,
+                        citationChunkIds: baseAnswer.citationChunkIds,
+                        partIndex: 0,
+                        supported: true,
+                    }, {
+                        answer: "I cannot confirm the price yet.",
+                        citationChunkIds: [],
+                        partIndex: 1,
+                        supported: false,
+                    }],
+                },
+            });
+        vi.spyOn(console, "warn").mockImplementation(() => undefined);
+        vi.spyOn(console, "info").mockImplementation(() => undefined);
+        const provider = new WorkersAiRagAnswerProvider({
+            AI: {
+                run: runMock,
+            } as unknown as Ai,
+        } as SmartServiceBindings);
+        const input = {
+            ...createGenerationInput(),
+            question: "What is the maximum flow? What is the price?",
+            questionParts: [
+                "What is the maximum flow?",
+                "What is the price?",
+            ],
+        };
+        const result = await provider.generate(input);
+
+        expect(runMock).toHaveBeenCalledTimes(2);
+        expect(result).toMatchObject({
+            generationAttempts: 2,
+            recoveryMode: "same_provider_repair",
+        });
+        expect(result.answer.answer).toContain("1.");
+        expect(result.answer.answer).toContain("2. I cannot confirm the price yet.");
+    });
+
     it("applies the same corrective contract to a non-school service tenant", async () =>
     {
         const serviceAnswer = createGroundedAnswer(

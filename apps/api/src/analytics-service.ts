@@ -838,7 +838,10 @@ export class SupabaseAnalyticsService implements AnalyticsService
                 model = generated.model;
                 outputTokens = generated.outputTokens;
                 provider = generated.provider;
-                answer = validateGroundedAnswer(generated.answer, evidence);
+                answer = validateGroundedAnswer(generated.answer, evidence, {
+                    language,
+                    questionParts: [gap.exampleQuestion],
+                });
                 const outputEvaluation = evaluateDeterministicGuardrails({
                     candidateAnswer: answer.answer,
                     evidence: selectCitedGuardrailEvidence(

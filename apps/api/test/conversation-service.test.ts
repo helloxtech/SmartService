@@ -89,7 +89,13 @@ function createFailureHarness(
 
             return {
                 answer: turn.answer,
-                citations: [],
+                citations: turn.citations.map((citation) => ({
+                    citationId: citation.chunkId,
+                    label: citation.label,
+                    sourceType: "url" as const,
+                    sourceUrl: null,
+                    supportingExcerpt: citation.supportingExcerpt,
+                })),
                 decision: turn.decision,
                 handoff: null,
                 messageId: assistantMessageId,
@@ -105,7 +111,7 @@ function createFailureHarness(
         retrieveEvidence,
     } as unknown as SupabaseConversationRepository;
     const embeddings: EmbeddingProvider = {
-        embed: vi.fn().mockImplementation(async () =>
+        embed: vi.fn().mockImplementation(async (texts: readonly string[]) =>
         {
             if (failurePoint === "query_embedding")
             {
@@ -116,7 +122,7 @@ function createFailureHarness(
                 );
             }
 
-            return [Array.from({ length: 1_024 }, () => 0)];
+            return texts.map(() => Array.from({ length: 1_024 }, () => 0));
         }),
     };
     const answers: RagAnswerProvider = {
@@ -241,6 +247,9 @@ describe("tenant-generic turn failure isolation", () =>
             expect.any(Number),
             3,
         );
+        expect(harness.answers.generate).toHaveBeenCalledWith(expect.objectContaining({
+            questionParts: ["Can I move my appointment?"],
+        }));
         expect(turn?.retrievalMetadata).toMatchObject({
             processing: {
                 failedStage: null,
@@ -252,6 +261,57 @@ describe("tenant-generic turn failure isolation", () =>
                 }),
             },
         });
+    });
+
+    it("preserves every server-planned part through retrieval and answer generation", async () =>
+    {
+        const harness = createFailureHarness(null);
+        vi.mocked(harness.answers.generate).mockResolvedValue({
+            answer: {
+                answer: "The model aggregate will be replaced.",
+                citationChunkIds: [evidenceChunkId],
+                confidence: 0.8,
+                decision: "answer",
+                handoffReason: null,
+                normalizedQuestion: "warranty and price",
+                questionPartAnswers: [{
+                    answer: "The warranty is one year.",
+                    citationChunkIds: [evidenceChunkId],
+                    partIndex: 0,
+                    supported: true,
+                }, {
+                    answer: "I cannot confirm the price yet.",
+                    citationChunkIds: [],
+                    partIndex: 1,
+                    supported: false,
+                }],
+            },
+            inputTokens: 80,
+            model: "@cf/meta/llama-3.1-8b-instruct-fast",
+            outputTokens: 40,
+            provider: "cloudflare-workers-ai",
+        });
+
+        const response = await harness.service.sendTrusted(
+            organizationId,
+            conversationId,
+            {
+                clientMessageId: crypto.randomUUID(),
+                text: "What is the warranty? What does it cost?",
+            },
+            "request-multipart-coverage-test",
+        );
+
+        expect(harness.answers.generate).toHaveBeenCalledWith(expect.objectContaining({
+            questionParts: [
+                "What is the warranty",
+                "What does it cost",
+            ],
+        }));
+        expect(harness.retrieveEvidence).toHaveBeenCalledTimes(2);
+        expect(response.answer).toContain("1. The warranty is one year.");
+        expect(response.answer).toContain("2. I cannot confirm the price yet.");
+        expect(response.answer).toContain("support specialist");
     });
 
     it.each([{

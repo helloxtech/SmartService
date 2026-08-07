@@ -1118,6 +1118,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                             evidence,
                             language,
                             question: input.text,
+                            questionParts: focusedRetrievalQuestions,
                             recentMessages,
                         };
                         const approvedManualAnswer = createApprovedManualAnswer(generationInput);
@@ -1138,7 +1139,10 @@ export class DefaultPublicConversationService implements PublicConversationServi
                             outputTokens = generated.outputTokens;
                             provider = generated.provider;
                             answer = enforceCustomerControlledHandoff(
-                                validateGroundedAnswer(generated.answer, evidence),
+                                validateGroundedAnswer(generated.answer, evidence, {
+                                    language,
+                                    questionParts: focusedRetrievalQuestions,
+                                }),
                                 input.text,
                                 language,
                             );

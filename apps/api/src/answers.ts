@@ -240,6 +240,10 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
                 const answer = validateGroundedAnswer(
                     ragAnswerSchema.parse(result.value),
                     input.evidence,
+                    {
+                        language: input.language,
+                        questionParts: input.questionParts ?? [input.question],
+                    },
                 );
 
                 if (isRepairAttempt)
@@ -373,7 +377,10 @@ export class HybridRagAnswerProvider implements RagAnswerProvider
     {
         return {
             ...result,
-            answer: validateGroundedAnswer(result.answer, input.evidence),
+            answer: validateGroundedAnswer(result.answer, input.evidence, {
+                language: input.language,
+                questionParts: input.questionParts ?? [input.question],
+            }),
         };
     }
 }

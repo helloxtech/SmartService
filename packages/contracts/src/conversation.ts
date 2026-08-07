@@ -135,6 +135,12 @@ export const ragAnswerSchema = z.object({
     decision: conversationDecisionSchema,
     handoffReason: handoffReasonSchema.nullable(),
     normalizedQuestion: z.string().min(1).max(500),
+    questionPartAnswers: z.array(z.object({
+        answer: z.string().min(1).max(280),
+        citationChunkIds: z.array(z.uuid()).max(5),
+        partIndex: z.number().int().min(0).max(4),
+        supported: z.boolean(),
+    })).max(5).optional(),
 });
 
 export type ConversationDecision = z.infer<typeof conversationDecisionSchema>;

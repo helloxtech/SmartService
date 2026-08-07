@@ -54,6 +54,7 @@ export type SmartServiceBindings = Omit<
     | "CHAT_PRIMARY_PROVIDER"
     | "CHAT_PROVIDER_MODE"
     | "CHAT_SUPERVISION_BUDGET_MS"
+    | "CHAT_WORKERS_AI_MODEL"
     | "CRAWL_PROVIDER_MODE"
     | "EMBEDDING_PROVIDER_MODE"
     | "AUXILIARY_PROVIDER_MODE"
@@ -79,6 +80,7 @@ export type SmartServiceBindings = Omit<
     CHAT_PRIMARY_PROVIDER?: "openai" | "workers-ai";
     CHAT_PROVIDER_MODE?: "live" | "mock";
     CHAT_SUPERVISION_BUDGET_MS?: string;
+    CHAT_WORKERS_AI_MODEL?: string;
     CONVERSATION_TOKEN_SECRET?: string;
     CONVERSATION_TOKEN_TTL_MINUTES?: string;
     CRAWL_PROVIDER_MODE?: "live" | "mock";

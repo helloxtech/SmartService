@@ -87,20 +87,13 @@ describe("OpenAI RAG answer provider", () =>
 
 describe("Workers AI RAG answer provider", () =>
 {
-    it("uses Cloudflare-hosted GLM in non-thinking JSON Schema mode without content logging", async () =>
+    it("uses the fast Cloudflare-hosted model in JSON Schema mode without content logging", async () =>
     {
         const runMock = vi.fn().mockResolvedValue({
-            choices: [{
-                finish_reason: "stop",
-                message: {
-                    content: JSON.stringify(createGroundedAnswer()),
-                    refusal: null,
-                    role: "assistant",
-                },
-            }],
+            response: createGroundedAnswer(),
             created: 1,
             id: "workers-ai-test",
-            model: "@cf/zai-org/glm-4.7-flash",
+            model: "@cf/meta/llama-3.1-8b-instruct-fast",
             object: "chat.completion",
             usage: {
                 completion_tokens: 29,
@@ -124,7 +117,52 @@ describe("Workers AI RAG answer provider", () =>
             },
         ];
 
-        expect(model).toBe("@cf/zai-org/glm-4.7-flash");
+        expect(model).toBe("@cf/meta/llama-3.1-8b-instruct-fast");
+        expect(request).toMatchObject({
+            max_tokens: 900,
+            response_format: {
+                json_schema: expect.objectContaining({
+                    required: expect.arrayContaining(["answer", "citationChunkIds"]),
+                }),
+                type: "json_schema",
+            },
+            temperature: 0,
+        });
+        expect(options.gateway).toMatchObject({
+            collectLog: false,
+            id: "default",
+            requestTimeoutMs: 6_500,
+        });
+        expect(options.tags).toEqual(["smartservice", "rag-answer"]);
+        expect(result).toMatchObject({
+            inputTokens: 96,
+            model: "@cf/meta/llama-3.1-8b-instruct-fast",
+            outputTokens: 29,
+            provider: "cloudflare-workers-ai",
+        });
+    });
+
+    it("retains the bounded non-thinking GLM request as an explicit rollback option", async () =>
+    {
+        const runMock = vi.fn().mockResolvedValue({
+            choices: [{
+                finish_reason: "stop",
+                message: {
+                    content: JSON.stringify(createGroundedAnswer()),
+                },
+            }],
+        });
+        const provider = new WorkersAiRagAnswerProvider({
+            AI: {
+                run: runMock,
+            } as unknown as Ai,
+            CHAT_WORKERS_AI_MODEL: "@cf/zai-org/glm-4.7-flash",
+            WORKERS_AI_GATEWAY_ID: "default",
+        } as SmartServiceBindings);
+
+        await provider.generate(createGenerationInput());
+        const request = runMock.mock.calls[0]?.[1] as Record<string, unknown>;
+
         expect(request).toMatchObject({
             chat_template_kwargs: {
                 enable_thinking: false,
@@ -137,23 +175,19 @@ describe("Workers AI RAG answer provider", () =>
                 type: "json_schema",
             },
             store: false,
-            temperature: 0,
-        });
-        expect(options.gateway).toMatchObject({
-            collectLog: false,
-            id: "default",
-            requestTimeoutMs: 6_500,
-        });
-        expect(options.tags).toEqual(["smartservice", "rag-answer"]);
-        expect(result).toMatchObject({
-            inputTokens: 96,
-            model: "@cf/zai-org/glm-4.7-flash",
-            outputTokens: 29,
-            provider: "cloudflare-workers-ai",
         });
     });
 
-    it("retries GLM once after a schema-invalid primary response", async () =>
+    it("rejects an untested Workers AI model instead of silently changing behavior", () =>
+    {
+        expect(() => new WorkersAiRagAnswerProvider({
+            CHAT_WORKERS_AI_MODEL: "@cf/example/untested-model",
+        } as SmartServiceBindings)).toThrow(expect.objectContaining({
+            code: "CHAT_WORKERS_AI_MODEL_INVALID",
+        }));
+    });
+
+    it("retries Workers AI once after a schema-invalid primary response", async () =>
     {
         const runMock = vi.fn()
             .mockResolvedValueOnce({
@@ -267,7 +301,7 @@ describe("Workers AI RAG answer provider", () =>
         expect(repairSystemPrompt).not.toContain("古筝");
     });
 
-    it("falls back to OpenAI when GLM cites evidence outside the exact retrieval set", async () =>
+    it("falls back to OpenAI when Workers AI cites evidence outside the exact retrieval set", async () =>
     {
         const runMock = vi.fn().mockResolvedValue({
             choices: [{
@@ -280,7 +314,7 @@ describe("Workers AI RAG answer provider", () =>
             }],
             created: 1,
             id: "workers-ai-invalid-citation",
-            model: "@cf/zai-org/glm-4.7-flash",
+            model: "@cf/meta/llama-3.1-8b-instruct-fast",
             object: "chat.completion",
             usage: {
                 completion_tokens: 20,
@@ -361,7 +395,7 @@ describe("Workers AI RAG answer provider", () =>
             }],
             created: 1,
             id: "workers-ai-primary-only",
-            model: "@cf/zai-org/glm-4.7-flash",
+            model: "@cf/meta/llama-3.1-8b-instruct-fast",
             object: "chat.completion",
             usage: {
                 completion_tokens: 21,
@@ -386,7 +420,7 @@ describe("Workers AI RAG answer provider", () =>
         expect(runMock).toHaveBeenCalledTimes(1);
         expect(fetchMock).not.toHaveBeenCalled();
         expect(result).toMatchObject({
-            model: "@cf/zai-org/glm-4.7-flash",
+            model: "@cf/meta/llama-3.1-8b-instruct-fast",
             provider: "cloudflare-workers-ai",
         });
     });

@@ -12,13 +12,43 @@ import {
     type RagRepairReason,
 } from "@smartservice/assistant-core";
 import { ragAnswerSchema } from "@smartservice/contracts";
+import { z } from "zod";
 
 import { ApiError } from "./errors";
 import { requestStructuredOutput } from "./openai-structured-output";
 import type { SmartServiceBindings } from "./types";
-import { requestWorkersAiStructuredOutput } from "./workers-ai-structured-output";
+import {
+    requestWorkersAiStructuredOutput,
+    workersAiChatModels,
+    type WorkersAiChatModel,
+} from "./workers-ai-structured-output";
 
-const workersAiChatModel = "@cf/zai-org/glm-4.7-flash" as const;
+const workersAiChatModelSchema = z.enum(workersAiChatModels);
+
+/**
+ * parseWorkersAiChatModel
+ * ----------------
+ * Selects one explicitly supported Cloudflare-hosted JSON-mode model so production can change latency or quality profiles without a code rewrite.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Customer Answer Latency Hardening
+ */
+function parseWorkersAiChatModel(bindings: SmartServiceBindings): WorkersAiChatModel
+{
+    const result = workersAiChatModelSchema.safeParse(
+        bindings.CHAT_WORKERS_AI_MODEL ?? "@cf/meta/llama-3.1-8b-instruct-fast",
+    );
+
+    if (!result.success)
+    {
+        throw new ApiError(
+            503,
+            "CHAT_WORKERS_AI_MODEL_INVALID",
+            "The primary answer model is not supported.",
+        );
+    }
+
+    return result.data;
+}
 
 /**
  * parseAnswerBudgetMs
@@ -162,24 +192,25 @@ export class OpenAiRagAnswerProvider implements RagAnswerProvider
 
 export class WorkersAiRagAnswerProvider implements RagAnswerProvider
 {
-    public readonly model = workersAiChatModel;
+    public readonly model: WorkersAiChatModel;
     public readonly provider = "cloudflare-workers-ai";
 
     /**
      * WorkersAiRagAnswerProvider
      * ----------------
-     * Creates the Cloudflare-hosted GLM primary answer provider while retaining all server-side RAG validation boundaries.
+     * Creates the configured Cloudflare-hosted primary answer provider while retaining all server-side RAG validation boundaries.
      *
      * August 03, 2026: Created by Forrest Zhang for SmartService Workers AI Cost Optimization
      */
     public constructor(private readonly bindings: SmartServiceBindings)
     {
+        this.model = parseWorkersAiChatModel(bindings);
     }
 
     /**
      * generate
      * ----------------
-     * Requests a bounded non-thinking GLM answer in JSON Schema mode with one same-model repair inside one shared wall-clock budget.
+     * Requests a bounded Workers AI answer in JSON Schema mode with one same-model repair inside one shared wall-clock budget.
      *
      * August 03, 2026: Updated by Forrest Zhang for SmartService Primary-Only Reliability
      */

@@ -141,12 +141,12 @@ function createFailureHarness(
                     normalizedQuestion: "can i move my appointment",
                 },
                 inputTokens: 80,
-                model: "@cf/zai-org/glm-4.7-flash",
+                model: "@cf/meta/llama-3.1-8b-instruct-fast",
                 outputTokens: 20,
                 provider: "cloudflare-workers-ai",
             };
         }),
-        model: "@cf/zai-org/glm-4.7-flash",
+        model: "@cf/meta/llama-3.1-8b-instruct-fast",
         provider: "cloudflare-workers-ai",
     };
     const guardrails: GuardrailSupervisor = {
@@ -261,7 +261,7 @@ describe("tenant-generic turn failure isolation", () =>
         failurePoint: "query_embedding" as const,
     }, {
         errorCode: "WORKERS_AI_PROVIDER_FAILED",
-        expectedModel: "@cf/zai-org/glm-4.7-flash",
+        expectedModel: "@cf/meta/llama-3.1-8b-instruct-fast",
         expectedProvider: "cloudflare-workers-ai",
         failurePoint: "answer_generation" as const,
     }])("persists the exact $failurePoint stage without a false gap or handoff", async ({

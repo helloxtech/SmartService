@@ -8,12 +8,38 @@ const workersAiChatCompletionSchema = z.object({
         message: z.object({
             content: z.string().nullable(),
         }).passthrough(),
-    }).passthrough()).min(1),
+    }).passthrough()).min(1).optional(),
+    response: z.unknown().optional(),
     usage: z.object({
         completion_tokens: z.number().int().nonnegative(),
         prompt_tokens: z.number().int().nonnegative(),
     }).optional(),
 }).passthrough();
+
+export const workersAiChatModels = [
+    "@cf/meta/llama-3.1-8b-instruct-fast",
+    "@cf/zai-org/glm-4.7-flash",
+] as const;
+
+export type WorkersAiChatModel = typeof workersAiChatModels[number];
+
+interface WorkersAiJsonModeRunner
+{
+    run(
+        model: WorkersAiChatModel,
+        request: Record<string, unknown>,
+        options: {
+            gateway: {
+                collectLog: boolean;
+                id: string;
+                metadata: Record<string, string>;
+                requestTimeoutMs: number;
+            };
+            signal: AbortSignal;
+            tags: string[];
+        },
+    ): Promise<unknown>;
+}
 
 export interface WorkersAiStructuredOutputRequest
 {
@@ -21,7 +47,7 @@ export interface WorkersAiStructuredOutputRequest
     description: string;
     gatewayId: string;
     maxOutputTokens: number;
-    model: "@cf/zai-org/glm-4.7-flash";
+    model: WorkersAiChatModel;
     name: string;
     prompt: {
         system: string;
@@ -42,7 +68,7 @@ export interface WorkersAiStructuredOutputResult
 /**
  * requestWorkersAiStructuredOutput
  * ----------------
- * Calls the Cloudflare-hosted GLM model in non-thinking JSON Schema mode with bounded output, timeout, and content logging disabled.
+ * Calls a supported Cloudflare-hosted chat model in JSON Schema mode with bounded output, timeout, and content logging disabled.
  *
  * August 03, 2026: Created by Forrest Zhang for SmartService Workers AI Cost Optimization
  */
@@ -54,11 +80,7 @@ export async function requestWorkersAiStructuredOutput(
 
     try
     {
-        const rawResponse = await input.ai.run(input.model, {
-            chat_template_kwargs: {
-                enable_thinking: false,
-            },
-            max_completion_tokens: input.maxOutputTokens,
+        const commonRequest = {
             messages: [
                 {
                     content: input.prompt.system,
@@ -69,18 +91,36 @@ export async function requestWorkersAiStructuredOutput(
                     role: "user",
                 },
             ],
-            response_format: {
-                json_schema: {
-                    description: input.description,
-                    name: input.name,
-                    schema: input.schema,
-                    strict: true,
-                },
-                type: "json_schema",
-            },
-            store: false,
             temperature: 0,
-        }, {
+        };
+        const request = input.model === "@cf/zai-org/glm-4.7-flash"
+            ? {
+                ...commonRequest,
+                chat_template_kwargs: {
+                    enable_thinking: false,
+                },
+                max_completion_tokens: input.maxOutputTokens,
+                response_format: {
+                    json_schema: {
+                        description: input.description,
+                        name: input.name,
+                        schema: input.schema,
+                        strict: true,
+                    },
+                    type: "json_schema",
+                },
+                store: false,
+            }
+            : {
+                ...commonRequest,
+                max_tokens: input.maxOutputTokens,
+                response_format: {
+                    json_schema: input.schema,
+                    type: "json_schema",
+                },
+            };
+        const runner = input.ai as unknown as WorkersAiJsonModeRunner;
+        const rawResponse = await runner.run(input.model, request, {
             gateway: {
                 collectLog: false,
                 id: input.gatewayId,
@@ -94,9 +134,10 @@ export async function requestWorkersAiStructuredOutput(
             tags: ["smartservice", "rag-answer"],
         });
         const response = workersAiChatCompletionSchema.parse(rawResponse);
-        const structuredText = response.choices[0]?.message.content;
+        const structuredOutput = response.response
+            ?? response.choices?.[0]?.message.content;
 
-        if (structuredText === null || structuredText === undefined)
+        if (structuredOutput === null || structuredOutput === undefined)
         {
             throw new ApiError(
                 502,
@@ -105,19 +146,22 @@ export async function requestWorkersAiStructuredOutput(
             );
         }
 
-        let value: unknown;
+        let value: unknown = structuredOutput;
 
-        try
+        if (typeof structuredOutput === "string")
         {
-            value = JSON.parse(structuredText) as unknown;
-        }
-        catch
-        {
-            throw new ApiError(
-                502,
-                "WORKERS_AI_RESPONSE_INVALID",
-                "Workers AI returned invalid Structured Output JSON.",
-            );
+            try
+            {
+                value = JSON.parse(structuredOutput) as unknown;
+            }
+            catch
+            {
+                throw new ApiError(
+                    502,
+                    "WORKERS_AI_RESPONSE_INVALID",
+                    "Workers AI returned invalid Structured Output JSON.",
+                );
+            }
         }
 
         console.info(JSON.stringify({

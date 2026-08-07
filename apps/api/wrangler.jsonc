@@ -16,6 +16,7 @@
     "CHAT_FALLBACK_PROVIDER": "none",
     "CHAT_PRIMARY_PROVIDER": "workers-ai",
     "CHAT_SUPERVISION_BUDGET_MS": "4500",
+    "CHAT_WORKERS_AI_MODEL": "@cf/meta/llama-3.1-8b-instruct-fast",
     "CLOUDFLARE_ACCOUNT_ID": "b2dde8f02e3df92afabde46f36c6625b",
     "CRAWL_PROVIDER_MODE": "live",
     "EMBEDDING_PROVIDER_MODE": "live",

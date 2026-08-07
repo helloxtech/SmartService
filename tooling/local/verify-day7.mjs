@@ -32,7 +32,7 @@ const citationSchema = z.object({
 const answerSchema = z.object({
     answer: z.string().min(1),
     citations: z.array(citationSchema),
-    decision: z.enum(["answer", "clarify", "handoff"]),
+    decision: z.enum(["acknowledge", "answer", "clarify", "handoff"]),
     handoff: z.object({
         reason: z.string(),
         status: z.literal("handoff_requested"),

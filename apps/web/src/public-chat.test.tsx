@@ -155,6 +155,76 @@ describe("PublicChat", () =>
         expect(JSON.stringify(fetchMock.mock.calls)).not.toContain("chunkId");
     });
 
+    it("shows a conversational acknowledgement without an irrelevant support escalation", async () =>
+    {
+        const fetchMock = vi.fn(async (
+            input: RequestInfo | URL,
+            init?: RequestInit,
+        ): Promise<Response> =>
+        {
+            const url = String(input);
+
+            if (url.endsWith("/api/v1/public/conversations"))
+            {
+                return new Response(JSON.stringify({
+                    conversationId,
+                    conversationToken: "x".repeat(32),
+                    displayName: "Smart Service",
+                    expiresAt: "2099-07-26T22:00:00.000Z",
+                    welcomeMessage: "Hello! You’ve reached Smart Service customer service. How can I help today?",
+                }), {
+                    headers: {
+                        "content-type": "application/json",
+                    },
+                    status: 201,
+                });
+            }
+
+            if (url.includes(`/conversations/${conversationId}/messages`) && init?.method === "POST")
+            {
+                return new Response(JSON.stringify({
+                    answer: "Yes, I can hear you. What would you like help with?",
+                    citations: [],
+                    decision: "acknowledge",
+                    handoff: null,
+                    messageId,
+                }), {
+                    headers: {
+                        "content-type": "application/json",
+                    },
+                    status: 200,
+                });
+            }
+
+            if (url.includes(`/conversations/${conversationId}/messages`))
+            {
+                return new Response(null, {
+                    headers: {
+                        etag: 'W/"fixture"',
+                    },
+                    status: 304,
+                });
+            }
+
+            throw new Error(`Unexpected fixture request: ${url}`);
+        });
+        vi.stubGlobal("fetch", fetchMock);
+        const user = userEvent.setup();
+        render(<PublicChat />);
+
+        await screen.findByText("Local demo verification is ready.");
+        await user.type(
+            screen.getByLabelText(/Ask Smart Service customer service/u),
+            "Can you hear me?",
+        );
+        await user.click(screen.getByRole("button", { name: /Send message/u }));
+
+        expect(await screen.findByText("Yes, I can hear you. What would you like help with?"))
+            .toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /Ask a support specialist/u }))
+            .not.toBeInTheDocument();
+    });
+
     it("clears and locks the composer while a company answer is being confirmed", async () =>
     {
         const pendingMessage = createDeferredResponse();

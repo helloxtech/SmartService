@@ -208,7 +208,7 @@ export const teamConversationListResponseSchema = z.object({
 export const teamMessageSchema = z.object({
     citations: z.array(publicCitationSchema).max(5),
     createdAt: z.iso.datetime({ offset: true }),
-    decision: z.enum(["answer", "clarify", "handoff", "human"]).nullable(),
+    decision: z.enum(["acknowledge", "answer", "clarify", "handoff", "human"]).nullable(),
     messageId: z.uuid(),
     senderType: z.enum(["customer", "ai", "human", "system"]),
     senderUserId: z.uuid().nullable(),

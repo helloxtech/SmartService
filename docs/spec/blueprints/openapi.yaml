@@ -779,7 +779,11 @@ components:
       required: [messageId, decision, answer, citations]
       properties:
         messageId: { type: string, format: uuid }
-        decision: { type: string, enum: [answer, clarify, handoff] }
+        decision:
+          {
+            type: string,
+            enum: [acknowledge, answer, clarify, handoff],
+          }
         answer: { type: string }
         citations:
           type: array
@@ -825,7 +829,7 @@ components:
           oneOf:
             - type: 'null'
             - type: string
-              enum: [answer, clarify, handoff, human]
+              enum: [acknowledge, answer, clarify, handoff, human]
         citations:
           type: array
           maxItems: 5
@@ -1327,7 +1331,7 @@ components:
           oneOf:
             - type: 'null'
             - type: string
-              enum: [answer, clarify, handoff, human]
+              enum: [acknowledge, answer, clarify, handoff, human]
         citations:
           type: array
           maxItems: 5

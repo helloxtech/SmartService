@@ -36,7 +36,7 @@ const sendResponseSchema = z.object({
         sourceUrl: z.url().nullable(),
         supportingExcerpt: z.string(),
     })),
-    decision: z.enum(["answer", "clarify", "handoff"]),
+    decision: z.enum(["acknowledge", "answer", "clarify", "handoff"]),
     handoff: z.object({
         reason: z.string(),
         status: z.literal("handoff_requested"),

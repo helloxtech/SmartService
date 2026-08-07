@@ -38,6 +38,7 @@ interface FailureHarness
 {
     answers: RagAnswerProvider;
     embeddings: EmbeddingProvider;
+    listRecentMessages: ReturnType<typeof vi.fn>;
     persistedTurns: CompleteTurnInput[];
     retrieveEvidence: ReturnType<typeof vi.fn>;
     service: DefaultPublicConversationService;
@@ -55,6 +56,7 @@ function createFailureHarness(
 ): FailureHarness
 {
     const persistedTurns: CompleteTurnInput[] = [];
+    const listRecentMessages = vi.fn().mockResolvedValue([]);
     const retrieveEvidence = vi.fn().mockResolvedValue([{
         chunkId: evidenceChunkId,
         combinedScore: 0.93,
@@ -77,7 +79,7 @@ function createFailureHarness(
             status: "active_ai",
         }),
         listGuardrailRules: vi.fn().mockResolvedValue([]),
-        listRecentMessages: vi.fn().mockResolvedValue([]),
+        listRecentMessages,
         loadResponse: vi.fn().mockImplementation(async () =>
         {
             const turn = persistedTurns[0];
@@ -182,6 +184,7 @@ function createFailureHarness(
     return {
         answers,
         embeddings,
+        listRecentMessages,
         persistedTurns,
         retrieveEvidence,
         service: new DefaultPublicConversationService(
@@ -222,6 +225,90 @@ describe("explicit customer handoff intent", () =>
 
 describe("tenant-generic turn failure isolation", () =>
 {
+    it("answers a voice channel check without retrieval, generation, citations, or escalation", async () =>
+    {
+        const harness = createFailureHarness(null);
+        const response = await harness.service.sendTrusted(
+            organizationId,
+            conversationId,
+            {
+                clientMessageId: crypto.randomUUID(),
+                text: "Can you hear me?",
+            },
+            "request-conversation-act-test",
+        );
+        const turn = harness.persistedTurns[0];
+
+        expect(response).toMatchObject({
+            answer: "Yes, I can hear you. What would you like help with?",
+            citations: [],
+            decision: "acknowledge",
+            handoff: null,
+        });
+        expect(harness.embeddings.embed).not.toHaveBeenCalled();
+        expect(harness.retrieveEvidence).not.toHaveBeenCalled();
+        expect(harness.answers.generate).not.toHaveBeenCalled();
+        expect(turn).toMatchObject({
+            citations: [],
+            createGap: false,
+            decision: "acknowledge",
+            handoffReason: null,
+            model: "conversation-act-v1",
+            provider: "deterministic",
+            retrievedChunkIds: [],
+        });
+    });
+
+    it("keeps an anaphoric profile follow-up on the prior subject and drops another industry's result", async () =>
+    {
+        const harness = createFailureHarness(null);
+        const relevantEvidence = {
+            chunkId: evidenceChunkId,
+            combinedScore: 0.81,
+            content: "太阳能板安装工程师 Maria Chen 拥有十年现场安装经验。",
+            sourceLocator: {
+                title: "安装团队简介",
+            },
+        };
+        const unrelatedEvidence = {
+            chunkId: "40000000-0000-4000-a000-000000000021",
+            combinedScore: 0.94,
+            content: "前端工程师张健负责响应式网页排版。",
+            sourceLocator: {
+                title: "软件开发团队",
+            },
+        };
+        harness.listRecentMessages.mockResolvedValue([{
+            senderType: "customer",
+            text: "太阳能板的安装工程师是谁？",
+        }, {
+            senderType: "ai",
+            text: "安装负责人是 Maria Chen。",
+        }]);
+        harness.retrieveEvidence.mockResolvedValue([
+            unrelatedEvidence,
+            relevantEvidence,
+        ]);
+
+        await harness.service.sendTrusted(
+            organizationId,
+            conversationId,
+            {
+                clientMessageId: crypto.randomUUID(),
+                text: "可以看看他们的资料吗？",
+            },
+            "request-context-relevance-test",
+        );
+
+        expect(harness.answers.generate).toHaveBeenCalledWith(expect.objectContaining({
+            evidence: [relevantEvidence],
+            question: "可以看看他们的资料吗？",
+            recentMessages: expect.arrayContaining([expect.objectContaining({
+                text: "太阳能板的安装工程师是谁？",
+            })]),
+        }));
+    });
+
     it("uses the smaller single-question evidence window and records successful stage timings", async () =>
     {
         const harness = createFailureHarness(null);

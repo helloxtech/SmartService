@@ -1,7 +1,8 @@
 import { z } from "zod";
 
-import { conversationLanguageSchema } from "./conversation";
 import {
+    conversationDecisionSchema,
+    conversationLanguageSchema,
     publicCitationSchema,
     publicHandoffSchema,
 } from "./conversation";
@@ -72,7 +73,7 @@ export const completeVoiceTurnRequestSchema = z.object({
 export const completeVoiceTurnResponseSchema = z.object({
     answer: z.string().min(1).max(1600),
     citations: z.array(publicCitationSchema).max(5),
-    decision: z.enum(["answer", "clarify", "handoff"]),
+    decision: conversationDecisionSchema,
     handoff: publicHandoffSchema.nullable(),
     messageId: z.uuid(),
     spokenText: z.string().min(1).max(500),

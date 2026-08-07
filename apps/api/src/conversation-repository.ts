@@ -631,13 +631,41 @@ export class SupabaseConversationRepository
     /**
      * completeTurn
      * ----------------
-     * Atomically persists the AI audit row, customer-visible answer, validated citations, and optional handoff/gap.
+     * Atomically persists either one deterministic conversational acknowledgement or one grounded AI audit row with validated citations and optional handoff/gap.
      *
-     * July 26, 2026: Created by Forrest Zhang for SmartService Day 3 Grounded Text Q&A
+     * August 07, 2026: Updated by Forrest Zhang for Tenant-Generic Conversational Turn Planning
      */
     public async completeTurn(input: CompleteTurnInput): Promise<string>
     {
         const client = createServiceClient(this.bindings);
+
+        if (input.decision === "acknowledge")
+        {
+            const { data, error } = await client.rpc(
+                "complete_public_acknowledgement_turn",
+                {
+                    p_answer: input.answer,
+                    p_conversation_id: input.conversationId,
+                    p_customer_message_id: input.customerMessageId,
+                    p_language: input.language,
+                    p_latency_ms: input.latencyMs,
+                    p_organization_id: input.organizationId,
+                    p_request_id: input.requestId,
+                },
+            );
+
+            if (error !== null || data === null || data.length !== 1)
+            {
+                throw new ApiError(
+                    503,
+                    "TURN_PERSISTENCE_FAILED",
+                    "The conversational response could not be saved.",
+                );
+            }
+
+            return completedTurnRowSchema.parse(data[0]).message_id;
+        }
+
         const { data, error } = await client.rpc("complete_public_turn", {
             p_ai_status: input.aiStatus,
             p_answer: input.answer,

@@ -25,7 +25,7 @@ const voiceTokenSchema = z.object({
 
 const answerSchema = z.object({
     citations: z.array(z.object({}).passthrough()),
-    decision: z.enum(["answer", "clarify", "handoff"]),
+    decision: z.enum(["acknowledge", "answer", "clarify", "handoff"]),
     handoff: z.object({
         reason: z.string(),
     }).nullable(),

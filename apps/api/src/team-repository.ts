@@ -131,7 +131,7 @@ const guardrailEventRowSchema = z.object({
 
 const teamMessageRowSchema = z.object({
     created_at: z.string(),
-    decision: z.enum(["answer", "clarify", "handoff", "human"]).nullable(),
+    decision: z.enum(["acknowledge", "answer", "clarify", "handoff", "human"]).nullable(),
     id: z.uuid(),
     sender_type: z.enum(["customer", "ai", "human", "system"]),
     sender_user_id: z.uuid().nullable(),

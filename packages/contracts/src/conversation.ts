@@ -3,7 +3,12 @@ import { z } from "zod";
 import { knowledgeSourceTypeSchema } from "./knowledge";
 
 export const conversationLanguageSchema = z.enum(["zh-CN", "en"]);
-export const conversationDecisionSchema = z.enum(["answer", "clarify", "handoff"]);
+export const conversationDecisionSchema = z.enum([
+    "acknowledge",
+    "answer",
+    "clarify",
+    "handoff",
+]);
 export const conversationStatusSchema = z.enum([
     "active_ai",
     "resolved_ai",
@@ -76,6 +81,18 @@ export const sendPublicMessageResponseSchema = z.object({
             code: "custom",
             message: "Grounded answers require at least one citation.",
             path: ["citations"],
+        });
+    }
+
+    if (
+        value.decision === "acknowledge"
+        && (value.citations.length > 0 || value.handoff !== null)
+    )
+    {
+        context.addIssue({
+            code: "custom",
+            message: "Conversational acknowledgements cannot include citations or handoff details.",
+            path: ["decision"],
         });
     }
 

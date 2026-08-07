@@ -47,7 +47,7 @@ const sendResponseSchema = z.object({
         sourceUrl: z.url().nullable(),
         supportingExcerpt: z.string(),
     })),
-    decision: z.enum(["answer", "clarify", "handoff"]),
+    decision: z.enum(["acknowledge", "answer", "clarify", "handoff"]),
     error: z.object({
         code: z.string(),
         message: z.string(),

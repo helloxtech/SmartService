@@ -3,13 +3,14 @@ import {
     buildQuestionPartEvidenceScope,
     buildRetrievalQuestions,
     createApprovedManualAnswer,
+    createConversationalAcknowledgement,
     createExplicitStableFactAnswer,
     createSafeClarification,
     createSafeHandoff,
     detectConversationLanguage,
     enforceCustomerControlledHandoff,
     evaluateDeterministicGuardrails,
-    filterEvidenceForExactEntities,
+    filterEvidenceForQuestionContext,
     guardrailPromptVersion,
     mergeRetrievedEvidence,
     normalizeQuestion,
@@ -1098,11 +1099,22 @@ export class DefaultPublicConversationService implements PublicConversationServi
 
         try
         {
+            const acknowledgement = createConversationalAcknowledgement(
+                input.text,
+                language,
+            );
+
             if (isExplicitHandoffRequest(input.text))
             {
                 provider = "policy";
                 model = "customer-handoff-v1";
                 answer = createSafeHandoff(input.text, language, "customer_requested");
+            }
+            else if (acknowledgement !== null)
+            {
+                provider = "deterministic";
+                model = "conversation-act-v1";
+                answer = acknowledgement;
             }
             else
             {
@@ -1183,11 +1195,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 const retrievalQuestions = focusedRetrievalQuestions.map((question) =>
                     buildCrossLanguageRetrievalQuestion(question),
                 );
-                const retrievalThresholds = retrievalQuestions.map((retrievalQuestion, index) =>
-                    retrievalQuestion === focusedRetrievalQuestions[index]
-                        ? configuredThreshold
-                        : Math.min(configuredThreshold, 0.3),
-                );
+                const retrievalThresholds = retrievalQuestions.map(() => configuredThreshold);
                 retrievalCrossLanguageExpanded = retrievalQuestions.some(
                     (question, index) => question !== focusedRetrievalQuestions[index],
                 );
@@ -1239,16 +1247,13 @@ export class DefaultPublicConversationService implements PublicConversationServi
                             );
                             const focusedRetrievalQuestion = focusedRetrievalQuestions[index]
                                 ?? input.text;
-                            const entityQuestion = focusedRetrievalQuestions.length === 1
-                                && focusedRetrievalQuestion !== input.text.trim()
-                                ? [...recentMessages]
-                                    .reverse()
-                                    .find((message) => message.senderType === "customer")
-                                    ?.text ?? input.text
+                            const evidenceQuestion = focusedRetrievalQuestions.length === 1
+                                ? input.text
                                 : focusedRetrievalQuestion;
 
-                            return filterEvidenceForExactEntities(
-                                entityQuestion,
+                            return filterEvidenceForQuestionContext(
+                                evidenceQuestion,
+                                recentMessages,
                                 resultSet,
                             );
                         }),

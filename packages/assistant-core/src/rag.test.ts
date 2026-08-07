@@ -8,11 +8,13 @@ import {
     buildQuestionPartEvidenceScope,
     buildRetrievalQuestion,
     buildRetrievalQuestions,
+    createConversationalAcknowledgement,
     createExplicitStableFactAnswer,
     createSafeClarification,
     DeterministicRagAnswerProvider,
     enforceCustomerControlledHandoff,
-    filterEvidenceForExactEntities,
+    extractQuestionSubjectAnchors,
+    filterEvidenceForQuestionContext,
     isContextDependentFollowUp,
     mergeRetrievedEvidence,
     RagValidationError,
@@ -50,9 +52,46 @@ describe("grounded RAG", () =>
         expect(isContextDependentFollowUp("Are you sure?")).toBe(true);
         expect(isContextDependentFollowUp("请问有什么课程？")).toBe(false);
         expect(followUp).toContain("移动房屋公园的估值");
-        expect(followUp).toContain("customer follow-up: Are you sure?");
+        expect(followUp).toContain("latest customer question: Are you sure?");
         expect(buildRetrievalQuestion("请问有什么课程？", recentMessages))
             .toBe("请问有什么课程？");
+    });
+
+    it("handles social and channel-check turns without retrieval or pretend citations", () =>
+    {
+        expect(createConversationalAcknowledgement("嘿，能听到我说话吗？", "zh-CN"))
+            .toMatchObject({
+                answer: "可以，我听到了。请问您想了解什么？",
+                citationChunkIds: [],
+                decision: "acknowledge",
+                handoffReason: null,
+            });
+        expect(createConversationalAcknowledgement("Thanks!", "en"))
+            .toMatchObject({
+                citationChunkIds: [],
+                decision: "acknowledge",
+            });
+        expect(createConversationalAcknowledgement(
+            "Can you hear me and tell me the price?",
+            "en",
+        )).toBeNull();
+    });
+
+    it("recognizes industry-neutral subject anchors and anaphoric follow-ups", () =>
+    {
+        expect(extractQuestionSubjectAnchors("太阳能板的安装工程师是谁？"))
+            .toContain("太阳能板");
+        expect(extractQuestionSubjectAnchors("What is the AX-9 price?"))
+            .toContain("ax-9");
+        expect(isContextDependentFollowUp("可以看看他们的资料吗？")).toBe(true);
+
+        const query = buildRetrievalQuestion("可以看看他们的资料吗？", [{
+            senderType: "customer",
+            text: "太阳能板的安装工程师是谁？",
+        }]);
+
+        expect(query).toContain("latest customer question: 可以看看他们的资料吗？");
+        expect(query).toContain("太阳能板的安装工程师");
     });
 
     it("decomposes multi-part questions into focused retrieval queries", () =>
@@ -191,26 +230,85 @@ describe("grounded RAG", () =>
         ]);
     });
 
-    it("does not let Guzheng evidence answer a Guqin question", () =>
+    it("filters anaphoric evidence by the prior cross-industry subject and facet", () =>
     {
-        const guzhengEvidence: RetrievedEvidence = {
+        const installerEvidence: RetrievedEvidence = {
             ...fixtureEvidence,
-            content: "古筝表演文凭课程为 40 小时。",
+            content: "太阳能板安装工程师 Maria Chen 拥有十年现场安装经验。",
+            sourceLocator: {
+                title: "安装团队简介",
+            },
         };
-        const mixedEvidence: RetrievedEvidence = {
+        const unrelatedEvidence: RetrievedEvidence = {
             ...fixtureEvidence,
             chunkId: "40000000-0000-4000-a000-000000000006",
-            content: "教师简介提到古琴教学经验。",
+            content: "前端工程师张健负责响应式网页排版。",
+            sourceLocator: {
+                title: "软件开发团队",
+            },
         };
 
-        expect(filterEvidenceForExactEntities(
-            "请问有教古琴吗？",
-            [guzhengEvidence, mixedEvidence],
-        )).toEqual([mixedEvidence]);
-        expect(filterEvidenceForExactEntities(
-            "古琴的收费是多少？",
-            [guzhengEvidence],
-        )).toEqual([]);
+        expect(filterEvidenceForQuestionContext(
+            "可以看看他们的资料吗？",
+            [{
+                senderType: "customer",
+                text: "太阳能板的安装工程师是谁？",
+            }],
+            [unrelatedEvidence, installerEvidence],
+        )).toEqual([installerEvidence]);
+    });
+
+    it("inherits only the nearest explicit subject for an anaphoric follow-up", () =>
+    {
+        const solarEvidence: RetrievedEvidence = {
+            ...fixtureEvidence,
+            content: "太阳能板安装工程师 Maria Chen 拥有十年现场安装经验。",
+            sourceLocator: {
+                title: "太阳能团队简介",
+            },
+        };
+        const heatPumpEvidence: RetrievedEvidence = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000008",
+            content: "热泵安装工程师李华拥有八年设备安装经验。",
+            sourceLocator: {
+                title: "热泵团队简介",
+            },
+        };
+
+        expect(filterEvidenceForQuestionContext(
+            "可以看看他的资料吗？",
+            [{
+                senderType: "customer",
+                text: "太阳能板的安装工程师是谁？",
+            }, {
+                senderType: "ai",
+                text: "相关信息如下。",
+            }, {
+                senderType: "customer",
+                text: "热泵的安装工程师是谁？",
+            }],
+            [solarEvidence, heatPumpEvidence],
+        )).toEqual([heatPumpEvidence]);
+    });
+
+    it("requires evidence for the requested answer facet before generation", () =>
+    {
+        const descriptionEvidence: RetrievedEvidence = {
+            ...fixtureEvidence,
+            content: "太阳能板采用高效单晶硅电池。",
+        };
+        const priceEvidence: RetrievedEvidence = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000009",
+            content: "太阳能板安装价格为每套 5,000 加元。",
+        };
+
+        expect(filterEvidenceForQuestionContext(
+            "太阳能板的价格是多少？",
+            [],
+            [descriptionEvidence, priceEvidence],
+        )).toEqual([priceEvidence]);
     });
 
     it("does not let an adjacent product identifier answer the requested model", () =>
@@ -225,8 +323,9 @@ describe("grounded RAG", () =>
             content: "NF-600 maximum flow is 450 litres per minute.",
         };
 
-        expect(filterEvidenceForExactEntities(
+        expect(filterEvidenceForQuestionContext(
             "What is the NF-500 maximum flow?",
+            [],
             [nf600Evidence, nf500Evidence],
         )).toEqual([nf500Evidence]);
     });
@@ -728,6 +827,98 @@ describe("grounded RAG", () =>
 
         expect(answer.answer).toContain("1. The current manager is Alice Chen.");
         expect(answer.questionPartAnswers?.[0]?.supported).toBe(true);
+    });
+
+    it("does not answer a person-identity question with a generic experienced-team claim", () =>
+    {
+        const teamEvidence = {
+            ...fixtureEvidence,
+            content: "Our installation technicians have extensive field experience.",
+        };
+        const answer = validateGroundedAnswer({
+            answer: "Your technician will be one of our experienced installation specialists.",
+            citationChunkIds: [teamEvidence.chunkId],
+            confidence: 0.8,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "which technician",
+        }, [teamEvidence], {
+            language: "en",
+            questionParts: ["Which technician will install the equipment?"],
+        });
+
+        expect(answer).toMatchObject({
+            citationChunkIds: [],
+            decision: "clarify",
+            handoffReason: "missing_knowledge",
+        });
+
+        const fragmentAnswer = validateGroundedAnswer({
+            answer: "我们的安装工程师经验丰富。",
+            citationChunkIds: [teamEvidence.chunkId],
+            confidence: 0.8,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "太阳能板的安装工程师",
+        }, [teamEvidence], {
+            language: "zh-CN",
+            questionParts: ["太阳能板的安装工程师"],
+        });
+
+        expect(fragmentAnswer).toMatchObject({
+            citationChunkIds: [],
+            decision: "clarify",
+            handoffReason: "missing_knowledge",
+        });
+    });
+
+    it("accepts a named person only when the cited evidence names the same person", () =>
+    {
+        const installerEvidence = {
+            ...fixtureEvidence,
+            content: "Installation lead: Maria Chen.",
+        };
+        const answer = validateGroundedAnswer({
+            answer: "Your installation lead is Maria Chen.",
+            citationChunkIds: [installerEvidence.chunkId],
+            confidence: 0.9,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "installation lead",
+        }, [installerEvidence], {
+            language: "en",
+            questionParts: ["Who is the installation lead?"],
+        });
+
+        expect(answer).toMatchObject({
+            citationChunkIds: [installerEvidence.chunkId],
+            decision: "answer",
+        });
+    });
+
+    it("does not substitute a named person from a different role", () =>
+    {
+        const founderEvidence = {
+            ...fixtureEvidence,
+            content: "Company founder: Maria Chen.",
+        };
+        const answer = validateGroundedAnswer({
+            answer: "Your instructor is Maria Chen.",
+            citationChunkIds: [founderEvidence.chunkId],
+            confidence: 0.9,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "instructor identity",
+        }, [founderEvidence], {
+            language: "en",
+            questionParts: ["Who is the instructor?"],
+        });
+
+        expect(answer).toMatchObject({
+            citationChunkIds: [],
+            decision: "clarify",
+            handoffReason: "missing_knowledge",
+        });
     });
 
     it("rejects a citation retrieved only for a different customer question part", () =>

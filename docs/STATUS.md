@@ -306,7 +306,17 @@ Lead and deliver SmartService as a two-week reusable demo: P0 text customer-serv
 - Customer-ended browser voice sessions now persist the matching `voice_sessions` terminal status through the conversation-scoped bearer token without automatically closing the underlying cross-channel conversation.
 - Validation passed: workspace strict TypeScript; repository ESLint; API suite 78/78; web unit suite 21/21; focused browser voice suite 5/5; desktop and 390-pixel local conversation-center inspection; voice/text/handoff/closed filters; read-only ordinary voice detail; handoff claim and reply.
 - Local test delivery: Vite development preview provides isolated browser-memory cross-channel fixtures at `/local/conversations`; it is gated by `import.meta.env.DEV`, makes no production or provider calls, and was used because this runtime currently has neither Docker nor the Supabase CLI available.
-- Delivery state: local working-tree changes only. No Git push, GitHub workflow, Cloudflare deployment, hosted database mutation, or paid-provider call was made for this checkpoint.
+- Delivery state: deployed from exact commit `9a258a5`; Cloudflare build `b39b65cf` succeeded, `/health` returned `status=ok`, and the real voice conversation `dc84327d-62b4-4ea4-88f4-fb2b0fe04892` was visible with its transcript in the hosted conversation center.
+
+## August 7 tenant-generic conversational reasoning checkpoint
+
+- Audited the real hosted voice transcript and mapped its reply failures to reusable pipeline gaps rather than tenant content: social/channel checks entered RAG, short follow-ups lost their subject, anaphora was not contextualized, generic lexical overlap admitted an unrelated industry source, and person-identity questions accepted non-identifying team descriptions.
+- Removed the Guqin/Guzheng retrieval hard-code. Added an industry-independent turn planner for conversational acknowledgements, subject anchors, answer facets, anaphoric context, exact identifiers, and named-person entailment; ambiguous speech remains fail-closed instead of being silently rewritten.
+- Added `acknowledge` as a persisted non-factual decision so greetings and channel checks need neither fake citations nor an irrelevant specialist offer. Migrations `20260807000100` and `20260807000200` add the enum value and an idempotent, tenant-bound acknowledgement persistence RPC.
+- Retrieval expansion no longer lowers the configured threshold to `0.30`. Contextual profile/identity follow-ups inherit only the nearest explicit subject and require matching facets, while “who” answers require the same explicit person name and requested role in the answer and cited chunk.
+- Regression coverage includes Chinese and English channel checks, solar-installation versus software-development evidence, product identifiers, anaphoric profile follow-ups, generic experienced-team rejection, named-person acceptance, public-contract invariants, and no unnecessary embedding/model call for acknowledgements.
+- Validation passed: `pnpm check` completed formatting, lint, all eight workspace typechecks, 209/209 package tests, production web build, and Worker deployment dry run; `pnpm eval:p0` passed 4/4, `pnpm eval:guardrails` passed 1/1, and `git diff --check` passed. An eight-assertion acknowledgement database regression was added, but the local runtime has no Supabase CLI, so the two new migrations and that SQL test are reviewed but not locally applied or reported as database-tested.
+- Delivery state: local verified candidate only. No push, Cloudflare deployment, hosted migration, paid-provider call, or fallback-provider call has been made for this checkpoint.
 
 ## Current blockers
 

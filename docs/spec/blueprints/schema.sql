@@ -12,7 +12,13 @@ create type public.ingestion_status as enum ('uploaded', 'extracting', 'chunking
 create type public.conversation_channel as enum ('text', 'voice');
 create type public.conversation_status as enum ('active_ai', 'resolved_ai', 'handoff_requested', 'active_human', 'closed');
 create type public.message_sender_type as enum ('customer', 'ai', 'human', 'system');
-create type public.message_decision as enum ('answer', 'clarify', 'handoff', 'human');
+create type public.message_decision as enum (
+    'answer',
+    'clarify',
+    'handoff',
+    'human',
+    'acknowledge'
+);
 create type public.gap_status as enum ('open', 'resolved', 'ignored');
 create type public.ticket_type as enum ('inquiry', 'complaint', 'after_sales', 'other');
 create type public.urgency_level as enum ('low', 'normal', 'high', 'critical');

@@ -46,4 +46,36 @@ describe("conversation contracts", () =>
 
         expect(result.decision).toBe("human");
     });
+
+    it("accepts a citation-free conversational acknowledgement without offering handoff", () =>
+    {
+        const result = sendPublicMessageResponseSchema.parse({
+            answer: "Yes, I can hear you. How can I help?",
+            citations: [],
+            decision: "acknowledge",
+            handoff: null,
+            messageId: "30000000-0000-4000-a000-000000000003",
+        });
+
+        expect(result.decision).toBe("acknowledge");
+    });
+
+    it("rejects citations on a conversational acknowledgement", () =>
+    {
+        const result = sendPublicMessageResponseSchema.safeParse({
+            answer: "Hello.",
+            citations: [{
+                citationId: "40000000-0000-4000-a000-000000000001",
+                label: "Unrelated source",
+                sourceType: "url",
+                sourceUrl: "https://example.test",
+                supportingExcerpt: "Unrelated content.",
+            }],
+            decision: "acknowledge",
+            handoff: null,
+            messageId: "30000000-0000-4000-a000-000000000004",
+        });
+
+        expect(result.success).toBe(false);
+    });
 });

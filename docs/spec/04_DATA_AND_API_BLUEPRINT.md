@@ -344,6 +344,8 @@ const ragAnswerSchema = z.object({
 });
 ```
 
+`acknowledge` 不属于模型生成的 RAG Structured Output。服务端可对严格限定的寒暄、感谢、结束语、简短确认和通道检查确定性地产生 `acknowledge`，并以零 citation、零 handoff、零 knowledge gap 的公共消息决策返回和持久化。
+
 服务端后置验证：
 
 - `answer` 时必须至少一个 citation。

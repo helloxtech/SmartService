@@ -1,9 +1,6 @@
 import { z } from "zod";
 
-import {
-    conversationDecisionSchema,
-    publicCitationSchema,
-} from "./conversation";
+import { publicCitationSchema } from "./conversation";
 import { ingestionStatusSchema } from "./knowledge";
 
 export const dashboardSummarySchema = z.object({
@@ -69,7 +66,7 @@ export const knowledgeGapActionSchema = z.enum([
 export const knowledgeGapRetestResponseSchema = z.object({
     answer: z.string().min(1).max(5000),
     citations: z.array(publicCitationSchema).max(5),
-    decision: conversationDecisionSchema,
+    decision: z.enum(["answer", "clarify", "handoff"]),
     gapId: z.uuid(),
     testedAt: z.iso.datetime({ offset: true }),
 });

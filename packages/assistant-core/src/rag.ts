@@ -56,14 +56,7 @@ export interface RagAnswerProvider
 
 export type RagRepairReason = "grounding_validation" | "provider_failure" | "response_format";
 
-export const ragPromptVersion = "rag-answer-v9";
-
-interface ExactEntityConstraint
-{
-    evidencePatterns: readonly RegExp[];
-    questionPatterns: readonly RegExp[];
-    labels: Record<ConversationLanguage, string>;
-}
+export const ragPromptVersion = "rag-answer-v10";
 
 interface CurrentRoleConstraint
 {
@@ -72,21 +65,114 @@ interface CurrentRoleConstraint
     questionPatterns: readonly RegExp[];
 }
 
-const exactEntityConstraints: readonly ExactEntityConstraint[] = [{
-    evidencePatterns: [/古琴/iu, /\bguqin\b/iu],
-    labels: {
-        en: "Guqin",
-        "zh-CN": "古琴",
-    },
-    questionPatterns: [/古琴/iu, /\bguqin\b/iu],
+interface RetrievalFacetConstraint
+{
+    evidencePatterns: readonly RegExp[];
+    questionPatterns: readonly RegExp[];
+}
+
+interface PersonRoleConstraint
+{
+    evidencePatterns: readonly RegExp[];
+    questionPatterns: readonly RegExp[];
+}
+
+const retrievalFacetConstraints: readonly RetrievalFacetConstraint[] = [{
+    evidencePatterns: [
+        /价格|费用|收费|学费|报价|金额|人民币|加元|美元|元(?:起|每|\/)|\b(?:price|pricing|cost|fee|tuition|quote|cad|usd|dollars?)\b/iu,
+    ],
+    questionPatterns: [
+        /价格|费用|收费|学费|报价|多少钱|多少(?:钱|元)|\b(?:price|pricing|cost|fee|tuition|quote|how much)\b/iu,
+    ],
 }, {
-    evidencePatterns: [/古筝/iu, /\bguzheng\b/iu],
-    labels: {
-        en: "Guzheng",
-        "zh-CN": "古筝",
-    },
-    questionPatterns: [/古筝/iu, /\bguzheng\b/iu],
+    evidencePatterns: [
+        /老师|教师|导师|教练|教授|授课|教学|讲师|\b(?:teacher|instructor|faculty|professor|coach|trainer|teaches|teaching|lecturer)\b/iu,
+    ],
+    questionPatterns: [
+        /老师|教师|导师|教练|教授|讲师|谁教|授课人|\b(?:teacher|instructor|faculty|professor|coach|trainer|who teaches|lecturer)\b/iu,
+    ],
+}, {
+    evidencePatterns: [
+        /负责人|经理|店长|老板|业主|总裁|会长|董事长|主任|联系人|顾问|工程师|技师|医生|\b(?:manager|owner|president|director|lead|contact|consultant|engineer|technician|doctor|specialist)\b/iu,
+    ],
+    questionPatterns: [
+        /负责人|经理|店长|老板|业主|总裁|会长|董事长|主任|联系人|顾问|工程师|技师|医生|\b(?:manager|owner|president|director|lead|contact|consultant|engineer|technician|doctor|specialist)\b/iu,
+    ],
+}, {
+    evidencePatterns: [
+        /资料|简介|履历|资历|经验|照片|链接|作品|\b(?:profile|bio|biography|resume|experience|portfolio|photo|link|details)\b/iu,
+    ],
+    questionPatterns: [
+        /资料|简介|履历|资历|经验|照片|链接|作品|\b(?:profile|bio|biography|resume|experience|portfolio|photo|link|details)\b/iu,
+    ],
+}, {
+    evidencePatterns: [
+        /时长|课时|小时|分钟|天|周|月|年|周期|工期|\b(?:duration|length|hours?|minutes?|days?|weeks?|months?|years?|timeline|lead time)\b/iu,
+    ],
+    questionPatterns: [
+        /多久|多长|时长|课时|多少小时|周期|工期|\b(?:how long|duration|length|hours?|timeline|lead time)\b/iu,
+    ],
+}, {
+    evidencePatterns: [
+        /库存|现货|名额|可用|提供|销售|课程|产品|服务|项目|\b(?:available|availability|in stock|inventory|offered|offers|course|product|service|program)\b/iu,
+    ],
+    questionPatterns: [
+        /有吗|有没有|提供吗|卖吗|可用|名额|库存|现货|课程|产品|服务|项目|\b(?:available|availability|in stock|inventory|offer|course|product|service|program)\b/iu,
+    ],
+}, {
+    evidencePatterns: [
+        /退货|退款|换货|保修|售后|取消|改期|政策|\b(?:return|refund|exchange|warranty|after sales|cancel|reschedule|policy)\b/iu,
+    ],
+    questionPatterns: [
+        /退货|退款|换货|保修|售后|取消|改期|政策|\b(?:return|refund|exchange|warranty|after sales|cancel|reschedule|policy)\b/iu,
+    ],
 }];
+
+const personRoleConstraints: readonly PersonRoleConstraint[] = [{
+    evidencePatterns: [/老师|教师|导师|讲师|授课|任教|教学|\b(?:teacher|instructor|faculty|lecturer|teaches|teaching)\b/iu],
+    questionPatterns: [/老师|教师|导师|讲师|谁教|\b(?:teacher|instructor|faculty|lecturer|who teaches)\b/iu],
+}, {
+    evidencePatterns: [/教授|\bprofessor\b/iu],
+    questionPatterns: [/教授|\bprofessor\b/iu],
+}, {
+    evidencePatterns: [/教练|培训师|\b(?:coach|trainer)\b/iu],
+    questionPatterns: [/教练|培训师|\b(?:coach|trainer)\b/iu],
+}, {
+    evidencePatterns: [/创始人|创办人|创建者|\b(?:founder|co-founder)\b/iu],
+    questionPatterns: [/创始人|创办人|创建者|谁创办|谁创建|\b(?:founder|co-founder|who founded)\b/iu],
+}, {
+    evidencePatterns: [/校长|院长|\b(?:principal|dean)\b/iu],
+    questionPatterns: [/校长|院长|\b(?:principal|dean)\b/iu],
+}, {
+    evidencePatterns: [/经理|店长|\bmanager\b/iu],
+    questionPatterns: [/经理|店长|\bmanager\b/iu],
+}, {
+    evidencePatterns: [/老板|业主|所有者|\bowner\b/iu],
+    questionPatterns: [/老板|业主|所有者|\bowner\b/iu],
+}, {
+    evidencePatterns: [/总裁|会长|董事长|首席执行官|\b(?:president|chairperson|ceo)\b/iu],
+    questionPatterns: [/总裁|会长|董事长|首席执行官|\b(?:president|chairperson|ceo)\b/iu],
+}, {
+    evidencePatterns: [/负责人|主任|主管|总监|带头人|\b(?:lead|director|head)\b/iu],
+    questionPatterns: [/负责人|主任|主管|总监|带头人|\b(?:lead|director|head)\b/iu],
+}, {
+    evidencePatterns: [/工程师|技师|技术员|\b(?:engineer|technician)\b/iu],
+    questionPatterns: [/工程师|技师|技术员|\b(?:engineer|technician)\b/iu],
+}, {
+    evidencePatterns: [/顾问|专员|专家|\b(?:consultant|specialist)\b/iu],
+    questionPatterns: [/顾问|专员|专家|\b(?:consultant|specialist)\b/iu],
+}, {
+    evidencePatterns: [/医生|医师|\bdoctor\b/iu],
+    questionPatterns: [/医生|医师|\bdoctor\b/iu],
+}, {
+    evidencePatterns: [/联系人|联络人|\bcontact\b/iu],
+    questionPatterns: [/联系人|联络人|\bcontact\b/iu],
+}];
+
+const contextualReferencePattern = /(?:这个|那个|这些|那些|它|它们|他|他们|她|她们|其|该项|这项|这款|那款|上述|前面|刚才|其中|还有呢|那呢|他的|她的|他们的|它的|\b(?:it|its|that|this|these|those|they|them|their|the former|the latter|above|earlier)\b)/iu;
+const contextualFragmentPattern = /^(?:价格|费用|收费|多少钱|老师|教师|负责人|经理|资料|简介|照片|链接|多久|时长|库存|有货吗|保修|售后|地址|营业时间|然后呢|还有呢|那呢|\b(?:price|cost|fee|how much|teacher|instructor|manager|profile|bio|photo|link|duration|how long|stock|warranty|address|hours|what else)\b)[?？!！.。\s]*$/iu;
+const personIdentityQuestionPattern = /(?:老师|教师|导师|教练|教授|讲师|创始人|创办人|负责人|经理|店长|老板|业主|总裁|会长|董事长|主任|联系人|顾问|工程师|技师|医生).*(?:是谁|哪位|姓名|名字|叫什么)|(?:谁|哪位).*(?:教|创办|创建|负责|担任|管理|联系)|^[\p{Script=Han}A-Za-z0-9._/-]{2,40}(?:的)?(?:老师|教师|导师|教练|教授|讲师|创始人|创办人|负责人|经理|店长|老板|业主|总裁|会长|董事长|主任|联系人|顾问|工程师|技师|医生)[?？!！.。\s]*$|\b(?:who (?:is|are)|who teaches|who founded|which (?:teacher|instructor|founder|manager|person|doctor|engineer|technician|consultant|specialist)|name of (?:the )?(?:teacher|instructor|founder|manager|owner|doctor|engineer|technician|consultant|specialist))\b|^[A-Za-z0-9 ._/-]{2,60}\b(?:teacher|instructor|founder|manager|owner|doctor|engineer|technician|consultant|specialist)[?!.\s]*$/iu;
+const profileFollowUpPattern = /资料|简介|履历|资历|经验|照片|链接|作品|\b(?:profile|bio|biography|resume|experience|portfolio|photo|link)\b/iu;
 
 const currentRoleConstraints: readonly CurrentRoleConstraint[] = [{
     answerPatterns: [/校长/u, /\bprincipal\b/iu],
@@ -351,6 +437,181 @@ export function detectConversationLanguage(question: string): ConversationLangua
 }
 
 /**
+ * createConversationalAcknowledgement
+ * ----------------
+ * Handles bounded greetings, thanks, closings, acknowledgements, and channel checks without wasting retrieval or pretending that a social reply is a sourced company fact.
+ *
+ * August 07, 2026: Created by Forrest Zhang for Tenant-Generic Conversational Turn Planning
+ */
+export function createConversationalAcknowledgement(
+    question: string,
+    language: ConversationLanguage,
+): RagAnswer | null
+{
+    const normalized = question.normalize("NFKC").trim();
+    const punctuation = "[\\s,.!?，。！？～~]*";
+    const channelCheck = new RegExp(
+        `^(?:(?:你好|您好|嗨|嘿|hello|hi|hey)[,，\\s]*)?(?:(?:能|能不能|可以|可不可以)?(?:听到|听见|听得到)(?:我)?(?:说话|的声音)?(?:吗|么)?|(?:can you|do you) (?:hear|see|read) me|are you there)${punctuation}$`,
+        "iu",
+    );
+    const greeting = new RegExp(
+        `^(?:你好|您好|嗨|嘿|哈[啰喽罗]|早上好|下午好|晚上好|在吗|hello|hi|hey|good morning|good afternoon|good evening)${punctuation}$`,
+        "iu",
+    );
+    const thanks = new RegExp(
+        `^(?:谢谢|多谢|感谢|谢了|thank you|thanks|many thanks)${punctuation}$`,
+        "iu",
+    );
+    const closing = new RegExp(
+        `^(?:再见|拜拜|回头见|bye|goodbye|see you)${punctuation}$`,
+        "iu",
+    );
+    const acknowledgement = new RegExp(
+        `^(?:好的?|行|可以|明白了?|知道了?|没问题|收到|ok(?:ay)?|got it|understood|sounds good)${punctuation}$`,
+        "iu",
+    );
+    let answer: string | null = null;
+
+    if (channelCheck.test(normalized))
+    {
+        answer = language === "zh-CN"
+            ? "可以，我听到了。请问您想了解什么？"
+            : "Yes, I can hear you. What would you like help with?";
+    }
+    else if (greeting.test(normalized))
+    {
+        answer = language === "zh-CN"
+            ? "您好，我在。请问有什么可以帮您？"
+            : "Hello, I’m here. How can I help?";
+    }
+    else if (thanks.test(normalized))
+    {
+        answer = language === "zh-CN"
+            ? "不客气。还有什么可以帮您？"
+            : "You’re welcome. Is there anything else I can help with?";
+    }
+    else if (closing.test(normalized))
+    {
+        answer = language === "zh-CN"
+            ? "感谢您的咨询，祝您一切顺利！"
+            : "Thank you for contacting us. Have a great day!";
+    }
+    else if (acknowledgement.test(normalized))
+    {
+        answer = language === "zh-CN"
+            ? "好的。您还想了解什么？"
+            : "Of course. What else would you like to know?";
+    }
+
+    if (answer === null)
+    {
+        return null;
+    }
+
+    return ragAnswerSchema.parse({
+        answer,
+        citationChunkIds: [],
+        confidence: 1,
+        decision: "acknowledge",
+        handoffReason: null,
+        normalizedQuestion: normalizeQuestion(question),
+    });
+}
+
+/**
+ * sanitizeSubjectAnchor
+ * ----------------
+ * Removes conversational wrappers from one bounded candidate subject while rejecting pronouns and generic customer-service facets that cannot identify a topic by themselves.
+ *
+ * August 07, 2026: Created by Forrest Zhang for Tenant-Generic Conversational Retrieval
+ */
+function sanitizeSubjectAnchor(value: string): string | null
+{
+    const normalized = value
+        .normalize("NFKC")
+        .replace(/^(?:请问|关于|我想(?:看|了解)?|想(?:看|了解)?|可以(?:看|了解)?|看看|你们(?:的)?|我们(?:的)?|教|卖|做)/u, "")
+        .replace(/(?:的话|大概|什么|相关|具体)$/u, "")
+        .replace(/^(?:the|a|an|what is|what are|tell me about)\s+/iu, "")
+        .replace(/[?？!！,，.。\s]+$/gu, "")
+        .trim();
+
+    if (
+        normalized.length < 2
+        || normalized.length > 60
+        || contextualReferencePattern.test(normalized)
+        || /^(?:这个|那个|这些|那些|它|它们|他们|她们|其|该项|这项|这款|那款|学校|学院|公司|企业|机构|商家|门店|品牌|老师|教师|负责人|经理|资料|简介|价格|费用|服务|产品|课程|the|it|that|this|these|those|they|them|their|teacher|manager|profile|price|service|product)$/iu.test(normalized)
+    )
+    {
+        return null;
+    }
+
+    return normalized;
+}
+
+/**
+ * extractQuestionSubjectAnchors
+ * ----------------
+ * Extracts quoted names, exact business identifiers, and bounded subjects attached to common customer-service facets without using tenant- or industry-specific entity lists.
+ *
+ * August 07, 2026: Created by Forrest Zhang for Tenant-Generic Conversational Retrieval
+ */
+export function extractQuestionSubjectAnchors(value: string): string[]
+{
+    const anchors = new Set<string>();
+    const addCandidate = (candidate: string | undefined): void =>
+    {
+        if (candidate === undefined)
+        {
+            return;
+        }
+
+        const anchor = sanitizeSubjectAnchor(candidate);
+
+        if (anchor !== null)
+        {
+            anchors.add(anchor);
+        }
+    };
+
+    extractExactIdentifiers(value).forEach((identifier) => anchors.add(identifier));
+
+    for (const match of value.matchAll(/[“"]([^”"]{2,60})[”"]/gu))
+    {
+        addCandidate(match[1]);
+    }
+
+    for (const match of value.matchAll(
+        /([\p{Script=Han}A-Za-z0-9][\p{Script=Han}A-Za-z0-9._/ -]{1,40}?)(?:的|的话)?(?:大概)?(?:什么)?(?:老师|教师|导师|教练|教授|讲师|负责人|经理|店长|老板|业主|总裁|会长|董事长|主任|联系人|顾问|安装工程师|服务工程师|工程师|技师|医生|价格|费用|收费|学费|报价|资料|简介|履历|照片|链接|作品|保修|库存|尺寸|规格|颜色|地址|时长|课时|课程|服务|产品)/gu,
+    ))
+    {
+        addCandidate(match[1]);
+    }
+
+    for (const match of value.matchAll(
+        /(?:有|提供|销售|支持|办理)(?:教|卖)?([\p{Script=Han}A-Za-z0-9._/-]{2,30})(?:吗|呢|么)/gu,
+    ))
+    {
+        addCandidate(match[1]);
+    }
+
+    for (const match of value.matchAll(
+        /(?:price|pricing|cost|fee|profile|bio|details|warranty|availability|duration|teacher|instructor|manager)\s+(?:of|for)\s+([A-Za-z0-9][A-Za-z0-9 ._/-]{1,60}?)(?:[?.,]|$)/giu,
+    ))
+    {
+        addCandidate(match[1]);
+    }
+
+    for (const match of value.matchAll(
+        /([A-Za-z0-9][A-Za-z0-9 ._/-]{1,60}?)(?:['’]s)?\s+(?:price|pricing|cost|fee|profile|bio|details|warranty|availability|duration|teacher|instructor|manager)\b/giu,
+    ))
+    {
+        addCandidate(match[1]);
+    }
+
+    return [...anchors].slice(0, 5);
+}
+
+/**
  * isContextDependentFollowUp
  * ----------------
  * Identifies short confirmation or elaboration prompts that require the preceding grounded turn to be searchable.
@@ -367,7 +628,9 @@ export function isContextDependentFollowUp(question: string): boolean
     }
 
     return /^(?:are you sure|really|is that (?:right|correct|true)|can you confirm(?: that)?|why|why is that|how so|tell me more|what do you mean|what about (?:that|it|this|those))$/u.test(normalized)
-        || /^(?:你?确定吗|真的吗|是吗|对吗|没错吗|为什么|怎么说|能确认吗|可以确认吗|请再说明|详细说说|然后呢|那(?:这个|它|些)?呢)$/u.test(normalized);
+        || /^(?:你?确定吗|真的吗|是吗|对吗|没错吗|为什么|怎么说|能确认吗|可以确认吗|请再说明|详细说说|然后呢|那(?:这个|它|些)?呢)$/u.test(normalized)
+        || contextualReferencePattern.test(question)
+        || contextualFragmentPattern.test(question);
 }
 
 /**
@@ -400,7 +663,7 @@ export function buildRetrievalQuestion(
         return currentQuestion;
     }
 
-    return `${context}\ncustomer follow-up: ${currentQuestion}`.slice(-4_000);
+    return `latest customer question: ${currentQuestion}\nrecent context:\n${context}`.slice(0, 4_000);
 }
 
 /**
@@ -428,10 +691,10 @@ export function buildRetrievalQuestions(
         .map((part) => part.replace(/^[,，、\s]+|[,，、\s]+$/gu, "").trim())
         .filter((part) => normalizeQuestion(part).length >= 2);
     const uniqueParts = [...new Set(parts)];
-    const sharedEntityLabel = findExactEntityLabel(
-        currentQuestion,
-        detectConversationLanguage(currentQuestion),
-    );
+    const firstQuestionPart = uniqueParts[0] ?? currentQuestion;
+    const sharedEntityLabel = findExactEntityLabel(currentQuestion)
+        ?? extractQuestionSubjectAnchors(firstQuestionPart)[0]
+        ?? null;
     const contextualParts = sharedEntityLabel === null
         ? uniqueParts
         : uniqueParts.map((part) =>
@@ -454,20 +717,12 @@ export function buildRetrievalQuestions(
  */
 export function buildCrossLanguageRetrievalQuestion(question: string): string
 {
-    if (!/\p{Script=Han}/u.test(question) || question.includes("\n"))
+    if (!/\p{Script=Han}/u.test(question))
     {
         return question;
     }
 
     const terms = new Set<string>();
-    const exactEntityConstraint = exactEntityConstraints.find((constraint) =>
-        constraint.questionPatterns.some((pattern) => pattern.test(question)),
-    );
-
-    if (exactEntityConstraint !== undefined)
-    {
-        terms.add(exactEntityConstraint.labels.en);
-    }
 
     extractExactIdentifiers(question).forEach((identifier) => terms.add(identifier));
 
@@ -591,38 +846,292 @@ export function buildCrossLanguageRetrievalQuestion(question: string): string
 }
 
 /**
- * filterEvidenceForExactEntities
+ * evidenceSearchText
  * ----------------
- * Rejects semantically adjacent evidence when the customer names a protected confusion pair or an exact letter-number model, SKU, plan, or part identifier.
+ * Produces one bounded searchable string from retrieved content and safe locator metadata so source titles and paths can participate in deterministic relevance checks.
  *
- * August 06, 2026: Updated by Forrest Zhang for Tenant-Generic Answer Reliability
+ * August 07, 2026: Created by Forrest Zhang for Tenant-Generic Evidence Relevance
  */
-export function filterEvidenceForExactEntities(
+function evidenceSearchText(item: RetrievedEvidence): string
+{
+    const locatorText = Object.values(item.sourceLocator)
+        .filter((value): value is string => typeof value === "string")
+        .join(" ");
+
+    return `${item.content}\n${locatorText}`.normalize("NFKC").toLocaleLowerCase();
+}
+
+/**
+ * findQuestionFacets
+ * ----------------
+ * Selects industry-independent answer facets such as price, personnel, profile, duration, availability, and policy from the latest turn and, only for a follow-up, its recent customer context.
+ *
+ * August 07, 2026: Created by Forrest Zhang for Tenant-Generic Evidence Relevance
+ */
+function findQuestionFacets(
     question: string,
+    recentMessages: readonly RecentConversationMessage[],
+): RetrievalFacetConstraint[]
+{
+    const context = isContextDependentFollowUp(question)
+        ? [...recentMessages]
+            .reverse()
+            .find((message) => message.senderType === "customer")
+            ?.text ?? ""
+        : "";
+    const searchableQuestion = `${question}\n${context}`;
+
+    return retrievalFacetConstraints.filter((constraint) =>
+        constraint.questionPatterns.some((pattern) => pattern.test(searchableQuestion)),
+    );
+}
+
+/**
+ * extractExplicitPersonNames
+ * ----------------
+ * Extracts only person-like names explicitly attached to common professional titles or assignment phrases in Chinese or English.
+ *
+ * August 07, 2026: Created by Forrest Zhang for Tenant-Generic Identity Grounding
+ */
+function extractExplicitPersonNames(value: string): string[]
+{
+    const names = new Set<string>();
+    const rejectedChineseNames = /^(?:我们|你们|他们|她们|专业|教师|老师|团队|客服|人员|员工|工程师|顾问|医生|负责人)$/u;
+    const addChineseName = (candidate: string | undefined): void =>
+    {
+        const normalized = candidate?.trim();
+
+        if (
+            normalized !== undefined
+            && /^\p{Script=Han}{2,4}$/u.test(normalized)
+            && !rejectedChineseNames.test(normalized)
+        )
+        {
+            names.add(normalized);
+        }
+    };
+    const addEnglishName = (candidate: string | undefined): void =>
+    {
+        const normalized = candidate?.replace(/\s+/gu, " ").trim();
+
+        if (
+            normalized !== undefined
+            && /^\p{Lu}[\p{L}'’-]*(?:\s+\p{Lu}[\p{L}'’-]*){1,3}$/u.test(normalized)
+        )
+        {
+            names.add(normalized.toLocaleLowerCase());
+        }
+    };
+
+    for (const match of value.matchAll(
+        /([\p{Script=Han}]{2,4})(?:教授|博士|先生|女士|老师|教师|导师|教练|校长|院长|经理|主任|顾问|工程师|技师|医师|医生)/gu,
+    ))
+    {
+        addChineseName(match[1]);
+    }
+
+    for (const match of value.matchAll(
+        /(?:老师|教师|导师|教练|教授|校长|院长|经理|主任|负责人|联系人|顾问|工程师|技师|医师|医生)(?:是|为|：|:)\s*([\p{Script=Han}]{2,4})/gu,
+    ))
+    {
+        addChineseName(match[1]);
+    }
+
+    for (const match of value.matchAll(
+        /(?:老师|教师|导师|教练|教授|校长|院长|经理|主任|负责人|联系人|顾问|工程师|技师|医师|医生)(?:是|为|：|:)?\s*((?:\p{Lu}[\p{L}'’-]*\s+){1,3}\p{Lu}[\p{L}'’-]*)/gu,
+    ))
+    {
+        addEnglishName(match[1]);
+    }
+
+    for (const match of value.matchAll(
+        /(?:professor|teacher|instructor|coach|principal|manager|director|chairperson|lead|owner|president|ceo|consultant|engineer|technician|doctor|specialist)(?:\s+is|\s*[:,-])?\s+([\p{Script=Han}]{2,4})/giu,
+    ))
+    {
+        addChineseName(match[1]);
+    }
+
+    for (const match of value.matchAll(
+        /(?:professor|teacher|instructor|coach|principal|manager|director|chairperson|lead|owner|president|ceo|consultant|engineer|technician|doctor|specialist)(?:\s+is|\s*[:,-])?\s+((?:\p{Lu}[\p{L}'’-]*\s+){1,3}\p{Lu}[\p{L}'’-]*)/giu,
+    ))
+    {
+        addEnglishName(match[1]);
+    }
+
+    for (const match of value.matchAll(
+        /((?:\p{Lu}[\p{L}'’-]*\s+){1,3}\p{Lu}[\p{L}'’-]*)\s*(?:,|-|—|is)?\s*(?:professor|teacher|instructor|coach|principal|manager|director|chairperson|lead|owner|president|ceo|consultant|engineer|technician|doctor|specialist)/gu,
+    ))
+    {
+        addEnglishName(match[1]);
+    }
+
+    return [...names].slice(0, 8);
+}
+
+/**
+ * evidenceSupportsPersonIdentity
+ * ----------------
+ * Requires one explicit person name and the requested professional role to be linked in the same cited evidence segment for a direct identity question.
+ *
+ * August 07, 2026: Created by Forrest Zhang for Tenant-Generic Identity Grounding
+ */
+function evidenceSupportsPersonIdentity(
+    answer: string,
+    citedEvidence: readonly RetrievedEvidence[],
+    question: string,
+): boolean
+{
+    const answerNames = new Set(extractExplicitPersonNames(answer));
+
+    if (answerNames.size === 0)
+    {
+        return false;
+    }
+
+    const requestedRoles = personRoleConstraints.filter((constraint) =>
+        constraint.questionPatterns.some((pattern) => pattern.test(question)),
+    );
+
+    return citedEvidence.some((item) =>
+        item.content
+            .split(/[。！？\n.!?;；]+/u)
+            .map((segment) => segment.trim())
+            .filter((segment) => segment.length > 0)
+            .some((segment) =>
+            {
+                const segmentNames = extractExplicitPersonNames(segment);
+                const sharesAnswerName = segmentNames.some((name) =>
+                    answerNames.has(name),
+                );
+                const statesRequestedRole = requestedRoles.length === 0
+                    || requestedRoles.every((constraint) =>
+                        constraint.evidencePatterns.some((pattern) =>
+                            pattern.test(segment),
+                        ),
+                    );
+
+                return sharesAnswerName && statesRequestedRole;
+            }),
+    );
+}
+
+/**
+ * filterEvidenceForQuestionContext
+ * ----------------
+ * Applies exact identifier safety, conversation-aware subject and facet relevance, and identity-answer requirements before any retrieved chunk can reach generation.
+ *
+ * August 07, 2026: Created by Forrest Zhang for Tenant-Generic Evidence Relevance
+ */
+export function filterEvidenceForQuestionContext(
+    question: string,
+    recentMessages: readonly RecentConversationMessage[],
     evidence: readonly RetrievedEvidence[],
 ): RetrievedEvidence[]
 {
-    const constraints = exactEntityConstraints.filter((constraint) =>
-        constraint.questionPatterns.some((pattern) => pattern.test(question)),
-    );
     const identifiers = extractExactIdentifiers(question);
-
-    if (constraints.length === 0 && identifiers.length === 0)
+    const quotedAnchors = [...question.matchAll(/[“"]([^”"]{2,60})[”"]/gu)]
+        .map((match) => match[1]?.normalize("NFKC").toLocaleLowerCase())
+        .filter((value): value is string => value !== undefined);
+    let filtered = evidence.filter((item) =>
     {
-        return [...evidence];
+        const searchable = evidenceSearchText(item);
+        const evidenceIdentifiers = new Set(extractExactIdentifiers(searchable));
+
+        return identifiers.every((identifier) => evidenceIdentifiers.has(identifier))
+            && quotedAnchors.every((anchor) => searchable.includes(anchor));
+    });
+
+    if (filtered.length === 0)
+    {
+        return [];
     }
 
-    return evidence.filter((item) =>
-    {
-        const matchesProtectedEntity = constraints.length === 0
-            || constraints.some((constraint) =>
-                constraint.evidencePatterns.some((pattern) => pattern.test(item.content)),
-            );
-        const evidenceIdentifiers = new Set(extractExactIdentifiers(item.content));
-        const matchesIdentifiers = identifiers.length === 0
-            || identifiers.every((identifier) => evidenceIdentifiers.has(identifier));
+    const currentAnchors = extractQuestionSubjectAnchors(question)
+        .map((anchor) => anchor.toLocaleLowerCase());
+    const contextualAnchors = currentAnchors.length === 0
+        && isContextDependentFollowUp(question)
+        ? [...recentMessages]
+            .reverse()
+            .filter((message) => message.senderType === "customer")
+            .map((message) => extractQuestionSubjectAnchors(message.text))
+            .find((messageAnchors) => messageAnchors.length > 0)
+            ?.map((anchor) => anchor.toLocaleLowerCase()) ?? []
+        : [];
+    const anchors = [...new Set(
+        currentAnchors.length > 0 ? currentAnchors : contextualAnchors,
+    )];
+    const facets = findQuestionFacets(question, recentMessages);
+    const anchorMatches = anchors.length === 0
+        ? []
+        : filtered.filter((item) =>
+            anchors.some((anchor) => evidenceSearchText(item).includes(anchor)),
+        );
+    const facetMatches = facets.length === 0
+        ? []
+        : filtered.filter((item) =>
+            facets.every((constraint) =>
+                constraint.evidencePatterns.some((pattern) =>
+                    pattern.test(evidenceSearchText(item)),
+                ),
+            ),
+        );
 
-        return matchesProtectedEntity && matchesIdentifiers;
+    if (
+        anchors.length > 0
+        && anchorMatches.length === 0
+        && (
+            personIdentityQuestionPattern.test(question)
+            || (
+                isContextDependentFollowUp(question)
+                && profileFollowUpPattern.test(question)
+            )
+        )
+    )
+    {
+        return [];
+    }
+
+    if (facets.length > 0)
+    {
+        if (facetMatches.length === 0)
+        {
+            return [];
+        }
+
+        filtered = facetMatches;
+    }
+
+    if (anchorMatches.length > 0)
+    {
+        const anchorIds = new Set(anchorMatches.map((item) => item.chunkId));
+        const anchoredRelevantEvidence = filtered.filter((item) =>
+            anchorIds.has(item.chunkId),
+        );
+
+        if (anchoredRelevantEvidence.length > 0)
+        {
+            filtered = anchoredRelevantEvidence;
+        }
+    }
+
+    if (personIdentityQuestionPattern.test(question))
+    {
+        filtered = filtered.filter((item) =>
+            extractExplicitPersonNames(item.content).length > 0,
+        );
+    }
+
+    const anchorMatchIds = new Set(anchorMatches.map((item) => item.chunkId));
+    const facetMatchIds = new Set(facetMatches.map((item) => item.chunkId));
+
+    return [...filtered].sort((left, right) =>
+    {
+        const leftBonus = (anchorMatchIds.has(left.chunkId) ? 2 : 0)
+            + (facetMatchIds.has(left.chunkId) ? 1 : 0);
+        const rightBonus = (anchorMatchIds.has(right.chunkId) ? 2 : 0)
+            + (facetMatchIds.has(right.chunkId) ? 1 : 0);
+
+        return rightBonus - leftBonus || right.combinedScore - left.combinedScore;
     });
 }
 
@@ -817,14 +1326,27 @@ export function createExplicitStableFactAnswer(
  */
 function findExactEntityLabel(
     question: string,
-    language: ConversationLanguage,
 ): string | null
 {
-    const constraint = exactEntityConstraints.find((candidate) =>
-        candidate.questionPatterns.some((pattern) => pattern.test(question)),
-    );
+    return findExactIdentifierLabel(question)
+        ?? question.match(/[“"]([^”"]{2,60})[”"]/u)?.[1]
+        ?? null;
+}
 
-    return constraint?.labels[language] ?? findExactIdentifierLabel(question);
+/**
+ * findClarificationSubjectLabel
+ * ----------------
+ * Selects one customer-written subject for limitation wording without reusing generic organizations or categories as a multipart retrieval entity.
+ *
+ * August 07, 2026: Created by Forrest Zhang for Tenant-Generic Conversational Retrieval
+ */
+function findClarificationSubjectLabel(
+    question: string,
+): string | null
+{
+    return findExactEntityLabel(question)
+        ?? extractQuestionSubjectAnchors(question)[0]
+        ?? null;
 }
 
 /**
@@ -1056,7 +1578,7 @@ export function createSafeClarification(
     reason: "missing_knowledge" | "conflicting_knowledge" | "system_error",
 ): RagAnswer
 {
-    const exactEntityLabel = findExactEntityLabel(question, language);
+    const exactEntityLabel = findClarificationSubjectLabel(question);
     const answer = language === "zh-CN"
         ? reason === "conflicting_knowledge"
             ? "这个问题的相关信息目前不一致，我不想给您不准确的答复。您可以选择请客服专员进一步核实。"
@@ -1306,6 +1828,14 @@ export function validateGroundedAnswer(
                 && (
                     !questionRequestsDeliveryMode(questionPart)
                     || evidenceSupportsDeliveryModeAnswer(part.answer, citedEvidence)
+                )
+                && (
+                    !personIdentityQuestionPattern.test(questionPart)
+                    || evidenceSupportsPersonIdentity(
+                        part.answer,
+                        citedEvidence,
+                        questionPart,
+                    )
                 );
 
             const normalizedPart = supported
@@ -1410,6 +1940,13 @@ export function validateGroundedAnswer(
         ) && (
             !questionRequestsDeliveryMode(questionPart)
             || evidenceSupportsDeliveryModeAnswer(answer.answer, citedEvidence)
+        ) && (
+            !personIdentityQuestionPattern.test(questionPart)
+            || evidenceSupportsPersonIdentity(
+                answer.answer,
+                citedEvidence,
+                questionPart,
+            )
         );
 
         if (!hasSemanticSupport)
@@ -1480,6 +2017,9 @@ export function buildRagPrompt(input: RagGenerationInput): {
             "If the evidence is missing, conflicting, or insufficient, return decision=clarify with no citations and handoffReason=missing_knowledge or conflicting_knowledge.",
             "Never return decision=handoff. Human transfer is controlled by application policy, not by this model.",
             "Lead with the direct company answer to the exact question the customer asked. State confirmed company facts plainly; never preface them with language such as 'according to the information I found', 'based on the materials', 'I checked', or 'I searched'.",
+            "Resolve pronouns and short follow-ups from RECENT_MESSAGES only when one subject is unambiguous. If speech recognition or wording could refer to two different products, people, services, or names, ask one short clarification question instead of silently correcting or substituting the term.",
+            "Ignore evidence that merely shares generic words with the question but concerns a different subject, profession, product, service, or industry. A citation is valid only when its content directly supports the requested subject and answer type.",
+            "For a question asking who a person is, answer only when the cited evidence explicitly names that person in the requested role. General claims about an experienced team, staff, teachers, or specialists do not answer an identity question.",
             "Never tell the customer to contact the company or business; you are speaking for it. Never tell the customer to try again.",
             "When a detail cannot be confirmed, say so plainly and offer support-specialist verification without claiming a transfer has happened.",
             "Never substitute a nearby product, instrument, person, course, service, model, plan, or identifier.",

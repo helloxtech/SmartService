@@ -891,6 +891,15 @@ export class SupabaseAnalyticsService implements AnalyticsService
             model = "deterministic-guardrail-v1";
         }
 
+        if (answer.decision === "acknowledge")
+        {
+            throw new ApiError(
+                502,
+                "RETEST_DECISION_INVALID",
+                "A knowledge-gap re-test cannot return a conversational acknowledgement.",
+            );
+        }
+
         const citations = buildRetestCitations(answer.citationChunkIds, evidence);
         await this.recordRetest(
             identity,

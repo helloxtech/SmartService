@@ -172,6 +172,7 @@ describe("Workers AI RAG answer provider", () =>
                 }],
             });
         const warnMock = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+        const infoMock = vi.spyOn(console, "info").mockImplementation(() => undefined);
         const provider = new WorkersAiRagAnswerProvider({
             AI: {
                 run: runMock,
@@ -179,12 +180,90 @@ describe("Workers AI RAG answer provider", () =>
             WORKERS_AI_GATEWAY_ID: "default",
         } as SmartServiceBindings);
         const result = await provider.generate(createGenerationInput());
+        const firstRequest = runMock.mock.calls[0]?.[1] as {
+            messages: Array<{ content: string; role: string }>;
+        };
+        const repairRequest = runMock.mock.calls[1]?.[1] as {
+            messages: Array<{ content: string; role: string }>;
+        };
+        const firstSystemPrompt = firstRequest.messages.find((message) =>
+            message.role === "system",
+        )?.content;
+        const repairSystemPrompt = repairRequest.messages.find((message) =>
+            message.role === "system",
+        )?.content;
 
         expect(runMock).toHaveBeenCalledTimes(2);
-        expect(result.provider).toBe("cloudflare-workers-ai");
+        expect(result).toMatchObject({
+            generationAttempts: 2,
+            provider: "cloudflare-workers-ai",
+            recoveryMode: "same_provider_repair",
+        });
+        expect(repairSystemPrompt).not.toBe(firstSystemPrompt);
+        expect(firstSystemPrompt).not.toContain("CORRECTIVE RETRY");
+        expect(repairSystemPrompt).toContain("CORRECTIVE RETRY");
+        expect(repairSystemPrompt).toContain("required JSON object and field contract");
         expect(warnMock).toHaveBeenCalledWith(expect.stringContaining(
             '"event":"workers_ai.answer.retry"',
         ));
+        expect(warnMock).toHaveBeenCalledWith(expect.stringContaining(
+            '"repairReason":"response_format"',
+        ));
+        expect(infoMock).toHaveBeenCalledWith(expect.stringContaining(
+            '"event":"workers_ai.answer.recovered"',
+        ));
+    });
+
+    it("applies the same corrective contract to a non-school service tenant", async () =>
+    {
+        const serviceAnswer = createGroundedAnswer(
+            "40000000-0000-4000-a000-000000000020",
+            "You can reschedule without a fee at least 24 hours in advance.",
+        );
+        const runMock = vi.fn()
+            .mockResolvedValueOnce({
+                choices: [{
+                    finish_reason: "stop",
+                    message: {
+                        content: JSON.stringify({
+                            ...serviceAnswer,
+                            citationChunkIds: ["40000000-0000-4000-a000-000000000099"],
+                        }),
+                    },
+                }],
+            })
+            .mockResolvedValueOnce({
+                choices: [{
+                    finish_reason: "stop",
+                    message: {
+                        content: JSON.stringify(serviceAnswer),
+                    },
+                }],
+            });
+        vi.spyOn(console, "warn").mockImplementation(() => undefined);
+        vi.spyOn(console, "info").mockImplementation(() => undefined);
+        const provider = new WorkersAiRagAnswerProvider({
+            AI: {
+                run: runMock,
+            } as unknown as Ai,
+            WORKERS_AI_GATEWAY_ID: "default",
+        } as SmartServiceBindings);
+        const result = await provider.generate(createServiceGenerationInput());
+        const repairRequest = runMock.mock.calls[1]?.[1] as {
+            messages: Array<{ content: string; role: string }>;
+        };
+        const repairSystemPrompt = repairRequest.messages.find((message) =>
+            message.role === "system",
+        )?.content;
+
+        expect(result.answer.answer).toContain("24 hours");
+        expect(result).toMatchObject({
+            generationAttempts: 2,
+            recoveryMode: "same_provider_repair",
+        });
+        expect(repairSystemPrompt).toContain("citations or a decision");
+        expect(repairSystemPrompt).not.toContain("school admissions");
+        expect(repairSystemPrompt).not.toContain("古筝");
     });
 
     it("falls back to OpenAI when GLM cites evidence outside the exact retrieval set", async () =>
@@ -364,6 +443,30 @@ function createGenerationInput()
 }
 
 /**
+ * createServiceGenerationInput
+ * ----------------
+ * Builds a second-domain appointment-policy input proving corrective retries are independent of any school or product vocabulary.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Answer Reliability
+ */
+function createServiceGenerationInput()
+{
+    return {
+        evidence: [{
+            chunkId: "40000000-0000-4000-a000-000000000020",
+            combinedScore: 0.93,
+            content: "Appointments may be rescheduled without a fee at least 24 hours in advance.",
+            sourceLocator: {
+                title: "Appointment policy",
+            },
+        }],
+        language: "en" as const,
+        question: "Can I move my appointment?",
+        recentMessages: [],
+    };
+}
+
+/**
  * createGroundedAnswer
  * ----------------
  * Builds a structurally valid grounded answer with a configurable citation for fallback testing.
@@ -372,10 +475,11 @@ function createGenerationInput()
  */
 function createGroundedAnswer(
     citationChunkId = "40000000-0000-4000-a000-000000000001",
+    answer = "The maximum flow is 300 litres per minute.",
 )
 {
     return {
-        answer: "The maximum flow is 300 litres per minute.",
+        answer,
         citationChunkIds: [citationChunkId],
         confidence: 0.94,
         decision: "answer",

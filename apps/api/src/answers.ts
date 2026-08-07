@@ -1,12 +1,15 @@
 import {
+    buildRagRepairPrompt,
     buildRagPrompt,
     DeterministicRagAnswerProvider,
+    RagValidationError,
     ragAnswerJsonSchema,
     ragPromptVersion,
     validateGroundedAnswer,
     type RagAnswerProvider,
     type RagGenerationInput,
     type RagGenerationResult,
+    type RagRepairReason,
 } from "@smartservice/assistant-core";
 import { ragAnswerSchema } from "@smartservice/contracts";
 
@@ -16,6 +19,62 @@ import type { SmartServiceBindings } from "./types";
 import { requestWorkersAiStructuredOutput } from "./workers-ai-structured-output";
 
 const workersAiChatModel = "@cf/zai-org/glm-4.7-flash" as const;
+
+/**
+ * readAnswerErrorCode
+ * ----------------
+ * Converts a provider or validation failure into a bounded content-free code for structured reliability logs.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Answer Reliability
+ */
+function readAnswerErrorCode(error: unknown): string
+{
+    return error instanceof ApiError
+        ? error.code
+        : error instanceof Error
+            ? error.name.slice(0, 120)
+            : "UNKNOWN_ERROR";
+}
+
+/**
+ * classifyRagRepairReason
+ * ----------------
+ * Chooses the corrective second-request instruction from the first attempt's output, grounding, or provider failure class.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Answer Reliability
+ */
+function classifyRagRepairReason(error: unknown): RagRepairReason
+{
+    if (error instanceof RagValidationError)
+    {
+        return "grounding_validation";
+    }
+
+    if (
+        (error instanceof ApiError && error.code === "WORKERS_AI_RESPONSE_INVALID")
+        || (error instanceof Error && error.name === "ZodError")
+    )
+    {
+        return "response_format";
+    }
+
+    return "provider_failure";
+}
+
+/**
+ * waitForWorkersAiRepair
+ * ----------------
+ * Applies a short bounded backoff before the single same-provider corrective attempt.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Answer Reliability
+ */
+async function waitForWorkersAiRepair(): Promise<void>
+{
+    await new Promise<void>((resolve) =>
+    {
+        setTimeout(resolve, 250);
+    });
+}
 
 export class OpenAiRagAnswerProvider implements RagAnswerProvider
 {
@@ -113,11 +172,13 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
         }
 
         let lastError: unknown;
+        let repairReason: RagRepairReason = "provider_failure";
 
         for (let attempt = 1; attempt <= 2; attempt += 1)
         {
             try
             {
+                const isRepairAttempt = attempt === 2;
                 const result = await requestWorkersAiStructuredOutput({
                     ai,
                     description: "A grounded customer-service answer or safe clarification decision.",
@@ -125,21 +186,40 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
                     maxOutputTokens: 1_800,
                     model: this.model,
                     name: "smartservice_rag_answer",
-                    prompt: buildRagPrompt(input),
-                    promptVersion: ragPromptVersion,
+                    prompt: isRepairAttempt
+                        ? buildRagRepairPrompt(input, repairReason)
+                        : buildRagPrompt(input),
+                    promptVersion: isRepairAttempt
+                        ? `${ragPromptVersion}-repair`
+                        : ragPromptVersion,
                     schema: ragAnswerJsonSchema,
                     timeoutMs: 12_000,
                 });
+                const answer = validateGroundedAnswer(
+                    ragAnswerSchema.parse(result.value),
+                    input.evidence,
+                );
+
+                if (isRepairAttempt)
+                {
+                    console.info(JSON.stringify({
+                        attempts: attempt,
+                        event: "workers_ai.answer.recovered",
+                        model: this.model,
+                        repairReason,
+                    }));
+                }
 
                 return {
-                    answer: validateGroundedAnswer(
-                        ragAnswerSchema.parse(result.value),
-                        input.evidence,
-                    ),
+                    answer,
+                    generationAttempts: attempt,
                     inputTokens: result.inputTokens,
                     model: this.model,
                     outputTokens: result.outputTokens,
                     provider: this.provider,
+                    ...(isRepairAttempt
+                        ? { recoveryMode: "same_provider_repair" as const }
+                        : {}),
                 };
             }
             catch (error: unknown)
@@ -148,18 +228,28 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
 
                 if (attempt === 1)
                 {
+                    repairReason = classifyRagRepairReason(error);
                     console.warn(JSON.stringify({
-                        errorCode: error instanceof ApiError
-                            ? error.code
-                            : error instanceof Error
-                                ? error.name.slice(0, 120)
-                                : "UNKNOWN_ERROR",
+                        attempt,
+                        errorCode: readAnswerErrorCode(error),
                         event: "workers_ai.answer.retry",
+                        maxAttempts: 2,
                         model: this.model,
+                        nextAttempt: 2,
+                        repairReason,
                     }));
+                    await waitForWorkersAiRepair();
                 }
             }
         }
+
+        console.error(JSON.stringify({
+            attempts: 2,
+            errorCode: readAnswerErrorCode(lastError),
+            event: "workers_ai.answer.failed",
+            model: this.model,
+            repairReason,
+        }));
 
         throw lastError;
     }
@@ -213,7 +303,10 @@ export class HybridRagAnswerProvider implements RagAnswerProvider
             }));
         }
 
-        return this.validateResult(await this.fallback.generate(input), input);
+        return {
+            ...this.validateResult(await this.fallback.generate(input), input),
+            recoveryMode: "provider_fallback",
+        };
     }
 
     /**

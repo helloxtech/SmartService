@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    buildRagRepairPrompt,
     buildCrossLanguageRetrievalQuestion,
     buildRagPrompt,
     buildRetrievalQuestion,
@@ -74,17 +75,31 @@ describe("grounded RAG", () =>
             "古筝 有文凭证书吗",
             "古筝 老师是谁",
         ]);
+        expect(buildRetrievalQuestions(
+            "NF-500 的最大流量是多少？价格呢？保修多久？",
+            [],
+        )).toEqual([
+            "NF-500 的最大流量是多少",
+            "NF-500 价格呢",
+            "NF-500 保修多久",
+        ]);
     });
 
-    it("bridges common Chinese school questions into English website search terms", () =>
+    it("bridges common Chinese business questions into English website search terms", () =>
     {
         const foundedQuery = buildCrossLanguageRetrievalQuestion("哪年成立的");
         const addressQuery = buildCrossLanguageRetrievalQuestion("学校地址是哪里");
+        const appointmentQuery = buildCrossLanguageRetrievalQuestion("预约可以改期或取消吗？");
+        const returnsQuery = buildCrossLanguageRetrievalQuestion("产品可以退货或保修吗？");
 
         expect(foundedQuery).toContain("founded in");
         expect(foundedQuery).toContain("established");
         expect(addressQuery).toContain("address");
         expect(addressQuery).toContain("学校地址是哪里");
+        expect(appointmentQuery).toContain("reschedule");
+        expect(appointmentQuery).toContain("cancellation");
+        expect(returnsQuery).toContain("return");
+        expect(returnsQuery).toContain("warranty");
         expect(buildCrossLanguageRetrievalQuestion("What is the address?"))
             .toBe("What is the address?");
     });
@@ -129,6 +144,24 @@ describe("grounded RAG", () =>
             "古琴的收费是多少？",
             [guzhengEvidence],
         )).toEqual([]);
+    });
+
+    it("does not let an adjacent product identifier answer the requested model", () =>
+    {
+        const nf500Evidence: RetrievedEvidence = {
+            ...fixtureEvidence,
+            content: "NF-500 maximum flow is 300 litres per minute.",
+        };
+        const nf600Evidence: RetrievedEvidence = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000007",
+            content: "NF-600 maximum flow is 450 litres per minute.",
+        };
+
+        expect(filterEvidenceForExactEntities(
+            "What is the NF-500 maximum flow?",
+            [nf600Evidence, nf500Evidence],
+        )).toEqual([nf500Evidence]);
     });
 
     it("answers a fixture question only with a retrieved supporting citation", async () =>
@@ -314,6 +347,22 @@ describe("grounded RAG", () =>
         );
     });
 
+    it("protects current role-holder questions for a non-school business", () =>
+    {
+        const answer = enforceCustomerControlledHandoff({
+            answer: "The clinic was founded by Dr. Rivera in 2018.",
+            citationChunkIds: [fixtureEvidence.chunkId],
+            confidence: 0.9,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "model value",
+        }, "Who is the current manager?", "en");
+
+        expect(answer.answer).toBe(
+            "I cannot confirm the current manager yet. You can ask a support specialist to verify this further. The clinic was founded by Dr. Rivera in 2018.",
+        );
+    });
+
     it("uses a support-specialist option instead of external research, retry, or contact copy", () =>
     {
         const answer = enforceCustomerControlledHandoff({
@@ -350,8 +399,35 @@ describe("grounded RAG", () =>
         );
 
         expect(answer.answer).toContain("客服专员");
+        expect(answer.answer).toContain("暂时没法准确答复");
         expect(answer.answer).not.toContain("再试");
         expect(answer.answer).not.toContain("查资料");
+    });
+
+    it("builds a tenant-neutral corrective retry without changing the customer evidence payload", () =>
+    {
+        const input = {
+            evidence: [{
+                chunkId: "40000000-0000-4000-a000-000000000020",
+                combinedScore: 0.93,
+                content: "Appointments may be rescheduled without a fee at least 24 hours in advance.",
+                sourceLocator: {
+                    title: "Appointment policy",
+                },
+            }],
+            language: "en" as const,
+            question: "Can I move my appointment?",
+            recentMessages: [],
+        };
+        const original = buildRagPrompt(input);
+        const repair = buildRagRepairPrompt(input, "grounding_validation");
+
+        expect(repair.user).toBe(original.user);
+        expect(repair.system).not.toBe(original.system);
+        expect(repair.system).toContain("CORRECTIVE RETRY");
+        expect(repair.system).toContain("copy one to five citationChunkIds exactly");
+        expect(repair.system).not.toContain("school admissions");
+        expect(repair.system).not.toContain("古筝");
     });
 
     it("rejects a structurally valid citation outside the retrieval set", () =>

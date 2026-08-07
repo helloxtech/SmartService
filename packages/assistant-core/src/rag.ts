@@ -30,10 +30,12 @@ export interface RagGenerationInput
 export interface RagGenerationResult
 {
     answer: RagAnswer;
+    generationAttempts?: number;
     inputTokens: number | null;
     model: string;
     outputTokens: number | null;
     provider: string;
+    recoveryMode?: "provider_fallback" | "same_provider_repair";
 }
 
 export interface RagAnswerProvider
@@ -43,13 +45,22 @@ export interface RagAnswerProvider
     generate(input: RagGenerationInput): Promise<RagGenerationResult>;
 }
 
-export const ragPromptVersion = "rag-answer-v5";
+export type RagRepairReason = "grounding_validation" | "provider_failure" | "response_format";
+
+export const ragPromptVersion = "rag-answer-v6";
 
 interface ExactEntityConstraint
 {
     evidencePatterns: readonly RegExp[];
     questionPatterns: readonly RegExp[];
     labels: Record<ConversationLanguage, string>;
+}
+
+interface CurrentRoleConstraint
+{
+    answerPatterns: readonly RegExp[];
+    labels: Record<ConversationLanguage, string>;
+    questionPatterns: readonly RegExp[];
 }
 
 const exactEntityConstraints: readonly ExactEntityConstraint[] = [{
@@ -67,6 +78,80 @@ const exactEntityConstraints: readonly ExactEntityConstraint[] = [{
     },
     questionPatterns: [/古筝/iu, /\bguzheng\b/iu],
 }];
+
+const currentRoleConstraints: readonly CurrentRoleConstraint[] = [{
+    answerPatterns: [/校长/u, /\bprincipal\b/iu],
+    labels: {
+        en: "principal",
+        "zh-CN": "校长",
+    },
+    questionPatterns: [/校长/u, /\bprincipal\b/iu],
+}, {
+    answerPatterns: [/负责人|院长|主任|经理|店长|老板|业主|总裁|会长|董事长/u, /\b(?:chair(?:person|man|woman)?|director|head|lead|manager|owner|person in charge|president|ceo)\b/iu],
+    labels: {
+        en: "person in charge",
+        "zh-CN": "负责人",
+    },
+    questionPatterns: [/负责人/u, /\bperson in charge\b/iu, /\bhead of\b/iu],
+}, {
+    answerPatterns: [/院长|主任|董事长/u, /\b(?:chair(?:person|man|woman)?|director)\b/iu],
+    labels: {
+        en: "director",
+        "zh-CN": "负责人",
+    },
+    questionPatterns: [/院长|主任|董事长/u, /\bdirector\b/iu, /\bchair(?:person|man|woman)?\b/iu],
+}, {
+    answerPatterns: [/经理|店长/u, /\bmanager\b/iu],
+    labels: {
+        en: "manager",
+        "zh-CN": "经理",
+    },
+    questionPatterns: [/经理|店长/u, /\bmanager\b/iu],
+}, {
+    answerPatterns: [/老板|业主/u, /\bowner\b/iu],
+    labels: {
+        en: "owner",
+        "zh-CN": "负责人",
+    },
+    questionPatterns: [/老板|业主/u, /\bowner\b/iu],
+}, {
+    answerPatterns: [/总裁|会长/u, /\b(?:president|ceo)\b/iu],
+    labels: {
+        en: "president",
+        "zh-CN": "负责人",
+    },
+    questionPatterns: [/总裁|会长/u, /\bpresident\b/iu, /\bceo\b/iu],
+}];
+
+/**
+ * extractExactIdentifiers
+ * ----------------
+ * Extracts bounded model, SKU, part, plan, and other letter-number identifiers that must not be substituted with adjacent evidence.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Answer Reliability
+ */
+function extractExactIdentifiers(value: string): string[]
+{
+    const matches = value.match(
+        /\b(?=[A-Z0-9._/-]*[A-Z])(?=[A-Z0-9._/-]*\d)[A-Z0-9]+(?:[._/-][A-Z0-9]+)*\b/giu,
+    ) ?? [];
+
+    return [...new Set(matches.map((match) => match.toLocaleLowerCase()))].slice(0, 5);
+}
+
+/**
+ * findExactIdentifierLabel
+ * ----------------
+ * Preserves the customer's original casing for the first exact letter-number identifier used in retrieval context or clarification copy.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Answer Reliability
+ */
+function findExactIdentifierLabel(value: string): string | null
+{
+    return value.match(
+        /\b(?=[A-Z0-9._/-]*[A-Z])(?=[A-Z0-9._/-]*\d)[A-Z0-9]+(?:[._/-][A-Z0-9]+)*\b/iu,
+    )?.[0] ?? null;
+}
 
 export const ragAnswerJsonSchema = {
     additionalProperties: false,
@@ -251,18 +336,16 @@ export function buildRetrievalQuestions(
         .map((part) => part.replace(/^[,，、\s]+|[,，、\s]+$/gu, "").trim())
         .filter((part) => normalizeQuestion(part).length >= 2);
     const uniqueParts = [...new Set(parts)];
-    const sharedEntityConstraints = exactEntityConstraints.filter((constraint) =>
-        constraint.questionPatterns.some((pattern) => pattern.test(currentQuestion)),
+    const sharedEntityLabel = findExactEntityLabel(
+        currentQuestion,
+        detectConversationLanguage(currentQuestion),
     );
-    const sharedEntityConstraint = sharedEntityConstraints.length === 1
-        ? sharedEntityConstraints[0]
-        : undefined;
-    const contextualParts = sharedEntityConstraint === undefined
+    const contextualParts = sharedEntityLabel === null
         ? uniqueParts
         : uniqueParts.map((part) =>
-            sharedEntityConstraint.questionPatterns.some((pattern) => pattern.test(part))
+            part.toLocaleLowerCase().includes(sharedEntityLabel.toLocaleLowerCase())
                 ? part
-                : `${sharedEntityConstraint.labels[detectConversationLanguage(currentQuestion)]} ${part}`,
+                : `${sharedEntityLabel} ${part}`,
         );
 
     return contextualParts.length > 1
@@ -273,9 +356,9 @@ export function buildRetrievalQuestions(
 /**
  * buildCrossLanguageRetrievalQuestion
  * ----------------
- * Appends compact English hints to common Chinese school-service intents while preserving customer-specific names and identifiers.
+ * Appends compact English hints to common Chinese customer-service intents across organizations, products, appointments, policies, and service delivery.
  *
- * August 03, 2026: Created by Forrest Zhang for SmartService Humanized Multi-Intent Answers
+ * August 06, 2026: Updated by Forrest Zhang for Tenant-Generic Answer Reliability
  */
 export function buildCrossLanguageRetrievalQuestion(question: string): string
 {
@@ -288,30 +371,35 @@ export function buildCrossLanguageRetrievalQuestion(question: string): string
     const exactEntityConstraint = exactEntityConstraints.find((constraint) =>
         constraint.questionPatterns.some((pattern) => pattern.test(question)),
     );
-    const schoolIntent = /学校|学院|课程|上课|课时|老师|教师|校长|地址|成立|创办|学费|收费|文凭|证书|古琴|古筝/u.test(question);
-
-    if (!schoolIntent)
-    {
-        return question;
-    }
-
-    terms.add("school");
-    terms.add("academy");
 
     if (exactEntityConstraint !== undefined)
     {
         terms.add(exactEntityConstraint.labels.en);
     }
 
-    if (/校长|负责人|院长/u.test(question))
+    extractExactIdentifiers(question).forEach((identifier) => terms.add(identifier));
+
+    if (/公司|企业|机构|学校|学院|品牌|商家|门店/u.test(question))
     {
-        ["principal", "president", "founder", "director", "leadership"]
+        ["company", "organization", "business"]
+            .forEach((term) => terms.add(term));
+    }
+
+    if (/学校|学院/u.test(question))
+    {
+        ["school", "academy"]
+            .forEach((term) => terms.add(term));
+    }
+
+    if (/校长|负责人|院长|主任|经理|店长|老板|业主|总裁|会长|董事长/u.test(question))
+    {
+        ["owner", "manager", "principal", "president", "founder", "director", "leadership"]
             .forEach((term) => terms.add(term));
     }
 
     if (/哪年|成立|创办|建校|历史/u.test(question))
     {
-        ["founded", "founded in", "established", "year", "history"]
+        ["about us", "company", "organization", "founded", "founded in", "established", "year", "history"]
             .forEach((term) => terms.add(term));
     }
 
@@ -321,33 +409,51 @@ export function buildCrossLanguageRetrievalQuestion(question: string): string
             .forEach((term) => terms.add(term));
     }
 
-    if (/在家|线上|网课|远程|到校|学校上|上课方式/u.test(question))
+    if (/在家|线上|线下|网课|远程|到校|学校上|上课方式|上门|到店|门店|自提|配送|送货|服务方式|交付方式/u.test(question))
     {
-        ["classes", "teaching methods", "in person", "online", "remote", "distance education", "campus", "home"]
+        ["service delivery", "in person", "online", "remote", "on site", "home", "pickup", "delivery"]
             .forEach((term) => terms.add(term));
     }
 
-    if (/课程|教|提供什么|有哪些/u.test(question))
+    if (/上课|课程|网课|课时|教学/u.test(question))
     {
-        ["lessons", "classes", "courses", "program", "offer", "available"]
+        ["classes", "courses", "teaching methods"]
             .forEach((term) => terms.add(term));
     }
 
-    if (/学费|收费|价格|多少钱|费用/u.test(question))
+    if (/课程|产品|服务|项目|教|销售|卖|提供|办理|有哪些/u.test(question))
     {
-        ["course", "tuition", "fee", "price", "cost"]
+        ["service", "product", "lessons", "classes", "courses", "program", "offer", "available"]
             .forEach((term) => terms.add(term));
     }
 
-    if (/课时|多久|时长|多少小时/u.test(question))
+    if (/学费|收费|价格|多少钱|费用|报价/u.test(question))
     {
-        ["course", "duration", "class hours", "instructional hours", "length"]
+        ["fee", "price", "cost", "quote"]
             .forEach((term) => terms.add(term));
     }
 
-    if (/文凭|证书|学历/u.test(question))
+    if (/学费/u.test(question))
     {
-        ["course", "program", "diploma", "certificate", "credential"]
+        ["course", "tuition"]
+            .forEach((term) => terms.add(term));
+    }
+
+    if (/多久|时长|周期|工期|需要几天/u.test(question))
+    {
+        ["duration", "length", "lead time", "timeline"]
+            .forEach((term) => terms.add(term));
+    }
+
+    if (/课时|多少小时/u.test(question))
+    {
+        ["course", "duration", "class hours", "instructional hours"]
+            .forEach((term) => terms.add(term));
+    }
+
+    if (/文凭|证书|学历|资质/u.test(question))
+    {
+        ["diploma", "certificate", "credential", "qualification"]
             .forEach((term) => terms.add(term));
     }
 
@@ -357,15 +463,47 @@ export function buildCrossLanguageRetrievalQuestion(question: string): string
             .forEach((term) => terms.add(term));
     }
 
-    return `${question} ${[...terms].join(" ")}`;
+    if (/预约|预订|改期|更改时间|取消/u.test(question))
+    {
+        ["appointment", "booking", "reschedule", "cancellation", "policy"]
+            .forEach((term) => terms.add(term));
+    }
+
+    if (/营业|开放|几点|工作时间|上班时间/u.test(question))
+    {
+        ["business hours", "opening hours", "schedule"]
+            .forEach((term) => terms.add(term));
+    }
+
+    if (/退货|退款|换货|保修|售后/u.test(question))
+    {
+        ["return", "refund", "exchange", "warranty", "after sales", "policy"]
+            .forEach((term) => terms.add(term));
+    }
+
+    if (/有吗|有没有|可用|名额/u.test(question))
+    {
+        ["available", "availability"]
+            .forEach((term) => terms.add(term));
+    }
+
+    if (/库存|现货/u.test(question))
+    {
+        ["inventory", "in stock", "stock"]
+            .forEach((term) => terms.add(term));
+    }
+
+    return terms.size === 0
+        ? question
+        : `${question} ${[...terms].join(" ")}`;
 }
 
 /**
  * filterEvidenceForExactEntities
  * ----------------
- * Rejects semantically adjacent evidence when the customer explicitly names a commonly confused entity such as Guqin or Guzheng.
+ * Rejects semantically adjacent evidence when the customer names a protected confusion pair or an exact letter-number model, SKU, plan, or part identifier.
  *
- * August 03, 2026: Created by Forrest Zhang for SmartService Humanized Multi-Intent Answers
+ * August 06, 2026: Updated by Forrest Zhang for Tenant-Generic Answer Reliability
  */
 export function filterEvidenceForExactEntities(
     question: string,
@@ -375,15 +513,25 @@ export function filterEvidenceForExactEntities(
     const constraints = exactEntityConstraints.filter((constraint) =>
         constraint.questionPatterns.some((pattern) => pattern.test(question)),
     );
+    const identifiers = extractExactIdentifiers(question);
 
-    if (constraints.length === 0)
+    if (constraints.length === 0 && identifiers.length === 0)
     {
         return [...evidence];
     }
 
-    return evidence.filter((item) => constraints.some((constraint) =>
-        constraint.evidencePatterns.some((pattern) => pattern.test(item.content)),
-    ));
+    return evidence.filter((item) =>
+    {
+        const matchesProtectedEntity = constraints.length === 0
+            || constraints.some((constraint) =>
+                constraint.evidencePatterns.some((pattern) => pattern.test(item.content)),
+            );
+        const evidenceIdentifiers = new Set(extractExactIdentifiers(item.content));
+        const matchesIdentifiers = identifiers.length === 0
+            || identifiers.every((identifier) => evidenceIdentifiers.has(identifier));
+
+        return matchesProtectedEntity && matchesIdentifiers;
+    });
 }
 
 /**
@@ -432,9 +580,9 @@ export function mergeRetrievedEvidence(
 /**
  * findExactEntityLabel
  * ----------------
- * Returns a customer-facing label when the question names one exact entity covered by the adjacent-entity safeguard.
+ * Returns a customer-facing label when the question names one protected adjacent entity or exact business identifier.
  *
- * August 03, 2026: Created by Forrest Zhang for SmartService Humanized Multi-Intent Answers
+ * August 06, 2026: Updated by Forrest Zhang for Tenant-Generic Answer Reliability
  */
 function findExactEntityLabel(
     question: string,
@@ -445,7 +593,55 @@ function findExactEntityLabel(
         candidate.questionPatterns.some((pattern) => pattern.test(question)),
     );
 
-    return constraint?.labels[language] ?? null;
+    return constraint?.labels[language] ?? findExactIdentifierLabel(question);
+}
+
+/**
+ * findRequestedCurrentRoleConstraint
+ * ----------------
+ * Identifies a customer-requested current role across common business types so historical founders or adjacent titles cannot silently answer it.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Answer Reliability
+ */
+function findRequestedCurrentRoleConstraint(
+    question: string,
+): CurrentRoleConstraint | null
+{
+    const constraint = currentRoleConstraints.find((candidate) =>
+        candidate.questionPatterns.some((pattern) => pattern.test(question)),
+    );
+
+    return constraint ?? null;
+}
+
+/**
+ * prependUnconfirmedCurrentRole
+ * ----------------
+ * Adds the missing current role explicitly when a generated answer mentions only adjacent historical people or titles.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Answer Reliability
+ */
+function prependUnconfirmedCurrentRole(
+    answer: string,
+    question: string,
+    language: ConversationLanguage,
+): string
+{
+    const constraint = findRequestedCurrentRoleConstraint(question);
+
+    if (
+        constraint === null
+        || constraint.answerPatterns.some((pattern) => pattern.test(answer))
+    )
+    {
+        return answer;
+    }
+
+    const role = constraint.labels[language];
+
+    return language === "zh-CN"
+        ? `关于${role}，我这边暂时没有可确认的信息。您可以选择请客服专员进一步核实。${answer}`
+        : `I cannot confirm the current ${role} yet. You can ask a support specialist to verify this further. ${answer}`;
 }
 
 /**
@@ -497,14 +693,14 @@ export function createSafeClarification(
         ? reason === "conflicting_knowledge"
             ? "这个问题的相关信息目前不一致，我不想给您不准确的答复。您可以选择请客服专员进一步核实。"
             : reason === "system_error"
-                ? "抱歉，刚才未能完成确认。为确保信息准确，您可以选择请客服专员进一步跟进。"
+                ? "抱歉，这个问题我暂时没法准确答复。您可以选择请客服专员继续跟进。"
                 : exactEntityLabel === null
                     ? "这个问题我这边暂时无法确认。为确保信息准确，您可以选择请客服专员进一步核实。"
                     : `我明白，您问的是“${exactEntityLabel}”。关于“${exactEntityLabel}”，我这边暂时无法确认。为确保信息准确，您可以选择请客服专员进一步核实。`
         : reason === "conflicting_knowledge"
             ? "The information for this question is currently inconsistent, and I do not want to give you an inaccurate answer. You can ask a support specialist to verify it further."
             : reason === "system_error"
-                ? "I am sorry, I could not complete that confirmation just now. To make sure you receive accurate information, you can ask a support specialist to follow up."
+                ? "Sorry, I am not able to give you an accurate answer to that right now. You can ask a support specialist to follow up."
                 : exactEntityLabel === null
                     ? "I cannot confirm that detail yet. To make sure you receive accurate information, you can ask a support specialist to verify it further."
                     : `I understand that you are asking about ${exactEntityLabel}. I cannot confirm ${exactEntityLabel} yet. To make sure you receive accurate information, you can ask a support specialist to verify it further.`;
@@ -541,11 +737,9 @@ export function humanizeGroundedAnswerText(
             .replace(/证据中没有/gu, "目前尚未确认")
             .replace(/证据中/gu, "目前")
             .replace(/(?:现有|提供的)资料/gu, "目前可确认的信息")
-            .replace(/证据/gu, "学院已确认的信息");
+            .replace(/证据/gu, "目前已确认的信息");
 
-        return /校长/u.test(question) && !/校长/u.test(humanized)
-            ? `关于校长，我这边暂时没有可确认的信息。您可以选择请客服专员进一步核实。${humanized}`
-            : humanized;
+        return prependUnconfirmedCurrentRole(humanized, question, language);
     }
 
     const humanized = answer
@@ -556,9 +750,7 @@ export function humanizeGroundedAnswerText(
         .replace(/\bthe evidence\b/giu, "the confirmed company information")
         .replace(/\bevidence\b/giu, "confirmed company information");
 
-    return /\bprincipal\b/iu.test(question) && !/\bprincipal\b/iu.test(humanized)
-        ? `I cannot confirm the current principal yet. You can ask a support specialist to verify this further. ${humanized}`
-        : humanized;
+    return prependUnconfirmedCurrentRole(humanized, question, language);
 }
 
 /**
@@ -704,8 +896,8 @@ export function buildRagPrompt(input: RagGenerationInput): {
             "Never tell the customer to try again. If a confirmation cannot be completed, use the same support-specialist follow-up path.",
             "Never substitute a nearby product, instrument, person, course, or service.",
             "For a multi-part question, address every part separately. Answer supported parts and say plainly which specific parts you could not find.",
-            "Do not infer a current title, offering, price, teaching mode, or location from an adjacent fact. Do not treat a founder as the current principal unless the evidence says so.",
-            "If the customer asks for the current principal but EVIDENCE identifies only founders, explicitly say that you cannot confirm the current principal and offer support-specialist verification before optionally naming the founders. Never answer the principal question with founders alone.",
+            "Do not infer a current role-holder, offering, price, availability, service or delivery mode, or location from an adjacent fact. Do not treat a founder or former role-holder as the current owner, manager, director, principal, president, or other requested lead unless EVIDENCE says so.",
+            "If the customer asks who currently holds a role but EVIDENCE identifies only founders, former staff, or a different title, explicitly say that you cannot confirm the requested current role and offer support-specialist verification before optionally naming the historical or adjacent person with the correct scope.",
             "When information is not found, say that you cannot confirm it yet; never claim that the product or service does not exist unless EVIDENCE explicitly says that.",
             "For decision=clarify, explain the limitation conversationally in the company's customer-service voice and offer the support-specialist option without claiming a transfer was requested.",
             "Never use internal phrases such as 'evidence', 'approved knowledge', 'insufficient evidence', 'reliable answer', 'retrieval', or 'source materials' in customer-facing answer text. In Chinese, do not say '根据我查到的资料' or '我查资料'.",
@@ -721,6 +913,42 @@ export function buildRagPrompt(input: RagGenerationInput): {
             QUESTION: input.question,
             RECENT_MESSAGES: recentMessages,
         }),
+    };
+}
+
+/**
+ * buildRagRepairPrompt
+ * ----------------
+ * Produces a meaningfully different second request that corrects the failed output contract while preserving the same tenant evidence and provider boundary.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Answer Reliability
+ */
+export function buildRagRepairPrompt(
+    input: RagGenerationInput,
+    reason: RagRepairReason,
+): {
+    system: string;
+    user: string;
+}
+{
+    const prompt = buildRagPrompt(input);
+    const failedRequirement = reason === "grounding_validation"
+        ? "The previous response used citations or a decision that did not satisfy the grounding rules."
+        : reason === "response_format"
+            ? "The previous response did not satisfy the required JSON object and field contract."
+            : "The previous provider attempt did not complete successfully.";
+
+    return {
+        system: [
+            prompt.system,
+            "CORRECTIVE RETRY:",
+            failedRequirement,
+            "Re-evaluate the customer question from the supplied EVIDENCE; do not repeat or defend the previous response.",
+            "Return exactly one JSON object matching the required schema, with every required field and no Markdown or surrounding commentary.",
+            "For decision=answer, copy one to five citationChunkIds exactly from EVIDENCE. Never invent, alter, or omit an ID needed to support a factual answer.",
+            "If the supplied EVIDENCE cannot support the requested fact, use decision=clarify with no citations and the appropriate missing or conflicting knowledge reason.",
+        ].join("\n"),
+        user: prompt.user,
     };
 }
 

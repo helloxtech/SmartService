@@ -215,7 +215,7 @@ test("starts voice only after click and falls back cleanly when microphone is de
 
     await page.goto("/voice");
     await expect(page.getByRole("heading", {
-        name: /Talk when the agent is Ready/u,
+        name: /Talk with customer service when ready/u,
     })).toBeVisible();
     expect(startupRequests).toBe(0);
 

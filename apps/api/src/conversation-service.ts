@@ -92,6 +92,88 @@ interface GuardrailBlockInput
     requestId: string;
 }
 
+type TurnProcessingStage =
+    | "answer_generation"
+    | "conversation_context"
+    | "guardrail_configuration"
+    | "input_guardrail"
+    | "knowledge_retrieval"
+    | "output_guardrail"
+    | "output_supervision"
+    | "query_embedding"
+    | "query_planning";
+
+interface TurnStageAttribution
+{
+    model: string;
+    provider: string;
+}
+
+/**
+ * resolveTurnStageAttribution
+ * ----------------
+ * Maps a failed tenant-generic turn stage to the exact dependency or policy component responsible for its audit row.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Answer Reliability
+ */
+function resolveTurnStageAttribution(
+    stage: TurnProcessingStage,
+    bindings: SmartServiceBindings,
+    answers: RagAnswerProvider,
+    guardrails: GuardrailSupervisor,
+): TurnStageAttribution
+{
+    switch (stage)
+    {
+        case "answer_generation":
+            return {
+                model: answers.model,
+                provider: answers.provider,
+            };
+        case "conversation_context":
+            return {
+                model: "recent-conversation-v1",
+                provider: "supabase",
+            };
+        case "guardrail_configuration":
+            return {
+                model: "tenant-guardrails-v1",
+                provider: "supabase",
+            };
+        case "input_guardrail":
+        case "output_guardrail":
+            return {
+                model: "deterministic-guardrail-v1",
+                provider: "deterministic",
+            };
+        case "knowledge_retrieval":
+            return {
+                model: "pgvector-pg-trgm-v1",
+                provider: "supabase",
+            };
+        case "output_supervision":
+            return {
+                model: guardrails.model,
+                provider: guardrails.provider,
+            };
+        case "query_embedding":
+            return (bindings.EMBEDDING_PROVIDER_MODE ?? bindings.INGESTION_PROVIDER_MODE) === "live"
+                ? {
+                    model: bindings.OPENAI_EMBEDDING_MODEL ?? "text-embedding-3-large",
+                    provider: "openai",
+                }
+                : {
+                    model: "deterministic-embedding-v1",
+                    provider: "mock",
+                };
+        case "query_planning":
+            return {
+                model: "retrieval-query-v1",
+                provider: "application",
+            };
+    }
+}
+
 /**
  * sha256Hex
  * ----------------
@@ -788,14 +870,18 @@ export class DefaultPublicConversationService implements PublicConversationServi
         let evidence: RetrievedEvidence[] = [];
         let retrievalCrossLanguageExpanded = false;
         let retrievalContextualized = false;
-        let retrievalMinimumThreshold = parseThreshold(this.bindings);
+        let retrievalMinimumThreshold: number | null = null;
         let retrievalQueryCount = 1;
-        let provider = this.answers.provider;
-        let model = this.answers.model;
+        let provider: string;
+        let model: string;
         let inputTokens: number | null = null;
         let outputTokens: number | null = null;
+        let generationAttempts: number | null = null;
+        let generationRecoveryMode: "none" | "provider_fallback" | "same_provider_repair" | null = null;
         let aiStatus: "succeeded" | "failed" = "succeeded";
         let errorCode: string | null = null;
+        let currentStage: TurnProcessingStage = "guardrail_configuration";
+        let failedStage: TurnProcessingStage | null = null;
         let answer: RagAnswer;
 
         try
@@ -808,9 +894,11 @@ export class DefaultPublicConversationService implements PublicConversationServi
             }
             else
             {
+                currentStage = "guardrail_configuration";
                 const rules: GuardrailRule[] = await this.repository.listGuardrailRules(
                     organizationId,
                 );
+                currentStage = "input_guardrail";
                 const inputGuardrailStartedAt = Date.now();
                 const inputEvaluation = evaluateDeterministicGuardrails({
                     candidateAnswer: null,
@@ -848,11 +936,14 @@ export class DefaultPublicConversationService implements PublicConversationServi
                     });
                 }
 
+                currentStage = "conversation_context";
                 const recentMessages = await this.repository.listRecentMessages(
                     organizationId,
                     conversationId,
                     customerMessage.id,
                 );
+                currentStage = "query_planning";
+                const configuredThreshold = parseThreshold(this.bindings);
                 const focusedRetrievalQuestions = buildRetrievalQuestions(
                     input.text,
                     recentMessages,
@@ -862,8 +953,8 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 );
                 const retrievalThresholds = retrievalQuestions.map((retrievalQuestion, index) =>
                     retrievalQuestion === focusedRetrievalQuestions[index]
-                        ? parseThreshold(this.bindings)
-                        : Math.min(parseThreshold(this.bindings), 0.3),
+                        ? configuredThreshold
+                        : Math.min(configuredThreshold, 0.3),
                 );
                 retrievalCrossLanguageExpanded = retrievalQuestions.some(
                     (question, index) => question !== focusedRetrievalQuestions[index],
@@ -872,6 +963,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                     || focusedRetrievalQuestions[0] !== input.text.trim();
                 retrievalMinimumThreshold = Math.min(...retrievalThresholds);
                 retrievalQueryCount = focusedRetrievalQuestions.length;
+                currentStage = "query_embedding";
                 const vectors = await this.embeddings.embed(retrievalQuestions);
 
                 if (vectors.length !== retrievalQuestions.length)
@@ -879,6 +971,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                     throw new ApiError(502, "QUERY_EMBEDDING_INVALID", "The query embedding is not valid.");
                 }
 
+                currentStage = "knowledge_retrieval";
                 const retrievalResultSets = await Promise.all(
                     retrievalQuestions.map(async (retrievalQuestion, index) =>
                     {
@@ -893,7 +986,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                             organizationId,
                             retrievalQuestion,
                             queryEmbedding,
-                            retrievalThresholds[index] ?? parseThreshold(this.bindings),
+                            retrievalThresholds[index] ?? configuredThreshold,
                             4,
                         );
                         const focusedRetrievalQuestion = focusedRetrievalQuestions[index]
@@ -922,6 +1015,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 }
                 else
                 {
+                    currentStage = "answer_generation";
                     const generationInput = {
                         evidence,
                         language,
@@ -939,6 +1033,8 @@ export class DefaultPublicConversationService implements PublicConversationServi
                     else
                     {
                         const generated = await this.answers.generate(generationInput);
+                        generationAttempts = generated.generationAttempts ?? 1;
+                        generationRecoveryMode = generated.recoveryMode ?? "none";
                         inputTokens = generated.inputTokens;
                         model = generated.model;
                         outputTokens = generated.outputTokens;
@@ -968,6 +1064,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                             promptVersion: ragPromptVersion,
                             provider,
                         };
+                        currentStage = "output_guardrail";
                         const outputGuardrailStartedAt = Date.now();
                         const outputEvaluation = evaluateDeterministicGuardrails({
                             candidateAnswer: answer.answer,
@@ -997,6 +1094,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                             });
                         }
 
+                        currentStage = "output_supervision";
                         const supervisionStartedAt = Date.now();
                         const supervision = await this.guardrails.supervise({
                             candidateAnswer: answer.answer,
@@ -1032,17 +1130,29 @@ export class DefaultPublicConversationService implements PublicConversationServi
         catch (error: unknown)
         {
             aiStatus = "failed";
+            failedStage = currentStage;
             errorCode = error instanceof ApiError
                 ? error.code
                 : error instanceof Error
                     ? error.name.slice(0, 120)
                     : "UNKNOWN_ERROR";
+            const failureAttribution = resolveTurnStageAttribution(
+                failedStage,
+                this.bindings,
+                this.answers,
+                this.guardrails,
+            );
+            model = failureAttribution.model;
+            provider = failureAttribution.provider;
             answer = createSafeClarification(input.text, language, "system_error");
 
             console.error(JSON.stringify({
                 conversationId,
                 errorCode,
                 event: "public.turn.failed_closed",
+                failedStage,
+                model,
+                provider,
                 requestId,
             }));
         }
@@ -1073,6 +1183,11 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 contextualized: retrievalContextualized,
                 count: evidence.length,
                 crossLanguageExpanded: retrievalCrossLanguageExpanded,
+                processing: {
+                    failedStage,
+                    generationAttempts,
+                    generationRecoveryMode,
+                },
                 queryCount: retrievalQueryCount,
                 normalizedQuestion: answer.normalizedQuestion,
                 scores: evidence.map((item) => ({

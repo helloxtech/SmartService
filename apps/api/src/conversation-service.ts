@@ -1,5 +1,6 @@
 import {
     buildCrossLanguageRetrievalQuestion,
+    buildQuestionPartEvidenceScope,
     buildRetrievalQuestions,
     createApprovedManualAnswer,
     createSafeClarification,
@@ -1118,8 +1119,10 @@ export class DefaultPublicConversationService implements PublicConversationServi
                             evidence,
                             language,
                             question: input.text,
-                            questionPartEvidenceIds: retrievalResultSets.map((resultSet) =>
-                                resultSet.map((item) => item.chunkId),
+                            questionPartEvidenceIds: buildQuestionPartEvidenceScope(
+                                focusedRetrievalQuestions,
+                                retrievalResultSets,
+                                evidence,
                             ),
                             questionParts: focusedRetrievalQuestions,
                             recentMessages,

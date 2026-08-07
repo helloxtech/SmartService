@@ -5,6 +5,7 @@ import {
     buildRagRepairPrompt,
     buildCrossLanguageRetrievalQuestion,
     buildRagPrompt,
+    buildQuestionPartEvidenceScope,
     buildRetrievalQuestion,
     buildRetrievalQuestions,
     createSafeClarification,
@@ -83,6 +84,38 @@ describe("grounded RAG", () =>
             "NF-500 的最大流量是多少",
             "NF-500 价格呢",
             "NF-500 保修多久",
+        ]);
+    });
+
+    it("adds only explicit stable-fact evidence to a missing focused part scope", () =>
+    {
+        const aboutEvidence: RetrievedEvidence = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000002",
+            content: "The company was founded in 2001. Address: 2335-8888 Odlin Cres, Richmond, B.C.",
+        };
+        const lessonEvidence: RetrievedEvidence = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000003",
+            content: "Teaching methods include one-to-one lectures and demonstrations.",
+        };
+        const scopes = buildQuestionPartEvidenceScope([
+            "你们学校校长是谁",
+            "哪年成立的",
+            "上课要去学校上，还是可以在家上",
+            "学校地址是哪里",
+        ], [
+            [aboutEvidence],
+            [],
+            [lessonEvidence],
+            [],
+        ], [aboutEvidence, lessonEvidence]);
+
+        expect(scopes).toEqual([
+            [aboutEvidence.chunkId],
+            [aboutEvidence.chunkId],
+            [lessonEvidence.chunkId],
+            [aboutEvidence.chunkId],
         ]);
     });
 

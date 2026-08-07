@@ -649,6 +649,92 @@ export function mergeRetrievedEvidence(
 }
 
 /**
+ * evidenceDirectlySupportsPlannedQuestion
+ * ----------------
+ * Recognizes bounded cross-result evidence that explicitly states a requested stable fact, exact role assignment, delivery mode, or identifier.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Per-Part Evidence Recovery
+ */
+function evidenceDirectlySupportsPlannedQuestion(
+    question: string,
+    evidence: RetrievedEvidence,
+): boolean
+{
+    const roleConstraint = findRequestedCurrentRoleConstraint(question);
+
+    if (roleConstraint !== null)
+    {
+        return hasExplicitRequestedRoleHolderName(evidence.content, roleConstraint);
+    }
+
+    if (questionRequestsDeliveryMode(question))
+    {
+        return evidenceSupportsDeliveryModeAnswer("Online service.", [evidence])
+            || evidenceSupportsDeliveryModeAnswer("In-person service.", [evidence]);
+    }
+
+    if (
+        /哪年.*(?:成立|创办|创立)|(?:成立|创办|创立).*(?:哪年|时间)|\bwhen (?:was|were).*(?:founded|established)|\b(?:founding|establishment) (?:year|date)/iu.test(
+            question,
+        )
+    )
+    {
+        return /\b(?:founded|established|formed|opened)\s+(?:in\s+)?(?:18|19|20)\d{2}\b|(?:成立|创办|创立|开业)于?\s*(?:18|19|20)\d{2}年?/iu.test(
+            evidence.content,
+        );
+    }
+
+    if (/地址|在哪里|位于哪里|怎么去|\baddress\b|\bwhere\b.*\blocated\b|\blocation\b/iu.test(question))
+    {
+        return /\b\d{1,6}(?:-\d{1,6})?\s+[\p{L}\d.'-]+(?:\s+[\p{L}\d.'-]+){0,6}\s+(?:cres(?:cent)?|st(?:reet)?|ave(?:nue)?|rd|road|blvd|boulevard|dr(?:ive)?|ln|lane|way|court|ct)\b/iu.test(
+            evidence.content,
+        );
+    }
+
+    const identifiers = extractExactIdentifiers(question);
+
+    return identifiers.length > 0
+        && identifiers.every((identifier) =>
+            extractExactIdentifiers(evidence.content).includes(identifier),
+        );
+}
+
+/**
+ * buildQuestionPartEvidenceScope
+ * ----------------
+ * Preserves focused retrieval ownership while adding only merged chunks that explicitly state the stable fact requested by another planned part.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Per-Part Evidence Recovery
+ */
+export function buildQuestionPartEvidenceScope(
+    questionParts: readonly string[],
+    retrievalResultSets: readonly (readonly RetrievedEvidence[])[],
+    mergedEvidence: readonly RetrievedEvidence[],
+): string[][]
+{
+    const visibleIds = new Set(mergedEvidence.map((item) => item.chunkId));
+
+    return questionParts.slice(0, 5).map((question, index) =>
+    {
+        const scopedIds = new Set(
+            (retrievalResultSets[index] ?? [])
+                .map((item) => item.chunkId)
+                .filter((chunkId) => visibleIds.has(chunkId)),
+        );
+
+        mergedEvidence.forEach((item) =>
+        {
+            if (evidenceDirectlySupportsPlannedQuestion(question, item))
+            {
+                scopedIds.add(item.chunkId);
+            }
+        });
+
+        return [...scopedIds];
+    });
+}
+
+/**
  * findExactEntityLabel
  * ----------------
  * Returns a customer-facing label when the question names one protected adjacent entity or exact business identifier.

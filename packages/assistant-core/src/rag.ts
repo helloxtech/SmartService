@@ -132,6 +132,11 @@ const currentRoleConstraints: readonly CurrentRoleConstraint[] = [{
     questionPatterns: [/总裁|会长/u, /\bpresident\b/iu, /\bceo\b/iu],
 }];
 
+const foundingQuestionPattern = /哪年.*(?:成立|创办|创立)|(?:成立|创办|创立).*(?:哪年|时间)|\bwhen (?:was|were).*(?:founded|established)|\b(?:founding|establishment) (?:year|date)/iu;
+const foundingEvidencePattern = /\b(?:founded|established|formed|opened)\s+(?:in\s+)?((?:18|19|20)\d{2})\b|(?:成立|创办|创立|开业)于?\s*((?:18|19|20)\d{2})年?/iu;
+const addressQuestionPattern = /地址|在哪里|位于哪里|怎么去|\baddress\b|\bwhere\b.*\blocated\b|\blocation\b/iu;
+const streetAddressPattern = /\b\d{1,6}(?:-\d{1,6})?\s+[\p{L}\d.'-]+(?:\s+[\p{L}\d.'-]+){0,6}\s+(?:cres(?:cent)?|st(?:reet)?|ave(?:nue)?|rd|road|blvd|boulevard|dr(?:ive)?|ln|lane|way|court|ct)\b/iu;
+
 /**
  * extractExactIdentifiers
  * ----------------
@@ -689,22 +694,14 @@ function evidenceDirectlySupportsPlannedQuestion(
             || evidenceSupportsDeliveryModeAnswer("In-person service.", [evidence]);
     }
 
-    if (
-        /哪年.*(?:成立|创办|创立)|(?:成立|创办|创立).*(?:哪年|时间)|\bwhen (?:was|were).*(?:founded|established)|\b(?:founding|establishment) (?:year|date)/iu.test(
-            question,
-        )
-    )
+    if (foundingQuestionPattern.test(question))
     {
-        return /\b(?:founded|established|formed|opened)\s+(?:in\s+)?(?:18|19|20)\d{2}\b|(?:成立|创办|创立|开业)于?\s*(?:18|19|20)\d{2}年?/iu.test(
-            evidence.content,
-        );
+        return foundingEvidencePattern.test(evidence.content);
     }
 
-    if (/地址|在哪里|位于哪里|怎么去|\baddress\b|\bwhere\b.*\blocated\b|\blocation\b/iu.test(question))
+    if (addressQuestionPattern.test(question))
     {
-        return /\b\d{1,6}(?:-\d{1,6})?\s+[\p{L}\d.'-]+(?:\s+[\p{L}\d.'-]+){0,6}\s+(?:cres(?:cent)?|st(?:reet)?|ave(?:nue)?|rd|road|blvd|boulevard|dr(?:ive)?|ln|lane|way|court|ct)\b/iu.test(
-            evidence.content,
-        );
+        return streetAddressPattern.test(evidence.content);
     }
 
     const identifiers = extractExactIdentifiers(question);
@@ -748,6 +745,67 @@ export function buildQuestionPartEvidenceScope(
 
         return [...scopedIds];
     });
+}
+
+/**
+ * createExplicitStableFactAnswer
+ * ----------------
+ * Projects an explicitly stated founding year or street address into a short company-owned answer without allowing model embellishment around the extracted fact.
+ *
+ * August 06, 2026: Created by Forrest Zhang for Deterministic Stable-Fact Answers
+ */
+export function createExplicitStableFactAnswer(
+    question: string,
+    evidence: readonly RetrievedEvidence[],
+    language: ConversationLanguage,
+): RagAnswer | null
+{
+    if (foundingQuestionPattern.test(question))
+    {
+        for (const item of evidence)
+        {
+            const match = foundingEvidencePattern.exec(item.content);
+            const year = match?.[1] ?? match?.[2];
+
+            if (year !== undefined)
+            {
+                return ragAnswerSchema.parse({
+                    answer: language === "zh-CN"
+                        ? `我们成立于${year}年。`
+                        : `We were established in ${year}.`,
+                    citationChunkIds: [item.chunkId],
+                    confidence: 1,
+                    decision: "answer",
+                    handoffReason: null,
+                    normalizedQuestion: normalizeQuestion(question),
+                });
+            }
+        }
+    }
+
+    if (addressQuestionPattern.test(question))
+    {
+        for (const item of evidence)
+        {
+            const address = streetAddressPattern.exec(item.content)?.[0];
+
+            if (address !== undefined)
+            {
+                return ragAnswerSchema.parse({
+                    answer: language === "zh-CN"
+                        ? `我们的地址是${address}。`
+                        : `Our address is ${address}.`,
+                    citationChunkIds: [item.chunkId],
+                    confidence: 1,
+                    decision: "answer",
+                    handoffReason: null,
+                    normalizedQuestion: normalizeQuestion(question),
+                });
+            }
+        }
+    }
+
+    return null;
 }
 
 /**

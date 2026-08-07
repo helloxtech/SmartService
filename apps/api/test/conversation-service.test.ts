@@ -317,6 +317,34 @@ describe("tenant-generic turn failure isolation", () =>
         expect(response.answer).toContain("support specialist");
     });
 
+    it("composes explicit stable facts without asking the model to embellish them", async () =>
+    {
+        const harness = createFailureHarness(null);
+        harness.retrieveEvidence.mockResolvedValue([{
+            chunkId: evidenceChunkId,
+            combinedScore: 0.93,
+            content: "The company was founded in 2001. Address: 2335-8888 Odlin Cres, Richmond, B.C.",
+            sourceLocator: {
+                title: "Company profile",
+            },
+        }]);
+        const response = await harness.service.sendTrusted(
+            organizationId,
+            conversationId,
+            {
+                clientMessageId: crypto.randomUUID(),
+                text: "When was the company founded? What is the address?",
+            },
+            "request-stable-fact-test",
+        );
+
+        expect(harness.answers.generate).not.toHaveBeenCalled();
+        expect(response.answer).toContain("1. We were established in 2001.");
+        expect(response.answer).toContain("2. Our address is 2335-8888 Odlin Cres.");
+        expect(response.answer).not.toContain("Richmond");
+        expect(response.citations).toHaveLength(1);
+    });
+
     it.each([{
         errorCode: "EMBEDDING_PROVIDER_FAILED",
         expectedModel: "text-embedding-3-large",

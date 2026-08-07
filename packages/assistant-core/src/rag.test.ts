@@ -8,6 +8,7 @@ import {
     buildQuestionPartEvidenceScope,
     buildRetrievalQuestion,
     buildRetrievalQuestions,
+    createExplicitStableFactAnswer,
     createSafeClarification,
     DeterministicRagAnswerProvider,
     enforceCustomerControlledHandoff,
@@ -117,6 +118,38 @@ describe("grounded RAG", () =>
             [lessonEvidence.chunkId],
             [aboutEvidence.chunkId],
         ]);
+    });
+
+    it("projects explicit stable facts without model-added locations or fragments", () =>
+    {
+        const aboutEvidence: RetrievedEvidence = {
+            ...fixtureEvidence,
+            content: "The company was founded in 2001. Address: 2335-8888 Odlin Cres, Richmond, B.C.",
+        };
+
+        expect(createExplicitStableFactAnswer(
+            "哪年成立的",
+            [aboutEvidence],
+            "zh-CN",
+        )).toMatchObject({
+            answer: "我们成立于2001年。",
+            citationChunkIds: [aboutEvidence.chunkId],
+            decision: "answer",
+        });
+        expect(createExplicitStableFactAnswer(
+            "What is your address?",
+            [aboutEvidence],
+            "en",
+        )).toMatchObject({
+            answer: "Our address is 2335-8888 Odlin Cres.",
+            citationChunkIds: [aboutEvidence.chunkId],
+            decision: "answer",
+        });
+        expect(createExplicitStableFactAnswer(
+            "What does it cost?",
+            [aboutEvidence],
+            "en",
+        )).toBeNull();
     });
 
     it("bridges common Chinese business questions into English website search terms", () =>

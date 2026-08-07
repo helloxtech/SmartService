@@ -3,6 +3,7 @@ import {
     buildQuestionPartEvidenceScope,
     buildRetrievalQuestions,
     createApprovedManualAnswer,
+    createExplicitStableFactAnswer,
     createSafeClarification,
     createSafeHandoff,
     detectConversationLanguage,
@@ -552,6 +553,24 @@ export class DefaultPublicConversationService implements PublicConversationServi
                     model: "no-evidence-v3",
                     outputTokens: null,
                     provider: "retrieval-gate",
+                } satisfies RagGenerationResult;
+            }
+
+            const stableFactAnswer = createExplicitStableFactAnswer(
+                questionPart,
+                scopedEvidence,
+                input.language,
+            );
+
+            if (stableFactAnswer !== null)
+            {
+                return {
+                    answer: stableFactAnswer,
+                    generationAttempts: 0,
+                    inputTokens: null,
+                    model: "stable-fact-v1",
+                    outputTokens: null,
+                    provider: "deterministic",
                 } satisfies RagGenerationResult;
             }
 

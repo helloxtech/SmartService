@@ -218,7 +218,7 @@ describe("grounded RAG", () =>
         expect(foundedQuery).toContain("about us");
         expect(foundedQuery).not.toContain("business");
         expect(addressQuery).toContain("address");
-        expect(addressQuery).toContain("学校地址是哪里");
+        expect(addressQuery).not.toContain("学校地址是哪里");
         expect(addressQuery).not.toContain("business");
         expect(appointmentQuery).toContain("reschedule");
         expect(appointmentQuery).toContain("cancellation");

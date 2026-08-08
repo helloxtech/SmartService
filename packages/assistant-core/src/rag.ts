@@ -772,17 +772,17 @@ export function buildCrossLanguageRetrievalQuestion(question: string): string
 
     if (foundingQuestionPattern.test(question))
     {
-        return `${anchoredQuestion} about us founded in established history`;
+        return "about us company profile founded in established history";
     }
 
     if (organizationNameQuestionPattern.test(question))
     {
-        return `${anchoredQuestion} about us official name company name organization name`;
+        return "about us company profile official name company name organization name";
     }
 
     if (addressQuestionPattern.test(question))
     {
-        return `${anchoredQuestion} contact address location street`;
+        return "contact us company address location street";
     }
 
     extractExactIdentifiers(question).forEach((identifier) => terms.add(identifier));

@@ -2,6 +2,7 @@ import type { GuardrailRule } from "@smartservice/contracts";
 import { describe, expect, it } from "vitest";
 
 import {
+    buildGuardrailEvaluationJsonSchema,
     buildGuardrailPrompt,
     evaluateDeterministicGuardrails,
     localizeGuardrailSafeResponse,
@@ -41,6 +42,30 @@ const cases = [
 
 describe("deterministic guardrails", () =>
 {
+    it("restricts strict supervisor output to enabled tenant rule codes", () =>
+    {
+        const schema = buildGuardrailEvaluationJsonSchema([
+            "NO_PRICE_COMMITMENT",
+            "NO_PRICE_COMMITMENT",
+            "SAFETY_ESCALATION",
+        ]) as {
+            properties: {
+                violations: {
+                    items: {
+                        properties: {
+                            ruleCode: {
+                                enum: string[];
+                            };
+                        };
+                    };
+                };
+            };
+        };
+
+        expect(schema.properties.violations.items.properties.ruleCode.enum)
+            .toEqual(["NO_PRICE_COMMITMENT", "SAFETY_ESCALATION"]);
+    });
+
     it.each(cases)("blocks the fixed input case for %s", (question, expectedRule) =>
     {
         const evaluation = evaluateDeterministicGuardrails({

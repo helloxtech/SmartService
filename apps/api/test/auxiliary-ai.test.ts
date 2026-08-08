@@ -168,6 +168,43 @@ describe("OpenAI auxiliary adapters", () =>
 
 describe("Workers AI auxiliary adapter", () =>
 {
+    it("canonicalizes an enabled violation even when the provider returns inconsistent control flags", async () =>
+    {
+        const runMock = vi.fn().mockResolvedValue({
+            response: {
+                allowed: true,
+                requestHandoff: false,
+                safeResponse: null,
+                violations: [{
+                    reason: "The answer makes a final price commitment.",
+                    ruleCode: rule.code,
+                    severity: rule.severity,
+                }],
+            },
+        });
+        const provider = new WorkersAiGuardrailSupervisor({
+            AI: {
+                run: runMock,
+            } as unknown as Ai,
+            CHAT_WORKERS_AI_MODEL: "@cf/meta/llama-3.1-8b-instruct-fast",
+        } as SmartServiceBindings);
+        const result = await provider.supervise({
+            candidateAnswer: "The final price is guaranteed.",
+            evidence: [],
+            language: "en",
+            rules: [rule],
+            userMessage: "Give me the final price.",
+        });
+
+        expect(result.evaluation).toMatchObject({
+            allowed: false,
+            requestHandoff: true,
+            violations: [{
+                ruleCode: rule.code,
+            }],
+        });
+    });
+
     it("uses the fast Cloudflare model for strict per-turn supervision without OpenAI", async () =>
     {
         const runMock = vi.fn().mockResolvedValue({
@@ -216,6 +253,19 @@ describe("Workers AI auxiliary adapter", () =>
         expect(request).toMatchObject({
             max_tokens: 500,
             response_format: {
+                json_schema: {
+                    properties: {
+                        violations: {
+                            items: {
+                                properties: {
+                                    ruleCode: {
+                                        enum: [rule.code],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
                 type: "json_schema",
             },
         });

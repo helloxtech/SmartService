@@ -75,6 +75,17 @@ describe("grounded RAG", () =>
             "Can you hear me and tell me the price?",
             "en",
         )).toBeNull();
+        expect(createConversationalAcknowledgement("那你能答复什么问题？", "zh-CN"))
+            .toMatchObject({
+                answer: expect.stringContaining("产品或服务"),
+                citationChunkIds: [],
+                decision: "acknowledge",
+            });
+        expect(createConversationalAcknowledgement("吗？", "zh-CN"))
+            .toMatchObject({
+                answer: "我在听。您可以把问题接着说完。",
+                decision: "acknowledge",
+            });
     });
 
     it("recognizes industry-neutral subject anchors and anaphoric follow-ups", () =>
@@ -83,6 +94,8 @@ describe("grounded RAG", () =>
             .toContain("太阳能板");
         expect(extractQuestionSubjectAnchors("What is the AX-9 price?"))
             .toContain("ax-9");
+        expect(extractQuestionSubjectAnchors("你们有古筝课程吗？"))
+            .toEqual(["古筝"]);
         expect(isContextDependentFollowUp("可以看看他们的资料吗？")).toBe(true);
 
         const query = buildRetrievalQuestion("可以看看他们的资料吗？", [{
@@ -167,7 +180,7 @@ describe("grounded RAG", () =>
         };
 
         expect(createExplicitStableFactAnswer(
-            "哪年成立的",
+            "你们是什么时候成立的？",
             [aboutEvidence],
             "zh-CN",
         )).toMatchObject({
@@ -197,6 +210,8 @@ describe("grounded RAG", () =>
         const addressQuery = buildCrossLanguageRetrievalQuestion("学校地址是哪里");
         const appointmentQuery = buildCrossLanguageRetrievalQuestion("预约可以改期或取消吗？");
         const returnsQuery = buildCrossLanguageRetrievalQuestion("产品可以退货或保修吗？");
+        const courseQuery = buildCrossLanguageRetrievalQuestion("你们有古筝课程吗？");
+        const organizationNameQuery = buildCrossLanguageRetrievalQuestion("你们学校叫什么名字？");
 
         expect(foundedQuery).toContain("founded in");
         expect(foundedQuery).toContain("established");
@@ -206,6 +221,10 @@ describe("grounded RAG", () =>
         expect(appointmentQuery).toContain("cancellation");
         expect(returnsQuery).toContain("return");
         expect(returnsQuery).toContain("warranty");
+        expect(courseQuery.startsWith("古筝 你们有古筝课程吗？")).toBe(true);
+        expect(courseQuery).not.toContain("product");
+        expect(organizationNameQuery).toContain("official name");
+        expect(organizationNameQuery).toContain("about us");
         expect(buildCrossLanguageRetrievalQuestion("What is the address?"))
             .toBe("What is the address?");
     });
@@ -309,6 +328,36 @@ describe("grounded RAG", () =>
             [],
             [descriptionEvidence, priceEvidence],
         )).toEqual([priceEvidence]);
+    });
+
+    it("keeps organization-profile evidence for founding and company-name questions", () =>
+    {
+        const genericServiceEvidence: RetrievedEvidence = {
+            ...fixtureEvidence,
+            content: "We offer installation and maintenance services.",
+            sourceLocator: {
+                title: "Services",
+            },
+        };
+        const aboutEvidence: RetrievedEvidence = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000010",
+            content: "Clearview Energy was founded in 2018.",
+            sourceLocator: {
+                title: "About Us | Clearview Energy",
+            },
+        };
+
+        expect(filterEvidenceForQuestionContext(
+            "你们是什么时候成立的？",
+            [],
+            [genericServiceEvidence, aboutEvidence],
+        )).toEqual([aboutEvidence]);
+        expect(filterEvidenceForQuestionContext(
+            "你们公司叫什么名字？",
+            [],
+            [genericServiceEvidence, aboutEvidence],
+        )).toEqual([aboutEvidence]);
     });
 
     it("does not let an adjacent product identifier answer the requested model", () =>
@@ -643,6 +692,22 @@ describe("grounded RAG", () =>
             maxItems: 4,
             minItems: 4,
         });
+    });
+
+    it("restricts generated citations to the retrieved chunk identifiers", () =>
+    {
+        const schema = buildRagAnswerJsonSchema(1, [fixtureEvidence.chunkId]) as {
+            properties: {
+                citationChunkIds: {
+                    items: {
+                        enum: string[];
+                    };
+                };
+            };
+        };
+
+        expect(schema.properties.citationChunkIds.items.enum)
+            .toEqual([fixtureEvidence.chunkId]);
     });
 
     it("omits multipart output fields for one atomic question", () =>
@@ -1105,5 +1170,21 @@ describe("grounded RAG", () =>
             handoffReason: null,
             normalizedQuestion: "unsupported",
         }, evidence)).toThrow(RagValidationError);
+    });
+
+    it("normalizes harmless citation duplication and an answer-only handoff artifact", () =>
+    {
+        expect(validateGroundedAnswer({
+            answer: "The NF-500 maximum flow rate is 300 litres per minute.",
+            citationChunkIds: [fixtureEvidence.chunkId, fixtureEvidence.chunkId],
+            confidence: 0.9,
+            decision: "answer",
+            handoffReason: "missing_knowledge",
+            normalizedQuestion: "nf-500 maximum flow",
+        }, evidence)).toMatchObject({
+            citationChunkIds: [fixtureEvidence.chunkId],
+            decision: "answer",
+            handoffReason: null,
+        });
     });
 });

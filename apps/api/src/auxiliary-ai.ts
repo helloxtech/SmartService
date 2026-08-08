@@ -1,11 +1,11 @@
 import {
+    buildGuardrailEvaluationJsonSchema,
     buildFinalizationPrompt,
     buildGuardrailPrompt,
     conversationFinalizationJsonSchema,
     DeterministicConversationFinalizer,
     DeterministicGuardrailSupervisor,
     finalizationPromptVersion,
-    guardrailEvaluationJsonSchema,
     guardrailPromptVersion,
     localizeGuardrailSafeResponse,
     type ConversationFinalizer,
@@ -20,6 +20,7 @@ import {
     guardrailEvaluationSchema,
     type GuardrailEvaluation,
 } from "@smartservice/contracts";
+import { z } from "zod";
 
 import { ApiError } from "./errors";
 import { requestStructuredOutput } from "./openai-structured-output";
@@ -29,6 +30,17 @@ import {
     requestWorkersAiStructuredOutput,
     type WorkersAiChatModel,
 } from "./workers-ai-structured-output";
+
+const guardrailProviderEvaluationSchema = z.object({
+    allowed: z.boolean(),
+    requestHandoff: z.boolean(),
+    safeResponse: z.string().min(1).max(600).nullable(),
+    violations: z.array(z.object({
+        reason: z.string().min(1).max(500),
+        ruleCode: z.string().min(1).max(80),
+        severity: z.enum(["low", "medium", "high", "critical"]),
+    })).max(20),
+});
 
 /**
  * parseSupervisionBudgetMs
@@ -68,7 +80,7 @@ function validateGuardrailEvaluation(
     input: GuardrailInput,
 ): GuardrailEvaluation
 {
-    const evaluation = guardrailEvaluationSchema.parse(value);
+    const evaluation = guardrailProviderEvaluationSchema.parse(value);
     const allowedCodes = new Set(
         input.rules
             .filter((rule) => rule.enabled)
@@ -84,17 +96,31 @@ function validateGuardrailEvaluation(
         );
     }
 
-    const primaryRule = evaluation.allowed
-        ? undefined
-        : input.rules.find((rule) =>
-            rule.enabled && rule.code === evaluation.violations[0]?.ruleCode,
+    if (!evaluation.allowed && evaluation.violations.length === 0)
+    {
+        throw new ApiError(
+            502,
+            "GUARDRAIL_RESPONSE_INVALID",
+            "The guardrail provider blocked the answer without identifying an enabled rule.",
         );
+    }
+
+    const primaryRule = input.rules.find((rule) =>
+        rule.enabled && rule.code === evaluation.violations[0]?.ruleCode,
+    );
 
     return primaryRule === undefined
-        ? evaluation
+        ? guardrailEvaluationSchema.parse({
+            allowed: true,
+            requestHandoff: false,
+            safeResponse: null,
+            violations: [],
+        })
         : guardrailEvaluationSchema.parse({
-            ...evaluation,
+            allowed: false,
+            requestHandoff: true,
             safeResponse: localizeGuardrailSafeResponse(primaryRule, input.language),
+            violations: evaluation.violations,
         });
 }
 
@@ -144,7 +170,11 @@ export class OpenAiGuardrailSupervisor implements GuardrailSupervisor
             prompt: buildGuardrailPrompt(input),
             promptVersion: guardrailPromptVersion,
             reasoningEffort: "low",
-            schema: guardrailEvaluationJsonSchema,
+            schema: buildGuardrailEvaluationJsonSchema(
+                input.rules
+                    .filter((rule) => rule.enabled)
+                    .map((rule) => rule.code),
+            ),
             timeoutMs: totalTimeoutMs,
             totalTimeoutMs,
         });
@@ -218,7 +248,11 @@ export class WorkersAiGuardrailSupervisor implements GuardrailSupervisor
                     name: "smartservice_guardrail_evaluation",
                     prompt: buildGuardrailPrompt(input),
                     promptVersion: guardrailPromptVersion,
-                    schema: guardrailEvaluationJsonSchema,
+                    schema: buildGuardrailEvaluationJsonSchema(
+                        input.rules
+                            .filter((rule) => rule.enabled)
+                            .map((rule) => rule.code),
+                    ),
                     tags: ["smartservice", "guardrail-supervisor"],
                     timeoutMs: remainingMs,
                 });

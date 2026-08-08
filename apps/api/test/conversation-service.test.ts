@@ -259,6 +259,36 @@ describe("tenant-generic turn failure isolation", () =>
         });
     });
 
+    it("answers a customer-service capability question without treating it as missing company knowledge", async () =>
+    {
+        const harness = createFailureHarness(null);
+        const response = await harness.service.sendTrusted(
+            organizationId,
+            conversationId,
+            {
+                clientMessageId: crypto.randomUUID(),
+                text: "那你能答复什么问题？",
+            },
+            "request-capability-act-test",
+        );
+
+        expect(response).toMatchObject({
+            answer: expect.stringContaining("产品或服务"),
+            citations: [],
+            decision: "acknowledge",
+            handoff: null,
+        });
+        expect(harness.embeddings.embed).not.toHaveBeenCalled();
+        expect(harness.retrieveEvidence).not.toHaveBeenCalled();
+        expect(harness.answers.generate).not.toHaveBeenCalled();
+        expect(harness.persistedTurns[0]).toMatchObject({
+            createGap: false,
+            decision: "acknowledge",
+            model: "conversation-act-v1",
+            provider: "deterministic",
+        });
+    });
+
     it("keeps an anaphoric profile follow-up on the prior subject and drops another industry's result", async () =>
     {
         const harness = createFailureHarness(null);
@@ -332,7 +362,7 @@ describe("tenant-generic turn failure isolation", () =>
             expect.any(String),
             expect.any(Array),
             expect.any(Number),
-            3,
+            5,
         );
         expect(harness.answers.generate).toHaveBeenCalledWith(expect.objectContaining({
             questionParts: ["Can I move my appointment?"],

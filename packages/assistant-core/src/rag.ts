@@ -56,7 +56,7 @@ export interface RagAnswerProvider
 
 export type RagRepairReason = "grounding_validation" | "provider_failure" | "response_format";
 
-export const ragPromptVersion = "rag-answer-v10";
+export const ragPromptVersion = "rag-answer-v11";
 
 interface CurrentRoleConstraint
 {
@@ -218,9 +218,11 @@ const currentRoleConstraints: readonly CurrentRoleConstraint[] = [{
     questionPatterns: [/总裁|会长/u, /\bpresident\b/iu, /\bceo\b/iu],
 }];
 
-const foundingQuestionPattern = /哪年.*(?:成立|创办|创立)|(?:成立|创办|创立).*(?:哪年|时间)|\bwhen (?:was|were).*(?:founded|established)|\b(?:founding|establishment) (?:year|date)/iu;
+const foundingQuestionPattern = /(?:哪年|什么时候|何时|哪一天).*(?:成立|创办|创立|开业)|(?:成立|创办|创立|开业).*(?:哪年|什么时候|何时|时间|日期)|\bwhen (?:was|were).*(?:founded|established|formed|opened)|\b(?:founding|establishment|opening) (?:year|date)/iu;
 const foundingEvidencePattern = /\b(?:founded|established|formed|opened)\s+(?:in\s+)?((?:18|19|20)\d{2})\b|(?:成立|创办|创立|开业)于?\s*((?:18|19|20)\d{2})年?/iu;
 const addressQuestionPattern = /地址|在哪里|位于哪里|怎么去|\baddress\b|\bwhere\b.*\blocated\b|\blocation\b/iu;
+const organizationNameQuestionPattern = /(?:公司|企业|机构|学校|学院|品牌|商家|门店|你们|你家).*(?:叫什么(?:名字|名称)|名称(?:是|叫)|名字是什么)|(?:叫什么(?:名字|名称)|名称(?:是|叫)|名字是什么).*(?:公司|企业|机构|学校|学院|品牌|商家|门店)|\bwhat(?:'s| is).*(?:company|business|organization|school|academy|brand|store).*(?:name|called)|\b(?:company|business|organization|school|academy|brand|store) name\b/iu;
+const organizationProfileEvidencePattern = /关于我们|公司简介|企业简介|机构简介|学校简介|学院简介|品牌简介|\b(?:about us|company profile|business profile|organization profile|school profile|academy profile|brand profile)\b/iu;
 const streetAddressPattern = /\b\d{1,6}(?:-\d{1,6})?\s+[\p{L}\d.'-]+(?:\s+[\p{L}\d.'-]+){0,6}\s+(?:cres(?:cent)?|st(?:reet)?|ave(?:nue)?|rd|road|blvd|boulevard|dr(?:ive)?|ln|lane|way|court|ct)\b/iu;
 
 /**
@@ -357,14 +359,29 @@ export const ragAnswerJsonSchema = {
  *
  * August 06, 2026: Created by Forrest Zhang for Tenant-Generic Multipart Answer Completeness
  */
-export function buildRagAnswerJsonSchema(questionPartCount: number): Record<string, unknown>
+export function buildRagAnswerJsonSchema(
+    questionPartCount: number,
+    allowedCitationChunkIds: readonly string[] = [],
+): Record<string, unknown>
 {
     const boundedCount = Math.min(5, Math.max(1, Math.trunc(questionPartCount)));
+    const citationChunkIds = [...new Set(allowedCitationChunkIds)].slice(0, 8);
+    const citationItems = citationChunkIds.length === 0
+        ? ragAnswerJsonSchema.properties.citationChunkIds.items
+        : {
+            enum: citationChunkIds,
+            type: "string",
+        };
+    const answerCitationProperty = {
+        ...ragAnswerJsonSchema.properties.citationChunkIds,
+        items: citationItems,
+    };
 
     if (boundedCount === 1)
     {
         const properties: Record<string, unknown> = {
             ...ragAnswerJsonSchema.properties,
+            citationChunkIds: answerCitationProperty,
         };
         delete properties.questionPartAnswers;
 
@@ -381,8 +398,19 @@ export function buildRagAnswerJsonSchema(questionPartCount: number): Record<stri
         ...ragAnswerJsonSchema,
         properties: {
             ...ragAnswerJsonSchema.properties,
+            citationChunkIds: answerCitationProperty,
             questionPartAnswers: {
                 ...ragAnswerJsonSchema.properties.questionPartAnswers,
+                items: {
+                    ...ragAnswerJsonSchema.properties.questionPartAnswers.items,
+                    properties: {
+                        ...ragAnswerJsonSchema.properties.questionPartAnswers.items.properties,
+                        citationChunkIds: {
+                            ...ragAnswerJsonSchema.properties.questionPartAnswers.items.properties.citationChunkIds,
+                            items: citationItems,
+                        },
+                    },
+                },
                 maxItems: boundedCount,
                 minItems: boundedCount,
             },
@@ -470,6 +498,8 @@ export function createConversationalAcknowledgement(
         `^(?:好的?|行|可以|明白了?|知道了?|没问题|收到|ok(?:ay)?|got it|understood|sounds good)${punctuation}$`,
         "iu",
     );
+    const capabilityQuestion = /^(?:(?:那|那么|请问|所以)[,，\s]*)?(?:(?:你|你们)(?:这边)?(?:能|可以|能够|会)?|(?:能|可以|能够))?(?:答复|回答|解答|处理|解决|帮(?:我|忙)?|帮助(?:我)?)(?:什么|哪些)(?:问题|事情|内容)?[\s,.!?，。！？]*$|^(?:what (?:can|do) you (?:answer|help (?:me )?with|handle)|how can you help|what can i ask (?:you)?)[\s,.!?]*$/iu;
+    const incompleteSpeechFragment = /^(?:吗|么|呢|啊|呀|吧|嗯|呃|哦|诶)[\s,.!?，。！？～~]*$/u;
     let answer: string | null = null;
 
     if (channelCheck.test(normalized))
@@ -502,6 +532,18 @@ export function createConversationalAcknowledgement(
             ? "好的。您还想了解什么？"
             : "Of course. What else would you like to know?";
     }
+    else if (capabilityQuestion.test(normalized))
+    {
+        answer = language === "zh-CN"
+            ? "我可以帮您了解本公司的产品或服务、办理流程、政策，以及其他已经确认的信息。您可以直接告诉我想了解什么。"
+            : "I can help with this company’s products or services, processes, policies, and other confirmed information. Just tell me what you would like to know.";
+    }
+    else if (incompleteSpeechFragment.test(normalized))
+    {
+        answer = language === "zh-CN"
+            ? "我在听。您可以把问题接着说完。"
+            : "I’m listening. Please continue with your question.";
+    }
 
     if (answer === null)
     {
@@ -529,8 +571,8 @@ function sanitizeSubjectAnchor(value: string): string | null
 {
     const normalized = value
         .normalize("NFKC")
-        .replace(/^(?:请问|关于|我想(?:看|了解)?|想(?:看|了解)?|可以(?:看|了解)?|看看|你们(?:的)?|我们(?:的)?|教|卖|做)/u, "")
-        .replace(/(?:的话|大概|什么|相关|具体)$/u, "")
+        .replace(/^(?:请问(?:一下)?|关于|(?:我)?想(?:问|咨询|看|了解)(?:一下)?|麻烦(?:问|咨询)(?:一下)?|可以(?:看|了解)?|看看|(?:你们|我们)(?:是否|有没有|有|提供|销售|支持|办理)?(?:的)?|教|卖|做)/u, "")
+        .replace(/(?:的话|大概|什么|相关|具体|课程|服务|产品|项目)$/u, "")
         .replace(/^(?:the|a|an|what is|what are|tell me about)\s+/iu, "")
         .replace(/[?？!！,，.。\s]+$/gu, "")
         .trim();
@@ -588,7 +630,7 @@ export function extractQuestionSubjectAnchors(value: string): string[]
     }
 
     for (const match of value.matchAll(
-        /(?:有|提供|销售|支持|办理)(?:教|卖)?([\p{Script=Han}A-Za-z0-9._/-]{2,30})(?:吗|呢|么)/gu,
+        /(?:有|提供|销售|支持|办理)(?:教|卖)?([\p{Script=Han}A-Za-z0-9._/-]{2,30}?)(?:课程|服务|产品|项目)?(?:吗|呢|么)/gu,
     ))
     {
         addCandidate(match[1]);
@@ -723,6 +765,7 @@ export function buildCrossLanguageRetrievalQuestion(question: string): string
     }
 
     const terms = new Set<string>();
+    const subjectAnchors = extractQuestionSubjectAnchors(question);
 
     extractExactIdentifiers(question).forEach((identifier) => terms.add(identifier));
 
@@ -768,9 +811,27 @@ export function buildCrossLanguageRetrievalQuestion(question: string): string
             .forEach((term) => terms.add(term));
     }
 
-    if (/课程|产品|服务|项目|教|销售|卖|提供|办理|有哪些/u.test(question))
+    if (/课程|上课|教学|教/u.test(question))
     {
-        ["service", "product", "lessons", "classes", "courses", "program", "offer", "available"]
+        ["lessons", "classes", "courses", "program", "available"]
+            .forEach((term) => terms.add(term));
+    }
+
+    if (/产品|销售|卖/u.test(question))
+    {
+        ["product", "offer", "available"]
+            .forEach((term) => terms.add(term));
+    }
+
+    if (/服务|项目|提供|办理/u.test(question))
+    {
+        ["service", "program", "offer", "available"]
+            .forEach((term) => terms.add(term));
+    }
+
+    if (/叫什么(?:名字|名称)|名称(?:是|叫)|名字是什么/u.test(question))
+    {
+        ["official name", "company name", "organization name", "about us"]
             .forEach((term) => terms.add(term));
     }
 
@@ -840,9 +901,13 @@ export function buildCrossLanguageRetrievalQuestion(question: string): string
             .forEach((term) => terms.add(term));
     }
 
+    const anchoredQuestion = subjectAnchors.length === 0
+        ? question
+        : `${subjectAnchors.join(" ")} ${question}`;
+
     return terms.size === 0
         ? question
-        : `${question} ${[...terms].join(" ")}`;
+        : `${anchoredQuestion} ${[...terms].join(" ")}`;
 }
 
 /**
@@ -1046,6 +1111,24 @@ export function filterEvidenceForQuestionContext(
         return [];
     }
 
+    if (
+        foundingQuestionPattern.test(question)
+        || addressQuestionPattern.test(question)
+        || organizationNameQuestionPattern.test(question)
+    )
+    {
+        const directFactEvidence = filtered.filter((item) =>
+            evidenceDirectlySupportsPlannedQuestion(question, item),
+        );
+
+        if (directFactEvidence.length === 0)
+        {
+            return [];
+        }
+
+        filtered = directFactEvidence;
+    }
+
     const currentAnchors = extractQuestionSubjectAnchors(question)
         .map((anchor) => anchor.toLocaleLowerCase());
     const contextualAnchors = currentAnchors.length === 0
@@ -1211,6 +1294,11 @@ function evidenceDirectlySupportsPlannedQuestion(
     if (addressQuestionPattern.test(question))
     {
         return streetAddressPattern.test(evidence.content);
+    }
+
+    if (organizationNameQuestionPattern.test(question))
+    {
+        return organizationProfileEvidencePattern.test(evidenceSearchText(evidence));
     }
 
     const identifiers = extractExactIdentifiers(question);
@@ -1747,7 +1835,24 @@ export function validateGroundedAnswer(
     context?: RagValidationContext,
 ): RagAnswer
 {
-    const answer = ragAnswerSchema.parse(candidate);
+    const parsedAnswer = ragAnswerSchema.parse(candidate);
+    const normalizedCitationChunkIds = [...new Set(parsedAnswer.citationChunkIds)];
+    const answer = ragAnswerSchema.parse({
+        ...parsedAnswer,
+        citationChunkIds: normalizedCitationChunkIds,
+        handoffReason: parsedAnswer.decision === "answer"
+            && normalizedCitationChunkIds.length > 0
+            ? null
+            : parsedAnswer.handoffReason,
+        ...(parsedAnswer.questionPartAnswers === undefined
+            ? {}
+            : {
+                questionPartAnswers: parsedAnswer.questionPartAnswers.map((part) => ({
+                    ...part,
+                    citationChunkIds: [...new Set(part.citationChunkIds)],
+                })),
+            }),
+    });
     const retrievedIds = new Set(retrievedEvidence.map((item) => item.chunkId));
     const questionParts = context?.questionParts
         .map((part) => part.trim())

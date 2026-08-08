@@ -6,7 +6,7 @@ import {
     type GuardrailViolation,
 } from "@smartservice/contracts";
 
-export const guardrailPromptVersion = "guardrail-supervisor-v3";
+export const guardrailPromptVersion = "guardrail-supervisor-v4";
 
 export const guardrailEvaluationJsonSchema = {
     additionalProperties: false,
@@ -63,6 +63,45 @@ export const guardrailEvaluationJsonSchema = {
     ],
     type: "object",
 } as const;
+
+/**
+ * buildGuardrailEvaluationJsonSchema
+ * ----------------
+ * Restricts model-selected violation codes to the enabled tenant rules so strict output generation cannot invent an unusable rule identifier.
+ *
+ * August 07, 2026: Created by Forrest Zhang for Tenant-Generic Voice Answer Reliability
+ */
+export function buildGuardrailEvaluationJsonSchema(
+    ruleCodes: readonly string[],
+): Record<string, unknown>
+{
+    const allowedRuleCodes = [...new Set(ruleCodes)].slice(0, 100);
+
+    if (allowedRuleCodes.length === 0)
+    {
+        return guardrailEvaluationJsonSchema;
+    }
+
+    return {
+        ...guardrailEvaluationJsonSchema,
+        properties: {
+            ...guardrailEvaluationJsonSchema.properties,
+            violations: {
+                ...guardrailEvaluationJsonSchema.properties.violations,
+                items: {
+                    ...guardrailEvaluationJsonSchema.properties.violations.items,
+                    properties: {
+                        ...guardrailEvaluationJsonSchema.properties.violations.items.properties,
+                        ruleCode: {
+                            enum: allowedRuleCodes,
+                            type: "string",
+                        },
+                    },
+                },
+            },
+        },
+    };
+}
 
 export interface GuardrailInput
 {

@@ -186,7 +186,10 @@ export class OpenAiRagAnswerProvider implements RagAnswerProvider
             prompt: buildRagPrompt(input),
             promptVersion: ragPromptVersion,
             reasoningEffort: "low",
-            schema: buildRagAnswerJsonSchema(input.questionParts?.length ?? 1),
+            schema: buildRagAnswerJsonSchema(
+                input.questionParts?.length ?? 1,
+                input.evidence.map((item) => item.chunkId),
+            ),
             timeoutMs: Math.min(6_500, totalTimeoutMs),
             totalTimeoutMs,
         });
@@ -271,7 +274,10 @@ export class WorkersAiRagAnswerProvider implements RagAnswerProvider
                     promptVersion: isRepairAttempt
                         ? `${ragPromptVersion}-repair`
                         : ragPromptVersion,
-                    schema: buildRagAnswerJsonSchema(input.questionParts?.length ?? 1),
+                    schema: buildRagAnswerJsonSchema(
+                        input.questionParts?.length ?? 1,
+                        input.evidence.map((item) => item.chunkId),
+                    ),
                     timeoutMs: attempt === 1
                         ? Math.min(6_500, remainingMs)
                         : remainingMs,

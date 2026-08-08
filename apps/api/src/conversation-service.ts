@@ -1243,7 +1243,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                                 retrievalQuestion,
                                 queryEmbedding,
                                 retrievalThresholds[index] ?? configuredThreshold,
-                                3,
+                                5,
                             );
                             const focusedRetrievalQuestion = focusedRetrievalQuestions[index]
                                 ?? input.text;

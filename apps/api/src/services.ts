@@ -6,6 +6,7 @@ import {
 } from "@smartservice/ingestion";
 
 import { authenticateAdmin, authenticateMember } from "./auth";
+import { DefaultAgentAssistService } from "./agent-assist-service";
 import { SupabaseAnalyticsService } from "./analytics-service";
 import { createRagAnswerProvider } from "./answers";
 import {
@@ -130,16 +131,26 @@ export function createRuntimeServices(bindings: SmartServiceBindings): RuntimeSe
 
     const embeddings = createEmbeddingProvider(bindings);
     const answers = createRagAnswerProvider(bindings);
+    const agentAssist = new DefaultAgentAssistService(
+        bindings,
+        conversationRepository,
+        team,
+        embeddings,
+        answers,
+        guardrails,
+    );
     const publicConversations = new DefaultPublicConversationService(
         bindings,
         conversationRepository,
         embeddings,
         answers,
         guardrails,
+        agentAssist,
         createTurnstileVerifier(bindings),
     );
 
     return {
+        agentAssist,
         analytics: new SupabaseAnalyticsService(bindings, {
             answers,
             conversationRepository,

@@ -15,6 +15,7 @@ import {
     getRetrievalCandidateLimit,
     guardrailPromptVersion,
     isDirectlyGroundedOfferingAnswer,
+    isKnowledgeGapEligibleQuestion,
     mergeRetrievedEvidence,
     normalizeQuestion,
     ragPromptVersion,
@@ -59,6 +60,7 @@ import {
 } from "./conversation-token";
 import { ApiError } from "./errors";
 import type {
+    AgentAssistService,
     PublicConversationService,
     SmartServiceBindings,
 } from "./types";
@@ -495,7 +497,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
      * ----------------
      * Creates the public text-conversation orchestrator from explicit server-side RAG, guardrail, and security adapters.
      *
-     * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Guardrails and Handoff
+     * August 07, 2026: Updated by Forrest Zhang for SmartService R10 Human Agent Assistance
      */
     public constructor(
         private readonly bindings: SmartServiceBindings,
@@ -503,6 +505,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
         private readonly embeddings: EmbeddingProvider,
         private readonly answers: RagAnswerProvider,
         private readonly guardrails: GuardrailSupervisor,
+        private readonly agentAssist: AgentAssistService,
         private readonly turnstile: TurnstileVerifier,
     )
     {
@@ -818,12 +821,20 @@ export class DefaultPublicConversationService implements PublicConversationServi
 
         if (customerMessage.created)
         {
-            await this.refreshOperationalContext(
-                organizationId,
-                conversationId,
-                requestId,
-                true,
-            );
+            await Promise.all([
+                this.refreshOperationalContext(
+                    organizationId,
+                    conversationId,
+                    requestId,
+                    true,
+                ),
+                this.agentAssist.schedule(
+                    organizationId,
+                    conversationId,
+                    customerMessage.id,
+                    requestId,
+                ),
+            ]);
         }
 
         return sendPublicMessageResponseSchema.parse({
@@ -1609,13 +1620,17 @@ export class DefaultPublicConversationService implements PublicConversationServi
         }));
 
         const citations = buildCitationWrites(answer.citationChunkIds, evidence);
+        const gapEligible = isKnowledgeGapEligibleQuestion(input.text);
         const messageId = await this.repository.completeTurn({
             aiStatus,
             answer: answer.answer,
             citations,
             conversationId,
-            createGap: answer.handoffReason === "missing_knowledge"
-                || answer.handoffReason === "conflicting_knowledge",
+            createGap: gapEligible
+                && (
+                    answer.handoffReason === "missing_knowledge"
+                    || answer.handoffReason === "conflicting_knowledge"
+                ),
             customerMessageId: customerMessage.id,
             decision: answer.decision,
             errorCode,
@@ -1636,6 +1651,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 candidateCounts: retrievalCandidateCounts,
                 crossLanguageExpanded: retrievalCrossLanguageExpanded,
                 filteredCounts: retrievalFilteredCounts,
+                gapEligible,
                 profileRecoveryUsed: retrievalProfileRecoveryUsed,
                 processing: {
                     failedStage,
@@ -1665,6 +1681,14 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 requestId,
                 answer.decision === "handoff",
             ),
+            answer.decision === "handoff"
+                ? this.agentAssist.schedule(
+                    organizationId,
+                    conversationId,
+                    customerMessage.id,
+                    requestId,
+                )
+                : Promise.resolve(),
         ]);
 
         return sendPublicMessageResponseSchema.parse(response);
@@ -1712,6 +1736,11 @@ export class DefaultPublicConversationService implements PublicConversationServi
             conversationId,
             requestId,
             true,
+        );
+        await this.agentAssist.scheduleLatest(
+            authorization.claims.org,
+            conversationId,
+            requestId,
         );
 
         return requestPublicHandoffResponseSchema.parse({

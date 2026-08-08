@@ -19,6 +19,7 @@ import {
     getRetrievalCandidateLimit,
     isDirectlyGroundedOfferingAnswer,
     isContextDependentFollowUp,
+    isKnowledgeGapEligibleQuestion,
     mergeRetrievedEvidence,
     RagValidationError,
     validateGroundedAnswer,
@@ -89,6 +90,15 @@ describe("grounded RAG", () =>
                 answer: "我在听。您可以把问题接着说完。",
                 decision: "acknowledge",
             });
+    });
+
+    it("keeps industry questions actionable while excluding response-meta turns from knowledge gaps", () =>
+    {
+        expect(isKnowledgeGapEligibleQuestion("古筝呢？")).toBe(true);
+        expect(isKnowledgeGapEligibleQuestion("What is the warranty?")).toBe(true);
+        expect(isKnowledgeGapEligibleQuestion("为什么刚才没有回答？麻烦再试一次。")).toBe(false);
+        expect(isKnowledgeGapEligibleQuestion("Why didn't you answer? Please try again.")).toBe(false);
+        expect(isKnowledgeGapEligibleQuestion("谢谢")).toBe(false);
     });
 
     it("recognizes industry-neutral subject anchors and anaphoric follow-ups", () =>

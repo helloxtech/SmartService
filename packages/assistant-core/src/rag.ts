@@ -561,6 +561,43 @@ export function createConversationalAcknowledgement(
 }
 
 /**
+ * isKnowledgeGapEligibleQuestion
+ * ----------------
+ * Separates actionable company-information requests from social turns, channel checks, retry commands, response complaints, and incomplete fragments before knowledge-gap analytics are mutated.
+ *
+ * August 07, 2026: Created by Forrest Zhang for SmartService Knowledge Gap Lifecycle Quality
+ */
+export function isKnowledgeGapEligibleQuestion(question: string): boolean
+{
+    const normalized = question.normalize("NFKC").trim();
+
+    if (normalized.length === 0)
+    {
+        return false;
+    }
+
+    if (
+        createConversationalAcknowledgement(
+            normalized,
+            detectConversationLanguage(normalized),
+        ) !== null
+    )
+    {
+        return false;
+    }
+
+    const responseMetaTurn = /(?:为什么|怎么|为何).{0,24}(?:答不了|不能答|没答|没有答|不回答|没回答|不回复|没回复|没反应|查不到|没查到|未能确认)|(?:麻烦)?(?:再试|重试)(?:一次)?|(?:刚才|方才).{0,16}(?:没反应|没回复|没回答|没答复)|\b(?:why|how come).{0,40}(?:can(?:not|'t)|did(?: not|n't)|won(?: not|'t)|could(?: not|n't)).{0,30}(?:answer|reply|respond|find|confirm)|\b(?:try|please try) again\b|\b(?:no|without a) (?:answer|reply|response)\b/iu;
+    const incompleteReference = /^(?:这个|那个|它|这|那|刚才(?:那个)?|为什么|怎么|what|why|how|that|this|it)[\s,.!?，。！？]*$/iu;
+
+    if (responseMetaTurn.test(normalized) || incompleteReference.test(normalized))
+    {
+        return false;
+    }
+
+    return /[\p{L}\p{N}]/u.test(normalized);
+}
+
+/**
  * sanitizeSubjectAnchor
  * ----------------
  * Removes conversational wrappers from one bounded candidate subject while rejecting pronouns and generic customer-service facets that cannot identify a topic by themselves.

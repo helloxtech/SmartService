@@ -1,3 +1,4 @@
+import { agentReplySuggestionMessageSchema } from "@smartservice/contracts";
 import {
     IngestionPipelineError,
     processIngestionMessage,
@@ -36,9 +37,9 @@ function readQueueMessageType(input: unknown): string | null
 /**
  * handleQueue
  * ----------------
- * Dispatches ID-only ingestion/finalization messages, acknowledges success or duplicates, and applies bounded Queue retries.
+ * Dispatches ID-only ingestion, finalization, and agent-assistance messages, acknowledges success or stale work, and applies bounded Queue retries.
  *
- * July 26, 2026: Updated by Forrest Zhang for SmartService Day 4 Conversation Finalization
+ * August 07, 2026: Updated by Forrest Zhang for SmartService R10 Human Agent Assistance
  */
 export async function handleQueue(
     batch: MessageBatch<unknown>,
@@ -68,6 +69,13 @@ export async function handleQueue(
                 result = await processFinalizationMessage(
                     message.body,
                     services,
+                    `queue:${message.id}`,
+                );
+            }
+            else if (messageType === "agent.reply_suggest")
+            {
+                result = await services.agentAssist.process(
+                    agentReplySuggestionMessageSchema.parse(message.body),
                     `queue:${message.id}`,
                 );
             }

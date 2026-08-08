@@ -91,6 +91,11 @@ function createTestServices(): RuntimeServices
     };
 
     return {
+        agentAssist: {
+            process: vi.fn(),
+            schedule: vi.fn().mockResolvedValue(undefined),
+            scheduleLatest: vi.fn().mockResolvedValue(undefined),
+        },
         analytics: {} as RuntimeServices["analytics"],
         authenticateAdmin: vi.fn().mockResolvedValue(adminIdentity),
         authenticateMember: vi.fn().mockResolvedValue(adminIdentity),

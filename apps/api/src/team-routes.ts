@@ -173,9 +173,18 @@ export function createTeamRouter(
         requireIdempotencyKey(context.req.raw);
         const services = getServices(serviceFactory, context.env);
         const identity = await services.authenticateMember(context.req.raw);
+        const conversationId = parseIdentifier(
+            context.req.param("conversationId"),
+            "conversation",
+        );
         const response = await services.team.claim(
             identity,
-            parseIdentifier(context.req.param("conversationId"), "conversation"),
+            conversationId,
+            context.get("requestId"),
+        );
+        await services.agentAssist.scheduleLatest(
+            identity.organizationId,
+            conversationId,
             context.get("requestId"),
         );
 
@@ -196,6 +205,7 @@ export function createTeamRouter(
             parseIdentifier(context.req.param("conversationId"), "conversation"),
             input.clientMessageId,
             input.text,
+            input.suggestionId ?? null,
             context.get("requestId"),
         );
 

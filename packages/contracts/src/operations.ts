@@ -177,6 +177,34 @@ export const handoffSummarySchema = z.object({
     triggerReason: z.string().min(1).max(1000),
 });
 
+export const agentReplySuggestionStatusSchema = z.enum([
+    "pending",
+    "ready",
+    "used",
+    "superseded",
+    "failed",
+]);
+
+export const agentReplySuggestionKindSchema = z.enum([
+    "grounded_answer",
+    "clarifying_question",
+    "policy_safe_reply",
+]);
+
+export const agentReplySuggestionSchema = z.object({
+    citations: z.array(publicCitationSchema).max(5),
+    createdAt: z.iso.datetime({ offset: true }),
+    draftText: z.string().min(1).max(1200).nullable(),
+    errorCode: z.string().min(1).max(120).nullable(),
+    generatedAt: z.iso.datetime({ offset: true }).nullable(),
+    id: z.uuid(),
+    kind: agentReplySuggestionKindSchema.nullable(),
+    status: agentReplySuggestionStatusSchema,
+    triggerMessageId: z.uuid(),
+    updatedAt: z.iso.datetime({ offset: true }),
+    usedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+
 export const teamConversationListItemSchema = z.object({
     acceptedAt: z.iso.datetime({ offset: true }).nullable(),
     acceptedBy: z.uuid().nullable(),
@@ -253,6 +281,7 @@ export const conversationSummarySchema = conversationFinalizationSchema
     });
 
 export const teamConversationDetailSchema = teamConversationListItemSchema.extend({
+    assistantSuggestion: agentReplySuggestionSchema.nullable(),
     guardrailEvents: z.array(guardrailEventSchema.omit({
         blockedCandidate: true,
     })).max(200),
@@ -270,6 +299,7 @@ export const claimConversationResponseSchema = z.object({
 
 export const sendHumanMessageRequestSchema = z.object({
     clientMessageId: z.uuid(),
+    suggestionId: z.uuid().nullable().optional(),
     text: z.string().trim().min(1).max(5000),
 });
 
@@ -292,8 +322,27 @@ export const conversationFinalizeMessageSchema = z.object({
     version: z.literal(1),
 });
 
+export const agentReplySuggestionMessageSchema = z.object({
+    conversationId: z.uuid(),
+    organizationId: z.uuid(),
+    suggestionId: z.uuid(),
+    triggerMessageId: z.uuid(),
+    type: z.literal("agent.reply_suggest"),
+    version: z.literal(1),
+});
+
+export const conversationAsyncMessageSchema = z.discriminatedUnion("type", [
+    conversationFinalizeMessageSchema,
+    agentReplySuggestionMessageSchema,
+]);
+
 export type ClaimConversationResponse = z.infer<typeof claimConversationResponseSchema>;
+export type AgentReplySuggestion = z.infer<typeof agentReplySuggestionSchema>;
+export type AgentReplySuggestionKind = z.infer<typeof agentReplySuggestionKindSchema>;
+export type AgentReplySuggestionMessage = z.infer<typeof agentReplySuggestionMessageSchema>;
+export type AgentReplySuggestionStatus = z.infer<typeof agentReplySuggestionStatusSchema>;
 export type CloseConversationResponse = z.infer<typeof closeConversationResponseSchema>;
+export type ConversationAsyncMessage = z.infer<typeof conversationAsyncMessageSchema>;
 export type ConversationFinalization = z.infer<typeof conversationFinalizationSchema>;
 export type ConversationFinalizeMessage = z.infer<typeof conversationFinalizeMessageSchema>;
 export type CreateGuardrailRuleRequest = z.infer<typeof createGuardrailRuleRequestSchema>;

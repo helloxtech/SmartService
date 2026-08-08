@@ -49,6 +49,7 @@ const guardrailEvent = {
 const detail: TeamConversationDetail = {
     acceptedAt: null,
     acceptedBy: null,
+    assistantSuggestion: null,
     conversationId,
     customer: {
         channel: "text",
@@ -142,6 +143,11 @@ async function requestTeamApp(
         sendBatch: vi.fn().mockResolvedValue(undefined),
     } as unknown as Queue<ConversationFinalizeMessage>;
     const app = createApp(() => ({
+        agentAssist: {
+            process: vi.fn(),
+            schedule: vi.fn().mockResolvedValue(undefined),
+            scheduleLatest: vi.fn().mockResolvedValue(undefined),
+        },
         authenticateAdmin: vi.fn().mockResolvedValue(adminIdentity),
         authenticateMember: vi.fn().mockResolvedValue(identity),
         finalizeQueue,

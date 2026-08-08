@@ -1,4 +1,6 @@
 import type {
+    AgentReplySuggestion,
+    AgentReplySuggestionKind,
     ClaimConversationResponse,
     ConversationFinalization,
     ConversationLanguage,
@@ -13,6 +15,7 @@ import type {
     UpdateGuardrailRuleRequest,
 } from "@smartservice/contracts";
 import {
+    agentReplySuggestionSchema,
     claimConversationResponseSchema,
     conversationSummarySchema,
     guardrailCandidateResponseSchema,
@@ -27,6 +30,7 @@ import {
 import {
     finalizationPromptVersion,
     type FinalizationMessage,
+    type RecentConversationMessage,
 } from "@smartservice/assistant-core";
 import { z } from "zod";
 
@@ -193,6 +197,18 @@ const finalizationConversationRowSchema = z.object({
     status: z.literal("closed"),
 });
 
+const queuedAgentSuggestionRowSchema = z.object({
+    created: z.boolean(),
+    suggestion_id: z.uuid(),
+});
+
+const agentSuggestionTriggerRowSchema = z.object({
+    conversation_id: z.uuid(),
+    id: z.uuid(),
+    organization_id: z.uuid(),
+    text: z.string().min(1).max(5000),
+});
+
 /**
  * mapRuleRow
  * ----------------
@@ -347,6 +363,47 @@ export interface FinalizationAggregate
     language: ConversationLanguage;
     messages: FinalizationMessage[];
     organizationId: string;
+}
+
+export interface AgentSuggestionAggregate
+{
+    conversationId: string;
+    language: ConversationLanguage;
+    organizationId: string;
+    question: string;
+    recentMessages: RecentConversationMessage[];
+    rules: GuardrailRule[];
+    suggestionId: string;
+    triggerMessageId: string;
+}
+
+export interface AgentSuggestionCitationWrite
+{
+    chunkId: string;
+    label: string;
+    supportingExcerpt: string;
+}
+
+export interface CompleteAgentSuggestionInput
+{
+    citations: AgentSuggestionCitationWrite[];
+    conversationId: string;
+    conversationSummary: string;
+    currentIntent: string;
+    draftText: string;
+    inputTokens: number | null;
+    kind: AgentReplySuggestionKind;
+    latencyMs: number;
+    metadata: Record<string, unknown>;
+    model: string;
+    nextStep: string;
+    organizationId: string;
+    outputTokens: number | null;
+    promptVersion: string;
+    provider: string;
+    requestId: string;
+    suggestionId: string;
+    triggerMessageId: string;
 }
 
 export class SupabaseTeamRepository
@@ -507,6 +564,324 @@ export class SupabaseTeamRepository
             blockedCandidate: data.blocked_candidate,
             eventId: data.id,
         });
+    }
+
+    /**
+     * queueAgentReplySuggestion
+     * ----------------
+     * Creates one idempotent pending suggestion for the latest human-routed customer message and refreshes the immediate contextual handoff fallback.
+     *
+     * August 07, 2026: Created by Forrest Zhang for SmartService R10 Human Agent Assistance
+     */
+    public async queueAgentReplySuggestion(
+        organizationId: string,
+        conversationId: string,
+        triggerMessageId: string,
+        requestId: string,
+    ): Promise<{ created: boolean; suggestionId: string }>
+    {
+        const client = createServiceClient(this.bindings);
+        const { data, error } = await client.rpc("queue_agent_reply_suggestion", {
+            p_conversation_id: conversationId,
+            p_organization_id: organizationId,
+            p_request_id: requestId,
+            p_trigger_message_id: triggerMessageId,
+        });
+
+        if (error !== null || data === null || data.length !== 1)
+        {
+            throw new ApiError(409, "AGENT_SUGGESTION_NOT_QUEUED", "A reply suggestion could not be queued for this conversation state.");
+        }
+
+        const row = queuedAgentSuggestionRowSchema.parse(data[0]);
+        return {
+            created: row.created,
+            suggestionId: row.suggestion_id,
+        };
+    }
+
+    /**
+     * getLatestCustomerMessageId
+     * ----------------
+     * Resolves the authoritative latest customer message for a tenant conversation before scheduling assistance.
+     *
+     * August 07, 2026: Created by Forrest Zhang for SmartService R10 Human Agent Assistance
+     */
+    public async getLatestCustomerMessageId(
+        organizationId: string,
+        conversationId: string,
+    ): Promise<string | null>
+    {
+        const client = createServiceClient(this.bindings);
+        const { data, error } = await client
+            .from("messages")
+            .select("id")
+            .eq("organization_id", organizationId)
+            .eq("conversation_id", conversationId)
+            .eq("sender_type", "customer")
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (error !== null)
+        {
+            throw new ApiError(503, "CUSTOMER_MESSAGE_LOOKUP_FAILED", "The latest customer message could not be loaded.");
+        }
+
+        return data === null ? null : z.uuid().parse(data.id);
+    }
+
+    /**
+     * loadAgentSuggestionAggregate
+     * ----------------
+     * Reconciles an ID-only Queue command against the current conversation, suggestion, trigger message, transcript, and tenant rules.
+     *
+     * August 07, 2026: Created by Forrest Zhang for SmartService R10 Human Agent Assistance
+     */
+    public async loadAgentSuggestionAggregate(
+        organizationId: string,
+        conversationId: string,
+        suggestionId: string,
+        triggerMessageId: string,
+    ): Promise<AgentSuggestionAggregate | null>
+    {
+        const client = createServiceClient(this.bindings);
+        const [conversationResult, suggestionResult, triggerResult, latestMessageId] = await Promise.all([
+            client
+                .from("conversations")
+                .select("id, organization_id, language, status")
+                .eq("organization_id", organizationId)
+                .eq("id", conversationId)
+                .maybeSingle(),
+            client
+                .from("agent_reply_suggestions")
+                .select("id, trigger_message_id, status")
+                .eq("organization_id", organizationId)
+                .eq("conversation_id", conversationId)
+                .eq("id", suggestionId)
+                .maybeSingle(),
+            client
+                .from("messages")
+                .select("id, organization_id, conversation_id, text")
+                .eq("organization_id", organizationId)
+                .eq("conversation_id", conversationId)
+                .eq("id", triggerMessageId)
+                .eq("sender_type", "customer")
+                .maybeSingle(),
+            this.getLatestCustomerMessageId(organizationId, conversationId),
+        ]);
+
+        if (
+            conversationResult.error !== null
+            || suggestionResult.error !== null
+            || triggerResult.error !== null
+        )
+        {
+            throw new ApiError(503, "AGENT_SUGGESTION_CONTEXT_FAILED", "The reply-suggestion context could not be loaded.");
+        }
+
+        if (
+            conversationResult.data === null
+            || suggestionResult.data === null
+            || triggerResult.data === null
+            || latestMessageId !== triggerMessageId
+        )
+        {
+            return null;
+        }
+
+        const conversation = z.object({
+            id: z.uuid(),
+            language: z.enum(["zh-CN", "en"]),
+            organization_id: z.uuid(),
+            status: z.enum(["handoff_requested", "active_human", "closed", "active_ai", "resolved_ai"]),
+        }).parse(conversationResult.data);
+        const suggestion = z.object({
+            id: z.uuid(),
+            status: z.enum(["pending", "failed", "ready", "used", "superseded"]),
+            trigger_message_id: z.uuid(),
+        }).parse(suggestionResult.data);
+        const trigger = agentSuggestionTriggerRowSchema.parse(triggerResult.data);
+
+        if (
+            !["handoff_requested", "active_human"].includes(conversation.status)
+            || !["pending", "failed"].includes(suggestion.status)
+            || suggestion.trigger_message_id !== triggerMessageId
+        )
+        {
+            return null;
+        }
+
+        const [recentMessages, rules] = await Promise.all([
+            this.conversations.listRecentMessages(
+                organizationId,
+                conversationId,
+                triggerMessageId,
+            ),
+            this.listRules(organizationId),
+        ]);
+
+        return {
+            conversationId,
+            language: conversation.language,
+            organizationId,
+            question: trigger.text,
+            recentMessages,
+            rules,
+            suggestionId,
+            triggerMessageId,
+        };
+    }
+
+    /**
+     * completeAgentReplySuggestion
+     * ----------------
+     * Atomically records one validated tenant-grounded draft, its citations, AI audit, and refreshed handoff context if it is still current.
+     *
+     * August 07, 2026: Created by Forrest Zhang for SmartService R10 Human Agent Assistance
+     */
+    public async completeAgentReplySuggestion(
+        input: CompleteAgentSuggestionInput,
+    ): Promise<boolean>
+    {
+        const client = createServiceClient(this.bindings);
+        const { data, error } = await client.rpc("complete_agent_reply_suggestion", {
+            p_citations: input.citations,
+            p_conversation_id: input.conversationId,
+            p_conversation_summary: input.conversationSummary,
+            p_current_intent: input.currentIntent,
+            p_draft_text: input.draftText,
+            p_input_tokens: input.inputTokens,
+            p_kind: input.kind,
+            p_latency_ms: input.latencyMs,
+            p_metadata: input.metadata,
+            p_model: input.model,
+            p_next_step: input.nextStep,
+            p_organization_id: input.organizationId,
+            p_output_tokens: input.outputTokens,
+            p_prompt_version: input.promptVersion,
+            p_provider: input.provider,
+            p_request_id: input.requestId,
+            p_suggestion_id: input.suggestionId,
+            p_trigger_message_id: input.triggerMessageId,
+        });
+
+        if (error !== null || typeof data !== "boolean")
+        {
+            throw new ApiError(503, "AGENT_SUGGESTION_SAVE_FAILED", "The reply suggestion could not be saved safely.");
+        }
+
+        return data;
+    }
+
+    /**
+     * failAgentReplySuggestion
+     * ----------------
+     * Records a content-free failed generation attempt while allowing the bounded Queue retry to try the same current suggestion again.
+     *
+     * August 07, 2026: Created by Forrest Zhang for SmartService R10 Human Agent Assistance
+     */
+    public async failAgentReplySuggestion(
+        organizationId: string,
+        conversationId: string,
+        suggestionId: string,
+        errorCode: string,
+        provider: string,
+        model: string,
+        promptVersion: string,
+        latencyMs: number,
+        requestId: string,
+    ): Promise<void>
+    {
+        const client = createServiceClient(this.bindings);
+        const { error } = await client.rpc("fail_agent_reply_suggestion", {
+            p_conversation_id: conversationId,
+            p_error_code: errorCode,
+            p_latency_ms: latencyMs,
+            p_model: model,
+            p_organization_id: organizationId,
+            p_prompt_version: promptVersion,
+            p_provider: provider,
+            p_request_id: requestId,
+            p_suggestion_id: suggestionId,
+        });
+
+        if (error !== null)
+        {
+            console.error(JSON.stringify({
+                errorCode: "AGENT_SUGGESTION_FAILURE_AUDIT_FAILED",
+                event: "agent_reply_suggestion.failure_audit_failed",
+                requestId,
+                suggestionId,
+            }));
+        }
+    }
+
+    /**
+     * loadLatestAgentReplySuggestion
+     * ----------------
+     * Loads the newest current suggestion and its approved source cards through one tenant-scoped database call for low-latency polling.
+     *
+     * August 07, 2026: Created by Forrest Zhang for SmartService R10 Human Agent Assistance
+     */
+    public async loadLatestAgentReplySuggestion(
+        organizationId: string,
+        conversationId: string,
+    ): Promise<AgentReplySuggestion | null>
+    {
+        const client = createServiceClient(this.bindings);
+        const { data, error } = await client.rpc("get_latest_agent_reply_suggestion", {
+            p_conversation_id: conversationId,
+            p_organization_id: organizationId,
+        });
+
+        if (error !== null)
+        {
+            throw new ApiError(503, "AGENT_SUGGESTION_LOOKUP_FAILED", "The live reply suggestion could not be loaded.");
+        }
+
+        if (data === null)
+        {
+            return null;
+        }
+
+        return agentReplySuggestionSchema.parse(data);
+    }
+
+    /**
+     * settleAgentReplySuggestions
+     * ----------------
+     * Records whether the owning human used the current draft and supersedes every remaining draft after a human reply.
+     *
+     * August 07, 2026: Created by Forrest Zhang for SmartService R10 Human Agent Assistance
+     */
+    public async settleAgentReplySuggestions(
+        identity: MemberIdentity,
+        conversationId: string,
+        humanMessageId: string,
+        suggestionId: string | null,
+        requestId: string,
+    ): Promise<void>
+    {
+        const client = createServiceClient(this.bindings);
+        const { error } = await client.rpc("settle_agent_reply_suggestions", {
+            p_actor_user_id: identity.userId,
+            p_conversation_id: conversationId,
+            p_human_message_id: humanMessageId,
+            p_organization_id: identity.organizationId,
+            p_request_id: requestId,
+            p_used_suggestion_id: suggestionId,
+        });
+
+        if (error !== null)
+        {
+            console.error(JSON.stringify({
+                errorCode: "AGENT_SUGGESTION_SETTLEMENT_FAILED",
+                event: "agent_reply_suggestion.settlement_failed",
+                requestId,
+            }));
+        }
     }
 
     /**
@@ -844,10 +1219,15 @@ export class SupabaseTeamRepository
                 conversation.language,
             );
         const latestMessage = rows.at(-1);
+        const assistantSuggestion = await this.loadLatestAgentReplySuggestion(
+            organizationId,
+            conversationId,
+        );
 
         return teamConversationDetailSchema.parse({
             acceptedAt: handoff?.accepted_at ?? null,
             acceptedBy: handoff?.accepted_by ?? null,
+            assistantSuggestion,
             conversationId: conversation.id,
             customer: {
                 channel: conversation.channel,
@@ -933,6 +1313,7 @@ export class SupabaseTeamRepository
         conversationId: string,
         clientMessageId: string,
         text: string,
+        suggestionId: string | null,
         requestId: string,
     ): Promise<SendHumanMessageResponse>
     {
@@ -952,6 +1333,13 @@ export class SupabaseTeamRepository
         }
 
         const row = humanMessageRowSchema.parse(data[0]);
+        await this.settleAgentReplySuggestions(
+            identity,
+            conversationId,
+            row.message_id,
+            suggestionId,
+            requestId,
+        );
 
         return sendHumanMessageResponseSchema.parse({
             created: row.created,

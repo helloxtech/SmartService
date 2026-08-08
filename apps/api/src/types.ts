@@ -1,9 +1,10 @@
 import type {
+    AgentReplySuggestionMessage,
     CreatePublicConversationRequest,
     CreatePublicConversationResponse,
     DashboardSummary,
     ClaimConversationResponse,
-    ConversationFinalizeMessage,
+    ConversationAsyncMessage,
     ConversationFinalization,
     CreateGuardrailRuleRequest,
     EndVoiceSessionResponse,
@@ -89,7 +90,7 @@ export type SmartServiceBindings = Omit<
     CRAWL_PROVIDER_MODE?: "live" | "mock";
     EMBEDDING_PROVIDER_MODE?: "live" | "mock";
     ENVIRONMENT: string;
-    FINALIZE_QUEUE: Queue<ConversationFinalizeMessage>;
+    FINALIZE_QUEUE: Queue<ConversationAsyncMessage>;
     HELLOX_FEEDBACK_INSTALLATION_KEY?: string;
     HELLOX_FEEDBACK_SERVER_KEY?: string;
     HELLOX_FEEDBACK_TURNSTILE_SITE_KEY?: string;
@@ -238,6 +239,7 @@ export type CrawlProvider = ExtractedPayloadProvider;
 
 export interface RuntimeServices
 {
+    agentAssist: AgentAssistService;
     analytics: AnalyticsService;
     authenticateAdmin(request: Request): Promise<AdminIdentity>;
     authenticateMember(request: Request): Promise<MemberIdentity>;
@@ -245,7 +247,7 @@ export interface RuntimeServices
     dnsResolver: DnsResolver;
     embeddings: EmbeddingProvider;
     finalizer: ConversationFinalizer;
-    finalizeQueue: Queue<ConversationFinalizeMessage>;
+    finalizeQueue: Queue<ConversationAsyncMessage>;
     guardrails: GuardrailSupervisor;
     objects: KnowledgeObjectStore;
     publicConversations: PublicConversationService;
@@ -254,6 +256,29 @@ export interface RuntimeServices
     team: TeamService;
     uploads: UploadIntentProvider;
     voice: VoiceService;
+}
+
+export interface AgentAssistService
+{
+    process(
+        message: AgentReplySuggestionMessage,
+        requestId: string,
+    ): Promise<{
+        conversationId: string;
+        status: "completed" | "stale";
+        suggestionId: string;
+    }>;
+    schedule(
+        organizationId: string,
+        conversationId: string,
+        triggerMessageId: string,
+        requestId: string,
+    ): Promise<void>;
+    scheduleLatest(
+        organizationId: string,
+        conversationId: string,
+        requestId: string,
+    ): Promise<void>;
 }
 
 export interface AnalyticsService
@@ -369,6 +394,7 @@ export interface TeamService
         conversationId: string,
         clientMessageId: string,
         text: string,
+        suggestionId: string | null,
         requestId: string,
     ): Promise<SendHumanMessageResponse>;
 }

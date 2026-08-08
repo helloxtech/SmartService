@@ -178,6 +178,11 @@ function createFailureHarness(
     const turnstile: TurnstileVerifier = {
         verify: vi.fn().mockResolvedValue(undefined),
     };
+    const agentAssist = {
+        process: vi.fn(),
+        schedule: vi.fn().mockResolvedValue(undefined),
+        scheduleLatest: vi.fn().mockResolvedValue(undefined),
+    };
     const bindings = {
         CONVERSATION_TOKEN_SECRET: "x".repeat(32),
         EMBEDDING_PROVIDER_MODE: "live",
@@ -199,6 +204,7 @@ function createFailureHarness(
             embeddings,
             answers,
             guardrails,
+            agentAssist,
             turnstile,
         ),
     };

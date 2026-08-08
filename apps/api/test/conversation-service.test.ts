@@ -383,6 +383,7 @@ describe("tenant-generic turn failure isolation", () =>
     it("widens only stable organization-fact retrieval before strict evidence filtering", async () =>
     {
         const harness = createFailureHarness(null);
+        harness.retrieveEvidence.mockResolvedValue([]);
 
         await harness.service.sendTrusted(
             organizationId,
@@ -394,14 +395,29 @@ describe("tenant-generic turn failure isolation", () =>
             "request-organization-fact-window-test",
         );
 
-        expect(harness.retrieveEvidence).toHaveBeenCalledWith(
+        expect(harness.retrieveEvidence).toHaveBeenNthCalledWith(
+            1,
             organizationId,
             expect.stringContaining("founded in"),
             expect.any(Array),
             expect.any(Number),
             20,
         );
+        expect(harness.retrieveEvidence).toHaveBeenNthCalledWith(
+            2,
+            organizationId,
+            expect.stringContaining("founded in"),
+            expect.any(Array),
+            0,
+            100,
+        );
         expect(harness.answers.generate).not.toHaveBeenCalled();
+        expect(harness.persistedTurns[0]?.retrievalMetadata).toMatchObject({
+            candidateCounts: [0],
+            filteredCounts: [0],
+            profileRecoveryUsed: [true],
+            threshold: 0,
+        });
     });
 
     it("preserves every server-planned part through retrieval and answer generation", async () =>

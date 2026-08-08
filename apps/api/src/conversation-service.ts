@@ -11,6 +11,7 @@ import {
     enforceCustomerControlledHandoff,
     evaluateDeterministicGuardrails,
     filterEvidenceForQuestionContext,
+    getOrganizationProfileRecoveryLimit,
     getRetrievalCandidateLimit,
     guardrailPromptVersion,
     mergeRetrievedEvidence,
@@ -1086,6 +1087,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
         const retrievalCandidateCounts: number[] = [];
         let retrievalContextualized = false;
         const retrievalFilteredCounts: number[] = [];
+        const retrievalProfileRecoveryUsed: boolean[] = [];
         let retrievalMinimumThreshold: number | null = null;
         let retrievalQueryCount = 1;
         let provider: string;
@@ -1241,7 +1243,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                                 throw new ApiError(502, "QUERY_EMBEDDING_INVALID", "The query embedding is not valid.");
                             }
 
-                            const resultSet = await this.repository.retrieveEvidence(
+                            let resultSet = await this.repository.retrieveEvidence(
                                 organizationId,
                                 retrievalQuestion,
                                 queryEmbedding,
@@ -1250,9 +1252,30 @@ export class DefaultPublicConversationService implements PublicConversationServi
                                     focusedRetrievalQuestions[index] ?? input.text,
                                 ),
                             );
-                            retrievalCandidateCounts[index] = resultSet.length;
                             const focusedRetrievalQuestion = focusedRetrievalQuestions[index]
                                 ?? input.text;
+                            const profileRecoveryLimit = getOrganizationProfileRecoveryLimit(
+                                focusedRetrievalQuestion,
+                            );
+
+                            if (resultSet.length === 0 && profileRecoveryLimit !== null)
+                            {
+                                resultSet = await this.repository.retrieveEvidence(
+                                    organizationId,
+                                    retrievalQuestion,
+                                    queryEmbedding,
+                                    0,
+                                    profileRecoveryLimit,
+                                );
+                                retrievalThresholds[index] = 0;
+                                retrievalProfileRecoveryUsed[index] = true;
+                            }
+                            else
+                            {
+                                retrievalProfileRecoveryUsed[index] = false;
+                            }
+
+                            retrievalCandidateCounts[index] = resultSet.length;
                             const evidenceQuestion = focusedRetrievalQuestions.length === 1
                                 ? input.text
                                 : focusedRetrievalQuestion;
@@ -1272,6 +1295,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                     stageDurationsMs.knowledge_retrieval = Date.now() - knowledgeRetrievalStartedAt;
                 }
 
+                retrievalMinimumThreshold = Math.min(...retrievalThresholds);
                 const mergedEvidenceLimit = Math.min(
                     8,
                     Math.max(3, focusedRetrievalQuestions.length * 2),
@@ -1464,6 +1488,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
             requestId,
             retrievalCandidateCounts,
             retrievalFilteredCounts,
+            retrievalProfileRecoveryUsed,
             retrievedEvidenceCount: evidence.length,
             stageDurationsMs,
         }));
@@ -1496,6 +1521,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 candidateCounts: retrievalCandidateCounts,
                 crossLanguageExpanded: retrievalCrossLanguageExpanded,
                 filteredCounts: retrievalFilteredCounts,
+                profileRecoveryUsed: retrievalProfileRecoveryUsed,
                 processing: {
                     failedStage,
                     generationAttempts,

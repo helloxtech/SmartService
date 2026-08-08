@@ -941,6 +941,22 @@ export function getRetrievalCandidateLimit(question: string): number
 }
 
 /**
+ * getOrganizationProfileRecoveryLimit
+ * ----------------
+ * Enables a bounded database-only recall pass for stable organization facts whose normal-threshold search returned no candidate; downstream direct-fact validation remains mandatory.
+ *
+ * August 07, 2026: Created by Forrest Zhang for Tenant-Generic Organization Fact Recall
+ */
+export function getOrganizationProfileRecoveryLimit(question: string): number | null
+{
+    return foundingQuestionPattern.test(question)
+        || addressQuestionPattern.test(question)
+        || organizationNameQuestionPattern.test(question)
+        ? 100
+        : null;
+}
+
+/**
  * evidenceSearchText
  * ----------------
  * Produces one bounded searchable string from retrieved content and safe locator metadata so source titles and paths can participate in deterministic relevance checks.

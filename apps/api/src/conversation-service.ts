@@ -14,6 +14,7 @@ import {
     getOrganizationProfileRecoveryLimit,
     getRetrievalCandidateLimit,
     guardrailPromptVersion,
+    isDirectlyGroundedOfferingAnswer,
     mergeRetrievedEvidence,
     normalizeQuestion,
     ragPromptVersion,
@@ -93,11 +94,13 @@ interface GuardrailBlockInput
     candidate: CandidateAudit;
     conversationId: string;
     customerMessageId: string;
+    customerQuestion: string;
     evaluation: GuardrailEvaluation;
     guardrail: GuardrailAudit;
     language: ConversationLanguage;
     organizationId: string;
     requestId: string;
+    rules: GuardrailRule[];
 }
 
 type TurnProcessingStage =
@@ -903,9 +906,9 @@ export class DefaultPublicConversationService implements PublicConversationServi
     /**
      * persistGuardrailBlock
      * ----------------
-     * Atomically withholds a blocked candidate, exposes only safe wording, transitions to handoff, and refreshes agent context.
+     * Withholds a blocked candidate, keeps non-safety uncertainty inside the active service conversation, and reserves automatic handoff for protected safety violations.
      *
-     * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Guardrails
+     * August 07, 2026: Updated by Forrest Zhang for Customer-Controlled Guardrail Handoff
      */
     private async persistGuardrailBlock(
         input: GuardrailBlockInput,
@@ -923,6 +926,74 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 "GUARDRAIL_EVALUATION_INVALID",
                 "The guardrail result could not be applied safely.",
             );
+        }
+
+        const protectedSafetyHandoff = input.evaluation.violations.some((violation) =>
+            input.rules.some((rule) =>
+                rule.code === violation.ruleCode
+                && rule.ruleType === "safety",
+            ),
+        );
+
+        if (!protectedSafetyHandoff)
+        {
+            const safeClarification = createSafeClarification(
+                input.customerQuestion,
+                input.language,
+                "system_error",
+            );
+            const messageId = await this.repository.completeTurn({
+                aiStatus: "succeeded",
+                answer: safeClarification.answer,
+                citations: [],
+                conversationId: input.conversationId,
+                createGap: false,
+                customerMessageId: input.customerMessageId,
+                decision: "clarify",
+                errorCode: "GUARDRAIL_BLOCKED_NONTERMINAL",
+                handoffReason: null,
+                inputTokens: input.guardrail.inputTokens,
+                language: input.language,
+                latencyMs: input.guardrail.latencyMs,
+                model: input.guardrail.model,
+                normalizedQuestion: normalizeQuestion(input.customerQuestion),
+                organizationId: input.organizationId,
+                outputTokens: input.guardrail.outputTokens,
+                promptVersion: guardrailPromptVersion,
+                provider: input.guardrail.provider,
+                requestId: input.requestId,
+                retrievalMetadata: {
+                    blockedCandidateProvider: input.candidate.provider,
+                    nonterminalGuardrail: true,
+                    ruleCodes: input.evaluation.violations.map((violation) =>
+                        violation.ruleCode,
+                    ),
+                },
+                retrievedChunkIds: [],
+            });
+            const [response] = await Promise.all([
+                this.repository.loadResponse(
+                    input.organizationId,
+                    input.conversationId,
+                    messageId,
+                ),
+                this.refreshOperationalContext(
+                    input.organizationId,
+                    input.conversationId,
+                    input.requestId,
+                    false,
+                ),
+            ]);
+
+            console.warn(JSON.stringify({
+                event: "public.turn.guardrail_blocked_nonterminal",
+                requestId: input.requestId,
+                ruleCodes: input.evaluation.violations.map((violation) =>
+                    violation.ruleCode,
+                ),
+            }));
+
+            return sendPublicMessageResponseSchema.parse(response);
         }
 
         const messageId = await this.repository.completeGuardrailTurn({
@@ -1194,6 +1265,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                         },
                         conversationId,
                         customerMessageId: customerMessage.id,
+                        customerQuestion: input.text,
                         evaluation: inputEvaluation,
                         guardrail: {
                             inputTokens: null,
@@ -1205,6 +1277,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                         language,
                         organizationId,
                         requestId,
+                        rules,
                     });
                 }
 
@@ -1413,6 +1486,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                                 candidate,
                                 conversationId,
                                 customerMessageId: customerMessage.id,
+                                customerQuestion: input.text,
                                 evaluation: outputEvaluation,
                                 guardrail: {
                                     inputTokens: null,
@@ -1424,6 +1498,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                                 language,
                                 organizationId,
                                 requestId,
+                                rules,
                             });
                         }
 
@@ -1445,14 +1520,35 @@ export class DefaultPublicConversationService implements PublicConversationServi
                         }
 
                         const supervision = supervisionResult.value;
+                        const unsupportedClaimOnly = supervision.evaluation.violations.length > 0
+                            && supervision.evaluation.violations.every((violation) =>
+                                rules.some((rule) =>
+                                    rule.code === violation.ruleCode
+                                    && rule.ruleType === "unsupported_claim",
+                                ),
+                            );
+                        const supervisionEvaluation = unsupportedClaimOnly
+                            && isDirectlyGroundedOfferingAnswer(
+                                input.text,
+                                answer.answer,
+                                citedEvidence,
+                            )
+                            ? {
+                                allowed: true,
+                                requestHandoff: false,
+                                safeResponse: null,
+                                violations: [],
+                            } satisfies GuardrailEvaluation
+                            : supervision.evaluation;
 
-                        if (!supervision.evaluation.allowed)
+                        if (!supervisionEvaluation.allowed)
                         {
                             return this.persistGuardrailBlock({
                                 candidate,
                                 conversationId,
                                 customerMessageId: customerMessage.id,
-                                evaluation: supervision.evaluation,
+                                customerQuestion: input.text,
+                                evaluation: supervisionEvaluation,
                                 guardrail: {
                                     inputTokens: supervision.inputTokens,
                                     latencyMs: supervisionResult.durationMs,
@@ -1463,6 +1559,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                                 language,
                                 organizationId,
                                 requestId,
+                                rules,
                             });
                         }
                     }

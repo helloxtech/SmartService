@@ -17,6 +17,7 @@ import {
     filterEvidenceForQuestionContext,
     getOrganizationProfileRecoveryLimit,
     getRetrievalCandidateLimit,
+    isDirectlyGroundedOfferingAnswer,
     isContextDependentFollowUp,
     mergeRetrievedEvidence,
     RagValidationError,
@@ -253,6 +254,63 @@ describe("grounded RAG", () =>
         expect(getRetrievalCandidateLimit("你们有安装服务吗？")).toBe(5);
         expect(getOrganizationProfileRecoveryLimit("你们是什么时候成立的？")).toBe(100);
         expect(getOrganizationProfileRecoveryLimit("你们有安装服务吗？")).toBeNull();
+    });
+
+    it("recognizes only cited non-volatile offering confirmations", () =>
+    {
+        const serviceEvidence: RetrievedEvidence = {
+            ...fixtureEvidence,
+            content: "Residential solar panel installation service is offered by our certified installation team.",
+            sourceLocator: {
+                title: "Solar installation services",
+            },
+        };
+
+        expect(isDirectlyGroundedOfferingAnswer(
+            "你们提供太阳能板安装服务吗？",
+            "是的，我们提供太阳能板安装服务。",
+            [serviceEvidence],
+        )).toBe(true);
+        expect(isDirectlyGroundedOfferingAnswer(
+            "太阳能板现在有现货吗？",
+            "是的，我们现在有现货。",
+            [serviceEvidence],
+        )).toBe(false);
+        expect(isDirectlyGroundedOfferingAnswer(
+            "你们提供太阳能板安装服务吗？",
+            "是的，我们提供太阳能板安装服务。",
+            [{ ...serviceEvidence, content: "Our office is open Monday through Friday." }],
+        )).toBe(false);
+        expect(isDirectlyGroundedOfferingAnswer(
+            "你们提供太阳能板安装服务吗？",
+            "是的，我们提供屋顶清洁服务。",
+            [serviceEvidence],
+        )).toBe(false);
+    });
+
+    it("turns a cited bare organization name into a natural first-person answer", () =>
+    {
+        const organizationEvidence: RetrievedEvidence = {
+            ...fixtureEvidence,
+            content: "About Us | Canada YC Music Academy",
+            sourceLocator: {
+                title: "About Us",
+            },
+        };
+        const answer = validateGroundedAnswer({
+            answer: "Canada YC Music Academy",
+            citationChunkIds: [organizationEvidence.chunkId],
+            confidence: 0.95,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "你们学校叫什么名字",
+        }, [organizationEvidence], {
+            language: "zh-CN",
+            questionParts: ["你们学校叫什么名字？"],
+        });
+
+        expect(answer.answer).toBe("我们叫 Canada YC Music Academy。");
+        expect(answer.citationChunkIds).toEqual([organizationEvidence.chunkId]);
     });
 
     it("keeps evidence for every focused query when merging bounded results", () =>

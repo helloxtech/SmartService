@@ -957,6 +957,40 @@ export function getOrganizationProfileRecoveryLimit(question: string): number | 
 }
 
 /**
+ * isDirectlyGroundedOfferingAnswer
+ * ----------------
+ * Recognizes a short affirmative answer to a non-volatile product, service, course, or program offering question only when cited evidence explicitly describes that offering category.
+ *
+ * August 07, 2026: Created by Forrest Zhang for Tenant-Generic Guardrail False-Positive Control
+ */
+export function isDirectlyGroundedOfferingAnswer(
+    question: string,
+    answer: string,
+    evidence: readonly { content: string }[],
+): boolean
+{
+    const asksAboutOffering = /(?:有|提供|开设|经营|销售).{0,40}(?:课程|服务|产品|项目)|(?:课程|服务|产品|项目).{0,40}(?:有吗|有没有|提供|开设|经营|销售)|\b(?:do you|does (?:the|this|your)|is (?:the|this|your)).{0,50}\b(?:offer|provide|carry|have)\b|\b(?:offer|provide|carry).{0,50}\b(?:course|class|service|product|program)\b/iu.test(question);
+    const asksAboutVolatileAvailability = /库存|现货|名额|现在|今天|目前可用|\b(?:inventory|in stock|stock|available (?:now|today)|openings?)\b/iu.test(question);
+    const isShortAffirmative = answer.length <= 180
+        && /^(?:是的|有的|我们(?:有|提供|开设|经营|销售)|可以)|\b(?:yes|we (?:offer|provide|carry|have)|is offered|are offered)\b/iu.test(answer)
+        && !/(?:没有|不提供|无法确认|暂时|\b(?:not|cannot|can't|do not|don't)\b)/iu.test(answer);
+    const subjectAnchors = extractQuestionSubjectAnchors(question);
+    const answerPreservesSubject = subjectAnchors.length === 0
+        || subjectAnchors.every((anchor) => answer.includes(anchor));
+    const hasOfferingEvidence = evidence.some((item) =>
+        /课程|课时|教学|服务|产品|项目|销售|提供|开设|\b(?:course|class|lesson|service|product|program|offered|provided|available)\b/iu.test(
+            item.content.normalize("NFKC").toLocaleLowerCase(),
+        ),
+    );
+
+    return asksAboutOffering
+        && !asksAboutVolatileAvailability
+        && isShortAffirmative
+        && answerPreservesSubject
+        && hasOfferingEvidence;
+}
+
+/**
  * evidenceSearchText
  * ----------------
  * Produces one bounded searchable string from retrieved content and safe locator metadata so source titles and paths can participate in deterministic relevance checks.
@@ -1869,6 +1903,36 @@ function createUnconfirmedQuestionPartAnswer(
 }
 
 /**
+ * humanizeAtomicGroundedAnswer
+ * ----------------
+ * Turns a bare, already-grounded organization name into one natural first-person customer-service sentence without adding facts.
+ *
+ * August 07, 2026: Created by Forrest Zhang for Tenant-Generic Customer-Service Voice Quality
+ */
+function humanizeAtomicGroundedAnswer(
+    question: string,
+    answer: string,
+    language: ConversationLanguage,
+): string
+{
+    const trimmed = answer.trim();
+    const isBareOrganizationName = organizationNameQuestionPattern.test(question)
+        && trimmed.length <= 120
+        && !/[。！？.!?\n]/u.test(trimmed)
+        && !/^(?:我们|本公司|本企业|本机构|本校|本店|我(?:们)?的名称|our\b|we(?:'re| are)\b|the\s+(?:company|business|organization|school|academy|brand|store)\b)/iu
+            .test(trimmed);
+
+    if (!isBareOrganizationName)
+    {
+        return trimmed;
+    }
+
+    return language === "zh-CN"
+        ? `我们叫 ${trimmed}。`
+        : `We're ${trimmed}.`;
+}
+
+/**
  * validateGroundedAnswer
  * ----------------
  * Enforces citation membership, decision consistency, uniqueness, and handoff safety after Structured Output parsing.
@@ -2108,6 +2172,18 @@ export function validateGroundedAnswer(
                 "missing_knowledge",
             );
         }
+    }
+
+    if (answer.decision === "answer" && context !== undefined)
+    {
+        return ragAnswerSchema.parse({
+            ...answer,
+            answer: humanizeAtomicGroundedAnswer(
+                questionParts[0] ?? "",
+                answer.answer,
+                context.language,
+            ),
+        });
     }
 
     return answer;

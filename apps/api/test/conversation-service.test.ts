@@ -10,6 +10,7 @@ import type {
     RagAnswerProvider,
 } from "@smartservice/assistant-core";
 import type { EmbeddingProvider } from "@smartservice/ingestion";
+import type { GuardrailRule } from "@smartservice/contracts";
 
 import {
     DefaultPublicConversationService,
@@ -38,6 +39,8 @@ interface FailureHarness
 {
     answers: RagAnswerProvider;
     embeddings: EmbeddingProvider;
+    guardrails: GuardrailSupervisor;
+    listGuardrailRules: ReturnType<typeof vi.fn>;
     listRecentMessages: ReturnType<typeof vi.fn>;
     persistedTurns: CompleteTurnInput[];
     retrieveEvidence: ReturnType<typeof vi.fn>;
@@ -56,6 +59,7 @@ function createFailureHarness(
 ): FailureHarness
 {
     const persistedTurns: CompleteTurnInput[] = [];
+    const listGuardrailRules = vi.fn().mockResolvedValue([]);
     const listRecentMessages = vi.fn().mockResolvedValue([]);
     const retrieveEvidence = vi.fn().mockResolvedValue([{
         chunkId: evidenceChunkId,
@@ -78,7 +82,7 @@ function createFailureHarness(
             organizationId,
             status: "active_ai",
         }),
-        listGuardrailRules: vi.fn().mockResolvedValue([]),
+        listGuardrailRules,
         listRecentMessages,
         loadResponse: vi.fn().mockImplementation(async () =>
         {
@@ -184,6 +188,8 @@ function createFailureHarness(
     return {
         answers,
         embeddings,
+        guardrails,
+        listGuardrailRules,
         listRecentMessages,
         persistedTurns,
         retrieveEvidence,
@@ -286,6 +292,117 @@ describe("tenant-generic turn failure isolation", () =>
             decision: "acknowledge",
             model: "conversation-act-v1",
             provider: "deterministic",
+        });
+    });
+
+    it("keeps a directly cited offering answer when unsupported-claim supervision is the only false positive", async () =>
+    {
+        const harness = createFailureHarness(null);
+        const unsupportedClaimRule: GuardrailRule = {
+            code: "NO_UNSUPPORTED_CLAIM",
+            createdAt: "2026-08-07T12:00:00.000Z",
+            description: "Do not invent company facts.",
+            enabled: true,
+            id: "50000000-0000-4000-a000-000000000001",
+            name: "No unsupported claim",
+            ruleType: "unsupported_claim",
+            safeResponse: "A support specialist needs to confirm this.",
+            severity: "high",
+            updatedAt: "2026-08-07T12:00:00.000Z",
+        };
+        harness.listGuardrailRules.mockResolvedValue([unsupportedClaimRule]);
+        harness.retrieveEvidence.mockResolvedValue([{
+            chunkId: evidenceChunkId,
+            combinedScore: 0.87,
+            content: "Residential solar installation service is offered by our installation team.",
+            sourceLocator: {
+                title: "Installation services",
+            },
+        }]);
+        vi.mocked(harness.answers.generate).mockResolvedValue({
+            answer: {
+                answer: "Yes, we offer residential solar installation services.",
+                citationChunkIds: [evidenceChunkId],
+                confidence: 0.9,
+                decision: "answer",
+                handoffReason: null,
+                normalizedQuestion: "do you offer residential solar installation services",
+            },
+            inputTokens: 40,
+            model: "@cf/meta/llama-3.1-8b-instruct-fast",
+            outputTokens: 15,
+            provider: "cloudflare-workers-ai",
+        });
+        vi.mocked(harness.guardrails.supervise).mockResolvedValue({
+            evaluation: {
+                allowed: false,
+                requestHandoff: true,
+                safeResponse: "A support specialist needs to confirm this.",
+                violations: [{
+                    reason: "The answer may be unsupported.",
+                    ruleCode: "NO_UNSUPPORTED_CLAIM",
+                    severity: "high",
+                }],
+            },
+            inputTokens: 20,
+            outputTokens: 10,
+        });
+
+        const response = await harness.service.sendTrusted(
+            organizationId,
+            conversationId,
+            {
+                clientMessageId: crypto.randomUUID(),
+                text: "Do you offer residential solar installation services?",
+            },
+            "request-verified-offering-supervision-test",
+        );
+
+        expect(response).toMatchObject({
+            answer: "Yes, we offer residential solar installation services.",
+            decision: "answer",
+            handoff: null,
+        });
+        expect(response.citations).toHaveLength(1);
+        expect(harness.persistedTurns[0]?.decision).toBe("answer");
+    });
+
+    it("keeps non-safety guardrail blocks in the online-service conversation", async () =>
+    {
+        const harness = createFailureHarness(null);
+        harness.listGuardrailRules.mockResolvedValue([{
+            code: "NO_PRICE_COMMITMENT",
+            createdAt: "2026-08-07T12:00:00.000Z",
+            description: "Do not make final price commitments.",
+            enabled: true,
+            id: "50000000-0000-4000-a000-000000000002",
+            name: "No price commitment",
+            ruleType: "price",
+            safeResponse: "A support specialist needs to confirm final prices.",
+            severity: "high",
+            updatedAt: "2026-08-07T12:00:00.000Z",
+        } satisfies GuardrailRule]);
+
+        const response = await harness.service.sendTrusted(
+            organizationId,
+            conversationId,
+            {
+                clientMessageId: crypto.randomUUID(),
+                text: "What is your final price?",
+            },
+            "request-nonterminal-price-guardrail-test",
+        );
+
+        expect(response).toMatchObject({
+            decision: "clarify",
+            handoff: null,
+        });
+        expect(harness.embeddings.embed).not.toHaveBeenCalled();
+        expect(harness.persistedTurns[0]).toMatchObject({
+            createGap: false,
+            decision: "clarify",
+            errorCode: "GUARDRAIL_BLOCKED_NONTERMINAL",
+            handoffReason: null,
         });
     });
 

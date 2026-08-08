@@ -29,7 +29,7 @@
     "RAG_MATCH_THRESHOLD": "0.35",
     "TURNSTILE_PROVIDER_MODE": "mock",
     "UPLOAD_PROVIDER_MODE": "mock",
-    "VOICE_PROVIDER_MODE": "mock",
+    "VOICE_PROVIDER_MODE": "live",
     "WORKERS_AI_GATEWAY_ID": "default",
     "LIVEKIT_AGENT_NAME": "smartservice-voice-agent",
     "VERSION": "0.10.0",

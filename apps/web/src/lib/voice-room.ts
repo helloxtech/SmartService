@@ -292,8 +292,14 @@ export class LiveKitVoiceRoomConnector implements VoiceRoomConnector
         });
         room.on(RoomEvent.TranscriptionReceived, (
             segments: TranscriptionSegment[],
+            participant,
         ) =>
         {
+            if (participant?.isAgent === true)
+            {
+                return;
+            }
+
             for (const segment of segments)
             {
                 callbacks.onTranscript(segment.text, segment.final);

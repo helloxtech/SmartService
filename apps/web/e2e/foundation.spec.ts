@@ -145,31 +145,12 @@ test("keeps the Feedback launcher discoverable before compacting it", async ({ p
     await expect(activeLauncher).toContainText("Continue marking");
 });
 
-test("starts voice only after click and falls back cleanly when microphone is denied", async ({ page }) =>
+test("starts voice only after click and fails closed when the provider is still mock", async ({ page }) =>
 {
     const conversationId = "20000000-0000-4000-a000-000000000006";
     const voiceSessionId = "60000000-0000-4000-a000-000000000006";
     let startupRequests = 0;
 
-    await page.addInitScript(() =>
-    {
-        Object.defineProperty(navigator, "mediaDevices", {
-            configurable: true,
-            value: {
-                /**
-                 * getUserMedia
-                 * ----------------
-                 * Reproduces a deterministic customer permission denial without opening a real microphone in CI.
-                 *
-                 * July 27, 2026: Created by Forrest Zhang for SmartService Day 6 Browser Verification
-                 */
-                getUserMedia: async () =>
-                {
-                    throw new DOMException("Permission denied", "NotAllowedError");
-                },
-            },
-        });
-    });
     await page.route("**/api/v1/public/conversations", async (route) =>
     {
         startupRequests += 1;
@@ -221,7 +202,10 @@ test("starts voice only after click and falls back cleanly when microphone is de
 
     await page.getByRole("button", { name: /Start voice/u }).click();
 
-    await expect(page.getByText(/Microphone access was denied/u)).toBeVisible();
+    await expect(page.getByRole("alert")).toContainText(
+        "Voice service is not connected in this environment",
+    );
+    await expect(page.getByText(/Listening now/u)).toHaveCount(0);
     await expect(page.getByRole("link", { name: /Continue by text/u })).toHaveAttribute("href", "/chat");
     expect(startupRequests).toBe(2);
 });

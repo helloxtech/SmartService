@@ -30,7 +30,6 @@ import {
 } from "./language";
 import {
     LiveKitVoiceRoomConnector,
-    MockVoiceRoomConnector,
     type VoiceRoomConnection,
     type VoiceRoomConnector,
 } from "./lib/voice-room";
@@ -43,6 +42,7 @@ type VoiceUiState =
     | "reconnecting"
     | "handoff"
     | "denied"
+    | "unavailable"
     | "failed"
     | "ended";
 
@@ -94,6 +94,7 @@ const voiceCopy: Record<UiLanguage, {
             listening: "Listening now. Ask your question in Chinese or English.",
             ready: "Customer service ready. Requesting microphone access…",
             reconnecting: "Connection interrupted. Refreshing the secure token and reconnecting…",
+            unavailable: "Voice service is not connected in this environment. Please continue by text.",
             warming: "Preparing your customer-service conversation…",
         },
         subtitle: "Talk with customer service when ready",
@@ -123,6 +124,7 @@ const voiceCopy: Record<UiLanguage, {
             listening: "正在聆听，请用中文或英文提问。",
             ready: "在线客服已就绪，正在请求麦克风权限…",
             reconnecting: "连接中断，正在刷新安全令牌并重连…",
+            unavailable: "当前环境尚未连接语音服务，请继续使用文字在线客服。",
             warming: "正在准备您的客服咨询…",
         },
         subtitle: "在线客服就绪后开始咨询",
@@ -541,6 +543,26 @@ export function VoiceExperience({
                 conversation.conversationId,
                 conversation.conversationToken,
             );
+
+            if (token.provider === "mock" && connector === undefined)
+            {
+                try
+                {
+                    await endVoiceSession(
+                        conversation.conversationId,
+                        conversation.conversationToken,
+                        token.voiceSessionId,
+                    );
+                }
+                catch
+                {
+                    // The public UI still fails closed when best-effort mock-session cleanup is unavailable.
+                }
+
+                setState("unavailable");
+                return;
+            }
+
             setVoiceConversation({
                 conversationId: conversation.conversationId,
                 conversationToken: conversation.conversationToken,
@@ -551,10 +573,7 @@ export function VoiceExperience({
                 conversationToken: conversation.conversationToken,
                 voiceSessionId: token.voiceSessionId,
             };
-            const selectedConnector = connector
-                ?? (token.provider === "mock"
-                    ? new MockVoiceRoomConnector()
-                    : new LiveKitVoiceRoomConnector());
+            const selectedConnector = connector ?? new LiveKitVoiceRoomConnector();
             activeConnector.current = selectedConnector;
             connection.current = await selectedConnector.connect(
                 token,
@@ -651,7 +670,14 @@ export function VoiceExperience({
                     />
                 </div>
                 <h1 className="mt-5 text-4xl font-semibold">{copy.subtitle}</h1>
-                <p className="mt-3 text-slate-300">{describeVoiceState(state, uiLanguage)}</p>
+                <p
+                    className="mt-3 text-slate-300"
+                    role={state === "denied" || state === "failed" || state === "unavailable"
+                        ? "alert"
+                        : undefined}
+                >
+                    {describeVoiceState(state, uiLanguage)}
+                </p>
 
                 <div className="mt-7 flex flex-wrap gap-3">
                     <label className="sr-only" htmlFor="voice-language">{copy.languageLabel}</label>
@@ -668,7 +694,7 @@ export function VoiceExperience({
                         <option value="zh-CN">{copy.languageOptionZh}</option>
                         <option value="en">{copy.languageOptionEnglish}</option>
                     </select>
-                    {state === "idle" || state === "ended" || state === "failed"
+                    {state === "idle" || state === "ended" || state === "failed" || state === "unavailable"
                         ? (
                             <Button onClick={() => void startVoice()}>
                                 <Mic aria-hidden="true" className="mr-2 size-4" />

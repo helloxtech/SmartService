@@ -13,9 +13,10 @@ import {
     vi,
 } from "vitest";
 
-import type {
-    VoiceRoomCallbacks,
-    VoiceRoomConnector,
+import {
+    MockVoiceRoomConnector,
+    type VoiceRoomCallbacks,
+    type VoiceRoomConnector,
 } from "./lib/voice-room";
 import { VoiceExperience } from "./voice-experience";
 
@@ -142,6 +143,7 @@ describe("VoiceExperience", () =>
         const user = userEvent.setup();
         render(
             <VoiceExperience
+                connector={new MockVoiceRoomConnector()}
                 requestMicrophone={vi.fn(async () => undefined)}
             />,
         );
@@ -152,6 +154,31 @@ describe("VoiceExperience", () =>
         expect(screen.getByText("NF-Series Product Manual, p. 4")).toBeInTheDocument();
         expect(screen.getByText(/Your transcript will appear here after you speak/u))
             .toBeInTheDocument();
+    });
+
+    it("fails closed when a public deployment returns a mock voice provider", async () =>
+    {
+        const fetchMock = createFetchMock();
+        const requestMicrophone = vi.fn(async () => undefined);
+        vi.stubGlobal("fetch", fetchMock);
+        const user = userEvent.setup();
+        render(
+            <VoiceExperience requestMicrophone={requestMicrophone} />,
+        );
+
+        await user.click(screen.getByRole("button", { name: /Start voice/u }));
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+            /Voice service is not connected in this environment/u,
+        );
+        expect(screen.queryByText(/Listening now/u)).not.toBeInTheDocument();
+        expect(requestMicrophone).not.toHaveBeenCalled();
+        expect(fetchMock).toHaveBeenCalledWith(
+            expect.stringContaining(`/api/v1/public/voice/sessions/${voiceSessionId}/end`),
+            expect.objectContaining({
+                method: "POST",
+            }),
+        );
     });
 
     it("creates no session before click and requests microphone only after Ready", async () =>
@@ -477,6 +504,7 @@ describe("VoiceExperience", () =>
         const user = userEvent.setup();
         render(
             <VoiceExperience
+                connector={new MockVoiceRoomConnector()}
                 requestMicrophone={vi.fn(async () => undefined)}
             />,
         );

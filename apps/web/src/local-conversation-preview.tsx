@@ -33,6 +33,7 @@ const previewDetails = new Map<string, TeamConversationDetail>([
         {
             acceptedAt: null,
             acceptedBy: null,
+            assistantSuggestion: null,
             conversationId: "20000000-0000-4000-a000-000000000101",
             customer: {
                 channel: "voice",
@@ -106,6 +107,7 @@ const previewDetails = new Map<string, TeamConversationDetail>([
         {
             acceptedAt: null,
             acceptedBy: null,
+            assistantSuggestion: null,
             conversationId: "20000000-0000-4000-a000-000000000102",
             customer: {
                 channel: "text",
@@ -155,6 +157,25 @@ const previewDetails = new Map<string, TeamConversationDetail>([
         {
             acceptedAt: null,
             acceptedBy: null,
+            assistantSuggestion: {
+                citations: [{
+                    citationId: "80000000-0000-4000-a000-000000000113",
+                    label: "课程介绍｜民族乐器",
+                    sourceType: "url",
+                    sourceUrl: "https://example.com/programs",
+                    supportingExcerpt: "我们提供一对一器乐课程，包括古筝。",
+                }],
+                createdAt: "2026-08-07T19:20:00.000Z",
+                draftText: "有的，我们提供一对一古筝课程。我可以继续帮您确认合适的安排。请问学员年龄、目前程度，以及平日或周末哪些时间比较方便？",
+                errorCode: null,
+                generatedAt: "2026-08-07T19:20:02.000Z",
+                id: "80000000-0000-4000-a000-000000000103",
+                kind: "grounded_answer",
+                status: "ready",
+                triggerMessageId: "30000000-0000-4000-a000-000000000105",
+                updatedAt: "2026-08-07T19:20:02.000Z",
+                usedAt: null,
+            },
             conversationId: "20000000-0000-4000-a000-000000000103",
             customer: {
                 channel: "voice",
@@ -231,6 +252,7 @@ const previewDetails = new Map<string, TeamConversationDetail>([
         {
             acceptedAt: "2026-08-07T18:05:00.000Z",
             acceptedBy: previewAgentId,
+            assistantSuggestion: null,
             conversationId: "20000000-0000-4000-a000-000000000104",
             customer: {
                 channel: "text",
@@ -377,7 +399,7 @@ async function claimPreviewConversation(
 /**
  * sendPreviewMessage
  * ----------------
- * Appends a human reply only to a claimed development fixture and returns the normal idempotent message shape.
+ * Appends a human reply only to a claimed development fixture, records suggestion use, and returns the normal idempotent message shape.
  *
  * August 07, 2026: Created by Forrest Zhang for SmartService Local Conversation Center Preview
  */
@@ -385,6 +407,7 @@ async function sendPreviewMessage(
     session: Session,
     conversationId: string,
     text: string,
+    suggestionId: string | null = null,
 ): Promise<SendHumanMessageResponse>
 {
     const detail = previewDetails.get(conversationId);
@@ -407,6 +430,17 @@ async function sendPreviewMessage(
     detail.latestActivityAt = createdAt;
     detail.messages.push(message);
     detail.preview = text;
+
+    if (
+        suggestionId !== null
+        && detail.assistantSuggestion?.id === suggestionId
+        && detail.assistantSuggestion.status === "ready"
+    )
+    {
+        detail.assistantSuggestion.status = "used";
+        detail.assistantSuggestion.usedAt = createdAt;
+        detail.assistantSuggestion.updatedAt = createdAt;
+    }
 
     return {
         created: true,
@@ -435,6 +469,15 @@ async function closePreviewConversation(
 
     detail.latestActivityAt = new Date().toISOString();
     detail.status = "closed";
+
+    if (
+        detail.assistantSuggestion?.status === "pending"
+        || detail.assistantSuggestion?.status === "ready"
+        || detail.assistantSuggestion?.status === "failed"
+    )
+    {
+        detail.assistantSuggestion = null;
+    }
 
     return {
         conversationId,

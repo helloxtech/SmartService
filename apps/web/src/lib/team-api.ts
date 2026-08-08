@@ -198,14 +198,15 @@ export async function claimTeamConversation(
 /**
  * sendTeamMessage
  * ----------------
- * Sends one idempotent human reply from the owning operator.
+ * Sends one idempotent human reply from the owning operator and optionally audits the current suggestion used as its starting point.
  *
- * July 26, 2026: Created by Forrest Zhang for SmartService Day 4 Human Messaging
+ * August 07, 2026: Updated by Forrest Zhang for SmartService R10 Human Agent Assistance
  */
 export async function sendTeamMessage(
     session: Session,
     conversationId: string,
     text: string,
+    suggestionId: string | null = null,
 ): Promise<SendHumanMessageResponse>
 {
     return teamRequest(
@@ -215,6 +216,7 @@ export async function sendTeamMessage(
         {
             body: JSON.stringify({
                 clientMessageId: crypto.randomUUID(),
+                suggestionId,
                 text,
             }),
             method: "POST",

@@ -58,6 +58,11 @@ export type AgentWorkspaceApi = typeof defaultAgentWorkspaceApi;
 
 const agentCopy: Record<UiLanguage, {
     aiAssist: string;
+    aiAssistFailed: string;
+    aiAssistPending: string;
+    aiAssistReady: string;
+    aiAssistReview: string;
+    aiAssistUsed: string;
     aiMessage: string;
     allFilter: string;
     anotherOwner: string;
@@ -77,6 +82,7 @@ const agentCopy: Record<UiLanguage, {
     customerCard: string;
     email: string;
     facts: string;
+    followUpActions: string;
     guardrailContext: string;
     handoffPackage: string;
     failureCode: string;
@@ -99,6 +105,7 @@ const agentCopy: Record<UiLanguage, {
     notProvided: string;
     phone: string;
     primaryIntent: string;
+    recordedCustomerFacts: string;
     replyPlaceholder: string;
     readOnly: string;
     runtime: string;
@@ -122,6 +129,11 @@ const agentCopy: Record<UiLanguage, {
 }> = {
     en: {
         aiAssist: "AI assist",
+        aiAssistFailed: "The current suggestion could not be prepared. Continue manually or retry when the customer sends another message.",
+        aiAssistPending: "Preparing a grounded reply from this company's approved knowledge…",
+        aiAssistReady: "Grounded draft ready",
+        aiAssistReview: "Review the wording and sources before sending. This draft is never sent automatically.",
+        aiAssistUsed: "This suggestion was used in the human reply.",
         aiMessage: "Online service",
         allFilter: "All",
         anotherOwner: "Another operator owns this conversation.",
@@ -141,6 +153,7 @@ const agentCopy: Record<UiLanguage, {
         customerCard: "Customer card",
         email: "Email",
         facts: "Confirmed facts",
+        followUpActions: "Follow-up actions",
         guardrailContext: "Guardrail context",
         handoffPackage: "Handoff package",
         failureCode: "Failure code",
@@ -163,6 +176,7 @@ const agentCopy: Record<UiLanguage, {
         notProvided: "Not provided",
         phone: "Phone",
         primaryIntent: "Primary intent",
+        recordedCustomerFacts: "Recorded customer facts",
         replyPlaceholder: "Write a human reply…",
         readOnly: "This customer-service conversation is read-only. Claim and reply become available only after a specialist handoff.",
         runtime: "Runtime",
@@ -186,6 +200,11 @@ const agentCopy: Record<UiLanguage, {
     },
     "zh-CN": {
         aiAssist: "AI 辅助",
+        aiAssistFailed: "当前建议话术未能生成。您可以继续人工回复；客户发送新消息后系统会再次尝试。",
+        aiAssistPending: "正在基于本企业已批准的知识准备回复建议…",
+        aiAssistReady: "有依据的建议话术已准备好",
+        aiAssistReview: "发送前请核对话术和来源；系统不会自动发送这段内容。",
+        aiAssistUsed: "这条建议已用于人工回复。",
         aiMessage: "在线客服",
         allFilter: "全部",
         anotherOwner: "此会话已由其他客服接管。",
@@ -205,6 +224,7 @@ const agentCopy: Record<UiLanguage, {
         customerCard: "客户卡片",
         email: "邮箱",
         facts: "已确认信息",
+        followUpActions: "后续行动",
         guardrailContext: "安全规则上下文",
         handoffPackage: "接入包",
         failureCode: "失败代码",
@@ -227,6 +247,7 @@ const agentCopy: Record<UiLanguage, {
         notProvided: "未提供",
         phone: "电话",
         primaryIntent: "主要意图",
+        recordedCustomerFacts: "已记录的客户信息",
         replyPlaceholder: "输入人工回复…",
         readOnly: "此在线客服会话为只读记录；只有客户转接客服专员后，才会出现接管和回复操作。",
         runtime: "运行状态",
@@ -399,18 +420,22 @@ function formatGuardrailSeverity(severity: string, language: UiLanguage): string
 /**
  * collectUsefulCitations
  * ----------------
- * Extracts unique customer-safe citations from the transcript so the handoff package can expose source links without another AI call.
+ * Extracts unique customer-safe citations from the current live suggestion and transcript so the operator can verify every factual draft without another AI call.
  *
- * July 30, 2026: Created by Forrest Zhang for SmartService Handoff Package UX
+ * August 07, 2026: Updated by Forrest Zhang for SmartService R10 Human Agent Assistance
  */
 function collectUsefulCitations(detail: TeamConversationDetail): TeamConversationDetail["messages"][number]["citations"]
 {
     const seen = new Set<string>();
     const citations: TeamConversationDetail["messages"][number]["citations"] = [];
+    const candidateGroups = [
+        detail.assistantSuggestion?.citations ?? [],
+        ...detail.messages.map((message) => message.citations),
+    ];
 
-    for (const message of detail.messages)
+    for (const group of candidateGroups)
     {
-        for (const citation of message.citations)
+        for (const citation of group)
         {
             const key = `${citation.citationId}:${citation.label}:${citation.sourceUrl ?? ""}`;
 
@@ -545,6 +570,7 @@ export function AgentWorkspace({
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
     const [reply, setReply] = useState("");
+    const [selectedSuggestionId, setSelectedSuggestionId] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
 
     useEffect(() =>
@@ -582,6 +608,8 @@ export function AgentWorkspace({
                 if (selectedId !== targetId)
                 {
                     setSelectedId(targetId);
+                    setReply("");
+                    setSelectedSuggestionId(null);
                 }
 
                 if (targetId === null)
@@ -697,8 +725,13 @@ export function AgentWorkspace({
                 session,
                 detail.conversationId,
                 reply.trim(),
+                detail.assistantSuggestion?.id === selectedSuggestionId
+                    && detail.assistantSuggestion.status === "ready"
+                    ? selectedSuggestionId
+                    : null,
             );
             setReply("");
+            setSelectedSuggestionId(null);
             await refreshSelected(detail.conversationId);
         }
         catch (error: unknown)
@@ -714,15 +747,26 @@ export function AgentWorkspace({
     /**
      * handleUseSuggestedReply
      * ----------------
-     * Copies the current handoff package's suggested reply into the human composer without sending it automatically.
+     * Copies the newest ready grounded suggestion, or the handoff fallback when none exists, into the human composer without sending it automatically.
      *
-     * July 30, 2026: Created by Forrest Zhang for SmartService Handoff Package UX
+     * August 07, 2026: Updated by Forrest Zhang for SmartService R10 Human Agent Assistance
      */
     function handleUseSuggestedReply(): void
     {
+        if (
+            detail?.assistantSuggestion?.status === "ready"
+            && detail.assistantSuggestion.draftText !== null
+        )
+        {
+            setReply(normalizeVisibleDemoBrand(detail.assistantSuggestion.draftText));
+            setSelectedSuggestionId(detail.assistantSuggestion.id);
+            return;
+        }
+
         if (detail?.summary !== null && detail?.summary !== undefined)
         {
             setReply(normalizeVisibleDemoBrand(detail.summary.suggestedReply));
+            setSelectedSuggestionId(null);
         }
     }
 
@@ -765,6 +809,9 @@ export function AgentWorkspace({
 
     const ownsConversation = detail?.acceptedBy === session.user.id;
     const canReply = detail?.status === "active_human" && ownsConversation;
+    const assistantSuggestion = detail?.assistantSuggestion ?? null;
+    const hasReadySuggestion = assistantSuggestion?.status === "ready"
+        && assistantSuggestion.draftText !== null;
     const usefulCitations = detail === null ? [] : collectUsefulCitations(detail);
     const suggestedActions = detail?.summary === null || detail === null
         ? []
@@ -846,6 +893,8 @@ export function AgentWorkspace({
                                             onClick={() =>
                                             {
                                                 setSelectedId(conversation.conversationId);
+                                                setReply("");
+                                                setSelectedSuggestionId(null);
                                                 onOpenConversation(conversation.conversationId);
                                             }}
                                             type="button"
@@ -1050,6 +1099,91 @@ export function AgentWorkspace({
                                         </section>
                                     )}
 
+                                {assistantSuggestion === null
+                                    ? null
+                                    : (
+                                        <section
+                                            aria-live="polite"
+                                            className="rounded-[1.5rem] border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-sky-50 p-5 shadow-sm"
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <h3 className="flex items-center gap-2 text-sm font-bold text-violet-950">
+                                                        {assistantSuggestion.status === "pending"
+                                                            ? <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+                                                            : assistantSuggestion.status === "failed"
+                                                                ? <AlertTriangle aria-hidden="true" className="size-4 text-amber-600" />
+                                                                : <CheckCircle2 aria-hidden="true" className="size-4 text-emerald-600" />}
+                                                        {copy.aiAssist}
+                                                    </h3>
+                                                    <p className="mt-1 text-xs leading-5 text-violet-800">
+                                                        {assistantSuggestion.status === "pending"
+                                                            ? copy.aiAssistPending
+                                                            : assistantSuggestion.status === "failed"
+                                                                ? copy.aiAssistFailed
+                                                                : assistantSuggestion.status === "used"
+                                                                    ? copy.aiAssistUsed
+                                                                    : copy.aiAssistReady}
+                                                    </p>
+                                                </div>
+                                                {hasReadySuggestion
+                                                    ? (
+                                                        <Button
+                                                            disabled={!canReply}
+                                                            onClick={handleUseSuggestedReply}
+                                                            size="sm"
+                                                            type="button"
+                                                            variant="outline"
+                                                        >
+                                                            {copy.useSuggestedReply}
+                                                        </Button>
+                                                    )
+                                                    : null}
+                                            </div>
+
+                                            {assistantSuggestion.draftText === null
+                                                ? null
+                                                : (
+                                                    <div className="mt-4 rounded-2xl border border-violet-100 bg-white p-4">
+                                                        <p className="whitespace-pre-wrap text-sm leading-6 text-slate-900">
+                                                            {normalizeVisibleDemoBrand(assistantSuggestion.draftText)}
+                                                        </p>
+                                                        <p className="mt-3 border-t border-slate-100 pt-3 text-[11px] leading-5 text-slate-500">
+                                                            {copy.aiAssistReview}
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                            {assistantSuggestion.citations.length === 0
+                                                ? null
+                                                : (
+                                                    <div className="mt-4 space-y-2">
+                                                        {assistantSuggestion.citations.map((citation) => (
+                                                            <article className="rounded-xl border border-sky-200 bg-sky-50/80 p-3 text-xs" key={citation.citationId}>
+                                                                <p className="font-bold text-sky-950">{normalizeVisibleDemoBrand(citation.label)}</p>
+                                                                <p className="mt-1 line-clamp-3 leading-5 text-sky-900/75">
+                                                                    {normalizeVisibleDemoBrand(citation.supportingExcerpt)}
+                                                                </p>
+                                                                {citation.sourceUrl === null
+                                                                    ? null
+                                                                    : (
+                                                                        <a
+                                                                            className="mt-2 inline-flex items-center gap-1 font-semibold text-sky-700"
+                                                                            href={citation.sourceUrl}
+                                                                            rel="noreferrer"
+                                                                            target="_blank"
+                                                                        >
+                                                                            {language === "zh-CN" ? "核对来源" : "Verify source"}
+                                                                            <ExternalLink aria-hidden="true" className="size-3" />
+                                                                        </a>
+                                                                    )}
+                                                            </article>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                        </section>
+                                    )}
+
                                 {detail.summary === null
                                     ? null
                                     : (
@@ -1089,23 +1223,27 @@ export function AgentWorkspace({
                                                             </ul>
                                                         </div>
                                                     )}
-                                                <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                                                    <div className="flex items-center justify-between gap-3">
-                                                        <p className="text-xs font-bold text-emerald-950">{copy.suggestedReply}</p>
-                                                        <Button
-                                                            disabled={!canReply}
-                                                            onClick={handleUseSuggestedReply}
-                                                            size="sm"
-                                                            type="button"
-                                                            variant="outline"
-                                                        >
-                                                            {copy.useSuggestedReply}
-                                                        </Button>
-                                                    </div>
-                                                    <p className="mt-2 text-xs leading-5 text-emerald-950">
-                                                        {normalizeVisibleDemoBrand(detail.summary.suggestedReply)}
-                                                    </p>
-                                                </div>
+                                                {assistantSuggestion === null
+                                                    ? (
+                                                        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                                                            <div className="flex items-center justify-between gap-3">
+                                                                <p className="text-xs font-bold text-emerald-950">{copy.suggestedReply}</p>
+                                                                <Button
+                                                                    disabled={!canReply}
+                                                                    onClick={handleUseSuggestedReply}
+                                                                    size="sm"
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                >
+                                                                    {copy.useSuggestedReply}
+                                                                </Button>
+                                                            </div>
+                                                            <p className="mt-2 text-xs leading-5 text-emerald-950">
+                                                                {normalizeVisibleDemoBrand(detail.summary.suggestedReply)}
+                                                            </p>
+                                                        </div>
+                                                    )
+                                                    : null}
                                             </section>
 
                                             <section className="rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-sm">
@@ -1213,6 +1351,37 @@ export function AgentWorkspace({
                                                         <div>
                                                             <dt className="font-bold">{copy.intentOutcome}</dt>
                                                             <dd>{detail.summaryRecord.intentLevel} / {detail.summaryRecord.outcome}</dd>
+                                                        </div>
+                                                        <div>
+                                                            <dt className="font-bold">{copy.recordedCustomerFacts}</dt>
+                                                            {detail.summaryRecord.customerFacts.length === 0
+                                                                ? <dd>{copy.notProvided}</dd>
+                                                                : (
+                                                                    <dd>
+                                                                        <ul className="mt-1 list-disc space-y-1 pl-4">
+                                                                            {detail.summaryRecord.customerFacts.map((fact) => (
+                                                                                <li key={`${fact.key}:${fact.value}`}>
+                                                                                    <span className="font-semibold">{normalizeVisibleDemoBrand(fact.key)}:</span>{" "}
+                                                                                    {normalizeVisibleDemoBrand(fact.value)}
+                                                                                </li>
+                                                                            ))}
+                                                                        </ul>
+                                                                    </dd>
+                                                                )}
+                                                        </div>
+                                                        <div>
+                                                            <dt className="font-bold">{copy.followUpActions}</dt>
+                                                            {detail.summaryRecord.followUpActions.length === 0
+                                                                ? <dd>{copy.notCompleted}</dd>
+                                                                : (
+                                                                    <dd>
+                                                                        <ol className="mt-1 list-decimal space-y-1 pl-4">
+                                                                            {detail.summaryRecord.followUpActions.map((action) => (
+                                                                                <li key={action}>{normalizeVisibleDemoBrand(action)}</li>
+                                                                            ))}
+                                                                        </ol>
+                                                                    </dd>
+                                                                )}
                                                         </div>
                                                         <div>
                                                             <dt className="font-bold">{copy.suggestedWording}</dt>

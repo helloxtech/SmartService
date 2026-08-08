@@ -766,6 +766,24 @@ export function buildCrossLanguageRetrievalQuestion(question: string): string
 
     const terms = new Set<string>();
     const subjectAnchors = extractQuestionSubjectAnchors(question);
+    const anchoredQuestion = subjectAnchors.length === 0
+        ? question
+        : `${subjectAnchors.join(" ")} ${question}`;
+
+    if (foundingQuestionPattern.test(question))
+    {
+        return `${anchoredQuestion} about us founded in established history`;
+    }
+
+    if (organizationNameQuestionPattern.test(question))
+    {
+        return `${anchoredQuestion} about us official name company name organization name`;
+    }
+
+    if (addressQuestionPattern.test(question))
+    {
+        return `${anchoredQuestion} contact address location street`;
+    }
 
     extractExactIdentifiers(question).forEach((identifier) => terms.add(identifier));
 
@@ -900,10 +918,6 @@ export function buildCrossLanguageRetrievalQuestion(question: string): string
         ["inventory", "in stock", "stock"]
             .forEach((term) => terms.add(term));
     }
-
-    const anchoredQuestion = subjectAnchors.length === 0
-        ? question
-        : `${subjectAnchors.join(" ")} ${question}`;
 
     return terms.size === 0
         ? question

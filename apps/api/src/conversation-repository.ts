@@ -132,6 +132,34 @@ const guardedTurnRowSchema = z.object({
     supervisor_ai_run_id: z.uuid(),
 });
 
+const persistedAcknowledgementMarker = "conversation_acknowledgement";
+
+/**
+ * resolvePersistedConversationDecision
+ * ----------------
+ * Rehydrates a tenant-neutral acknowledgement from the backward-compatible clarification marker while preserving every native message decision.
+ *
+ * August 07, 2026: Created by Forrest Zhang for Hosted Acknowledgement Compatibility
+ */
+export function resolvePersistedConversationDecision(
+    decision: ConversationDecision | "human",
+    metadata: Record<string, unknown>,
+): ConversationDecision | "human";
+export function resolvePersistedConversationDecision(
+    decision: ConversationDecision | "human" | null,
+    metadata: Record<string, unknown>,
+): ConversationDecision | "human" | null;
+export function resolvePersistedConversationDecision(
+    decision: ConversationDecision | "human" | null,
+    metadata: Record<string, unknown>,
+): ConversationDecision | "human" | null
+{
+    return decision === "clarify"
+        && metadata.handoffReason === persistedAcknowledgementMarker
+        ? "acknowledge"
+        : decision;
+}
+
 export interface TenantConfiguration
 {
     displayName: string;
@@ -641,18 +669,32 @@ export class SupabaseConversationRepository
 
         if (input.decision === "acknowledge")
         {
-            const { data, error } = await client.rpc(
-                "complete_public_acknowledgement_turn",
-                {
-                    p_answer: input.answer,
-                    p_conversation_id: input.conversationId,
-                    p_customer_message_id: input.customerMessageId,
-                    p_language: input.language,
-                    p_latency_ms: input.latencyMs,
-                    p_organization_id: input.organizationId,
-                    p_request_id: input.requestId,
+            const { data, error } = await client.rpc("complete_public_turn", {
+                p_ai_status: "succeeded",
+                p_answer: input.answer,
+                p_citations: [],
+                p_conversation_id: input.conversationId,
+                p_create_gap: false,
+                p_customer_message_id: input.customerMessageId,
+                p_decision: "clarify",
+                p_error_code: null,
+                p_handoff_reason: persistedAcknowledgementMarker,
+                p_input_tokens: null,
+                p_language: input.language,
+                p_latency_ms: input.latencyMs,
+                p_model: "deterministic",
+                p_normalized_question: input.normalizedQuestion,
+                p_organization_id: input.organizationId,
+                p_output_tokens: null,
+                p_prompt_version: "conversation-act-v1",
+                p_provider: "smartservice",
+                p_request_id: input.requestId,
+                p_retrieval_metadata: {
+                    conversationAct: "acknowledgement",
+                    storageEncoding: "clarify-marker-v1",
                 },
-            );
+                p_retrieved_chunk_ids: [],
+            });
 
             if (error !== null || data === null || data.length !== 1)
             {
@@ -966,7 +1008,10 @@ export class SupabaseConversationRepository
         }
 
         const citations = await this.loadCitations(organizationId, [message.id]);
-        const decision = decisionResult.data;
+        const decision = resolvePersistedConversationDecision(
+            decisionResult.data,
+            message.metadata,
+        );
 
         return {
             answer: message.text,
@@ -1039,7 +1084,10 @@ export class SupabaseConversationRepository
         const messages = rows.map((row): PublicMessage => ({
             citations: citations.get(row.id) ?? [],
             createdAt: row.created_at,
-            decision: row.decision,
+            decision: resolvePersistedConversationDecision(
+                row.decision,
+                row.metadata,
+            ),
             messageId: row.id,
             senderType: row.sender_type,
             text: row.text,

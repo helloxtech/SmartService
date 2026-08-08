@@ -215,8 +215,11 @@ describe("grounded RAG", () =>
 
         expect(foundedQuery).toContain("founded in");
         expect(foundedQuery).toContain("established");
+        expect(foundedQuery).toContain("about us");
+        expect(foundedQuery).not.toContain("business");
         expect(addressQuery).toContain("address");
         expect(addressQuery).toContain("学校地址是哪里");
+        expect(addressQuery).not.toContain("business");
         expect(appointmentQuery).toContain("reschedule");
         expect(appointmentQuery).toContain("cancellation");
         expect(returnsQuery).toContain("return");
@@ -225,6 +228,7 @@ describe("grounded RAG", () =>
         expect(courseQuery).not.toContain("product");
         expect(organizationNameQuery).toContain("official name");
         expect(organizationNameQuery).toContain("about us");
+        expect(organizationNameQuery).not.toContain("business");
         expect(buildCrossLanguageRetrievalQuestion("What is the address?"))
             .toBe("What is the address?");
     });

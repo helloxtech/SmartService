@@ -30,7 +30,10 @@ import {
 } from "@smartservice/assistant-core";
 import { z } from "zod";
 
-import type { SupabaseConversationRepository } from "./conversation-repository";
+import {
+    resolvePersistedConversationDecision,
+    type SupabaseConversationRepository,
+} from "./conversation-repository";
 import { ApiError } from "./errors";
 import { createServiceClient } from "./supabase";
 import type {
@@ -133,6 +136,7 @@ const teamMessageRowSchema = z.object({
     created_at: z.string(),
     decision: z.enum(["acknowledge", "answer", "clarify", "handoff", "human"]).nullable(),
     id: z.uuid(),
+    metadata: z.record(z.string(), z.unknown()),
     sender_type: z.enum(["customer", "ai", "human", "system"]),
     sender_user_id: z.uuid().nullable(),
     text: z.string(),
@@ -708,7 +712,7 @@ export class SupabaseTeamRepository
         const handoff = handoffData === null ? null : handoffRowSchema.parse(handoffData);
         const { data: messageData, error: messageError } = await client
             .from("messages")
-            .select("id, sender_type, sender_user_id, text, decision, created_at")
+            .select("id, sender_type, sender_user_id, text, decision, metadata, created_at")
             .eq("organization_id", organizationId)
             .eq("conversation_id", conversationId)
             .order("created_at")
@@ -728,7 +732,10 @@ export class SupabaseTeamRepository
         const messages = rows.map((row): TeamMessage => teamMessageSchema.parse({
             citations: citations.get(row.id) ?? [],
             createdAt: row.created_at,
-            decision: row.decision,
+            decision: resolvePersistedConversationDecision(
+                row.decision,
+                row.metadata,
+            ),
             messageId: row.id,
             senderType: row.sender_type,
             senderUserId: row.sender_user_id,

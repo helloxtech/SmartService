@@ -420,6 +420,40 @@ describe("tenant-generic turn failure isolation", () =>
         });
     });
 
+    it("projects one retrieved founding fact as a complete sentence without answer-model latency", async () =>
+    {
+        const harness = createFailureHarness(null);
+        harness.retrieveEvidence.mockResolvedValue([{
+            chunkId: evidenceChunkId,
+            combinedScore: 0.82,
+            content: "The company was founded by two industry specialists in 2018.",
+            sourceLocator: {
+                title: "About Us",
+            },
+        }]);
+
+        const response = await harness.service.sendTrusted(
+            organizationId,
+            conversationId,
+            {
+                clientMessageId: crypto.randomUUID(),
+                text: "When was the company founded?",
+            },
+            "request-single-founding-projection-test",
+        );
+
+        expect(response).toMatchObject({
+            answer: "We were established in 2018.",
+            decision: "answer",
+        });
+        expect(response.citations).toHaveLength(1);
+        expect(harness.answers.generate).not.toHaveBeenCalled();
+        expect(harness.persistedTurns[0]).toMatchObject({
+            model: "stable-fact-v1",
+            provider: "deterministic",
+        });
+    });
+
     it("preserves every server-planned part through retrieval and answer generation", async () =>
     {
         const harness = createFailureHarness(null);

@@ -527,6 +527,24 @@ export class DefaultPublicConversationService implements PublicConversationServi
 
         if (questionParts.length <= 1)
         {
+            const stableFactAnswer = createExplicitStableFactAnswer(
+                questionParts[0] ?? input.question,
+                input.evidence,
+                input.language,
+            );
+
+            if (stableFactAnswer !== null)
+            {
+                return {
+                    answer: stableFactAnswer,
+                    generationAttempts: 0,
+                    inputTokens: null,
+                    model: "stable-fact-v1",
+                    outputTokens: null,
+                    provider: "deterministic",
+                };
+            }
+
             return this.answers.generate(input);
         }
 

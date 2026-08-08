@@ -172,7 +172,8 @@ Mocks are allowed for routine tests, not as substitutes for the live acceptance 
 | Custom logo/colors | DEFERRED | Neutral SmartService branding is sufficient |
 | GitHub Actions deployment | DEFERRED | Local validation is sufficient for Gate 0; CI/CD secrets and deploy permissions require separate approval |
 | R11 ticket UI | DEFERRED | Entry conditions are enforced after G2 |
-| R8/R9/R10, PSTN/SIP, CRM, payment, OCR | NOT-NEEDED | Explicitly out of scope |
+| R10 human reply assistance | AVAILABLE | Reuses the existing database, shared RAG/guardrail providers, and finalization Queue; no new credential or paid resource |
+| R8/R9, PSTN/SIP, CRM, payment, OCR | NOT-NEEDED | Explicitly out of scope |
 
 ## Credential placement and verification matrix
 

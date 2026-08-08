@@ -429,7 +429,7 @@ paths:
         - $ref: '#/components/parameters/ConversationId'
       responses:
         '200':
-          description: Transcript, citations, customer card, handoff package, redacted guardrails, and final record
+          description: Transcript, citations, customer card, handoff package, live human reply suggestion, redacted guardrails, and final record
           content:
             application/json:
               schema:
@@ -467,6 +467,11 @@ paths:
               properties:
                 text: { type: string, minLength: 1, maxLength: 5000 }
                 clientMessageId: { type: string, format: uuid }
+                suggestionId:
+                  oneOf:
+                    - type: 'null'
+                    - type: string
+                      format: uuid
       responses:
         '200':
           description: Human message persisted
@@ -1387,11 +1392,69 @@ components:
           items: { type: string, minLength: 1, maxLength: 300 }
         suggestedScript: { type: string, minLength: 1, maxLength: 1200 }
         createdAt: { type: string, format: date-time }
+    AgentReplySuggestion:
+      type: object
+      required:
+        [
+          id,
+          triggerMessageId,
+          status,
+          kind,
+          draftText,
+          errorCode,
+          citations,
+          generatedAt,
+          usedAt,
+          createdAt,
+          updatedAt,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        triggerMessageId: { type: string, format: uuid }
+        status:
+          {
+            type: string,
+            enum: [pending, ready, used, superseded, failed],
+          }
+        kind:
+          oneOf:
+            - type: 'null'
+            - type: string
+              enum: [grounded_answer, clarifying_question, policy_safe_reply]
+        draftText:
+          oneOf:
+            - type: 'null'
+            - type: string
+              minLength: 1
+              maxLength: 1200
+        errorCode:
+          oneOf:
+            - type: 'null'
+            - type: string
+              minLength: 1
+              maxLength: 120
+        citations:
+          type: array
+          maxItems: 5
+          items: { $ref: '#/components/schemas/Citation' }
+        generatedAt:
+          oneOf:
+            - type: 'null'
+            - type: string
+              format: date-time
+        usedAt:
+          oneOf:
+            - type: 'null'
+            - type: string
+              format: date-time
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     TeamConversationDetail:
       allOf:
         - $ref: '#/components/schemas/TeamConversationListItem'
         - type: object
-          required: [messages, guardrailEvents, summaryRecord, voiceSession]
+          required:
+            [messages, guardrailEvents, summaryRecord, voiceSession, assistantSuggestion]
           properties:
             messages:
               type: array
@@ -1405,6 +1468,10 @@ components:
               oneOf:
                 - type: 'null'
                 - $ref: '#/components/schemas/ConversationSummary'
+            assistantSuggestion:
+              oneOf:
+                - type: 'null'
+                - $ref: '#/components/schemas/AgentReplySuggestion'
             voiceSession:
               oneOf:
                 - type: 'null'

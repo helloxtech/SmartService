@@ -284,6 +284,40 @@ create table public.ai_runs (
     created_at timestamptz not null default now()
 );
 
+-- Human reply assistance is service-role only. Queue payloads carry IDs, and
+-- the Worker rehydrates the tenant-scoped customer turn before generation.
+create table public.agent_reply_suggestions (
+    id uuid primary key default gen_random_uuid(),
+    organization_id uuid not null references public.organizations(id) on delete cascade,
+    conversation_id uuid not null references public.conversations(id) on delete cascade,
+    trigger_message_id uuid not null references public.messages(id) on delete cascade,
+    status text not null default 'pending'
+        check (status in ('pending', 'ready', 'used', 'superseded', 'failed')),
+    kind text
+        check (kind is null or kind in ('grounded_answer', 'clarifying_question', 'policy_safe_reply')),
+    draft_text text,
+    error_code text,
+    ai_run_id uuid references public.ai_runs(id) on delete set null,
+    used_by uuid references auth.users(id) on delete set null,
+    used_at timestamptz,
+    human_message_id uuid references public.messages(id) on delete set null,
+    generated_at timestamptz,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    unique (organization_id, conversation_id, trigger_message_id)
+);
+
+create table public.agent_reply_suggestion_citations (
+    id uuid primary key default gen_random_uuid(),
+    organization_id uuid not null references public.organizations(id) on delete cascade,
+    suggestion_id uuid not null references public.agent_reply_suggestions(id) on delete cascade,
+    chunk_id uuid not null references public.knowledge_chunks(id) on delete restrict,
+    label text not null,
+    supporting_excerpt text not null,
+    created_at timestamptz not null default now(),
+    unique (suggestion_id, chunk_id)
+);
+
 -- Link every AI-derived artifact to its complete model/token/latency/cost audit row.
 alter table public.messages
     add column ai_run_id uuid references public.ai_runs(id) on delete set null;
@@ -446,6 +480,7 @@ begin
         'knowledge_sources','knowledge_documents','knowledge_chunks','ingestion_jobs',
         'conversations','messages','message_citations','guardrail_rules','guardrail_events',
         'handoffs','conversation_summaries','knowledge_gaps','tickets','ai_runs',
+        'agent_reply_suggestions','agent_reply_suggestion_citations',
         'voice_sessions','audit_logs'
     ]
     loop

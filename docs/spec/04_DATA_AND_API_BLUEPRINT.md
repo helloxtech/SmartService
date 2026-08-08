@@ -25,6 +25,8 @@
 - `message_citations`
 - `handoffs`
 - `conversation_summaries`
+- `agent_reply_suggestions`
+- `agent_reply_suggestion_citations`
 
 ### 安全和 AI
 
@@ -259,7 +261,7 @@ Agent 接管；必须满足状态机。
 
 #### `POST /v1/admin/conversations/{id}/messages`
 
-人工发送消息。
+人工发送消息。若客服从当前建议话术开始编辑并发送，请同时提交可空的 `suggestionId`；服务端只接受仍属于该租户、会话和最新客户消息的 Ready 建议，并把它与实际人工消息关联。建议话术永不自动发送。
 
 #### `POST /v1/admin/conversations/{id}/close`
 
@@ -322,6 +324,21 @@ Chunk IDs 可分批，避免单消息过大。
 ```
 
 `includeTicketClassification` 只有 G3 已打开时才允许为 `true`。
+
+### Agent Reply Suggestion
+
+```json
+{
+  "type": "agent.reply_suggest",
+  "version": 1,
+  "organizationId": "uuid",
+  "conversationId": "uuid",
+  "triggerMessageId": "uuid",
+  "suggestionId": "uuid"
+}
+```
+
+该消息只携带 ID。Consumer 必须重新确认最新客户消息、人工接入状态、租户、建议状态、启用的当前知识版本和引用 Chunk。新的客户消息使旧的未发送建议失效；人工发送后记录 Used 或 Bypassed；关闭会话或禁用来源会使未发送建议失效。建议生成复用共享 RAG、引用验证和安全规则，不创建第二套事实管线。
 
 ## 6. AI Structured Outputs
 

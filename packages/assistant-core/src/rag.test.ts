@@ -189,6 +189,18 @@ describe("grounded RAG", () =>
             decision: "answer",
         });
         expect(createExplicitStableFactAnswer(
+            "你们是什么时候成立的？",
+            [{
+                ...aboutEvidence,
+                content: "本机构由两位行业专家于2016年创办，持续服务本地客户。",
+            }],
+            "zh-CN",
+        )).toMatchObject({
+            answer: "我们成立于2016年。",
+            citationChunkIds: [aboutEvidence.chunkId],
+            decision: "answer",
+        });
+        expect(createExplicitStableFactAnswer(
             "What is your address?",
             [aboutEvidence],
             "en",
@@ -346,7 +358,7 @@ describe("grounded RAG", () =>
         const aboutEvidence: RetrievedEvidence = {
             ...fixtureEvidence,
             chunkId: "40000000-0000-4000-a000-000000000010",
-            content: "Clearview Energy was founded in 2018.",
+            content: "清景能源由工程师李明与何静于2018年创办，专注于住宅节能服务。",
             sourceLocator: {
                 title: "About Us | Clearview Energy",
             },

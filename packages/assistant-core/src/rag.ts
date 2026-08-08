@@ -219,7 +219,7 @@ const currentRoleConstraints: readonly CurrentRoleConstraint[] = [{
 }];
 
 const foundingQuestionPattern = /(?:哪年|什么时候|何时|哪一天).*(?:成立|创办|创立|开业)|(?:成立|创办|创立|开业).*(?:哪年|什么时候|何时|时间|日期)|\bwhen (?:was|were).*(?:founded|established|formed|opened)|\b(?:founding|establishment|opening) (?:year|date)/iu;
-const foundingEvidencePattern = /\b(?:founded|established|formed|opened)\s+(?:in\s+)?((?:18|19|20)\d{2})\b|(?:成立|创办|创立|开业)于?\s*((?:18|19|20)\d{2})年?/iu;
+const foundingEvidencePattern = /\b(?:founded|established|formed|opened)\b[^\n.!?]{0,160}?\b((?:18|19|20)\d{2})\b|\b((?:18|19|20)\d{2})\b[^\n.!?]{0,160}?\b(?:founded|established|formed|opened)\b|(?:成立|创办|创立|开业)[^\n。！？]{0,80}?((?:18|19|20)\d{2})年?|((?:18|19|20)\d{2})年?[^\n。！？]{0,80}?(?:成立|创办|创立|开业)/iu;
 const addressQuestionPattern = /地址|在哪里|位于哪里|怎么去|\baddress\b|\bwhere\b.*\blocated\b|\blocation\b/iu;
 const organizationNameQuestionPattern = /(?:公司|企业|机构|学校|学院|品牌|商家|门店|你们|你家).*(?:叫什么(?:名字|名称)|名称(?:是|叫)|名字是什么)|(?:叫什么(?:名字|名称)|名称(?:是|叫)|名字是什么).*(?:公司|企业|机构|学校|学院|品牌|商家|门店)|\bwhat(?:'s| is).*(?:company|business|organization|school|academy|brand|store).*(?:name|called)|\b(?:company|business|organization|school|academy|brand|store) name\b/iu;
 const organizationProfileEvidencePattern = /关于我们|公司简介|企业简介|机构简介|学校简介|学院简介|品牌简介|\b(?:about us|company profile|business profile|organization profile|school profile|academy profile|brand profile)\b/iu;
@@ -1376,7 +1376,7 @@ export function createExplicitStableFactAnswer(
         for (const item of evidence)
         {
             const match = foundingEvidencePattern.exec(item.content);
-            const year = match?.[1] ?? match?.[2];
+            const year = match?.slice(1).find((value) => value !== undefined);
 
             if (year !== undefined)
             {

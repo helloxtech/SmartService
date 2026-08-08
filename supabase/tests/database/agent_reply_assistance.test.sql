@@ -186,7 +186,11 @@ on commit drop
 as
 select *
 from public.create_public_conversation(
-    'smart-service-public-demo',
+    (
+        select public_key
+        from public.organizations
+        where id = '00000000-0000-4000-a000-000000000001'
+    ),
     'text',
     null,
     null,
@@ -497,7 +501,11 @@ on commit drop
 as
 select *
 from public.create_public_conversation(
-    'smart-service-public-demo',
+    (
+        select public_key
+        from public.organizations
+        where id = '00000000-0000-4000-a000-000000000001'
+    ),
     'text',
     null,
     null,

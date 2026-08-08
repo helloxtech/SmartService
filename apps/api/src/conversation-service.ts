@@ -11,6 +11,7 @@ import {
     enforceCustomerControlledHandoff,
     evaluateDeterministicGuardrails,
     filterEvidenceForQuestionContext,
+    getRetrievalCandidateLimit,
     guardrailPromptVersion,
     mergeRetrievedEvidence,
     normalizeQuestion,
@@ -1243,7 +1244,9 @@ export class DefaultPublicConversationService implements PublicConversationServi
                                 retrievalQuestion,
                                 queryEmbedding,
                                 retrievalThresholds[index] ?? configuredThreshold,
-                                5,
+                                getRetrievalCandidateLimit(
+                                    focusedRetrievalQuestions[index] ?? input.text,
+                                ),
                             );
                             const focusedRetrievalQuestion = focusedRetrievalQuestions[index]
                                 ?? input.text;

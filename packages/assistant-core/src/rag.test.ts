@@ -15,6 +15,7 @@ import {
     enforceCustomerControlledHandoff,
     extractQuestionSubjectAnchors,
     filterEvidenceForQuestionContext,
+    getRetrievalCandidateLimit,
     isContextDependentFollowUp,
     mergeRetrievedEvidence,
     RagValidationError,
@@ -243,6 +244,10 @@ describe("grounded RAG", () =>
         expect(organizationNameQuery).not.toContain("business");
         expect(buildCrossLanguageRetrievalQuestion("What is the address?"))
             .toBe("What is the address?");
+        expect(getRetrievalCandidateLimit("你们是什么时候成立的？")).toBe(20);
+        expect(getRetrievalCandidateLimit("你们公司叫什么名字？")).toBe(20);
+        expect(getRetrievalCandidateLimit("你们的地址在哪里？")).toBe(20);
+        expect(getRetrievalCandidateLimit("你们有安装服务吗？")).toBe(5);
     });
 
     it("keeps evidence for every focused query when merging bounded results", () =>

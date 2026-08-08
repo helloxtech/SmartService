@@ -380,6 +380,30 @@ describe("tenant-generic turn failure isolation", () =>
         });
     });
 
+    it("widens only stable organization-fact retrieval before strict evidence filtering", async () =>
+    {
+        const harness = createFailureHarness(null);
+
+        await harness.service.sendTrusted(
+            organizationId,
+            conversationId,
+            {
+                clientMessageId: crypto.randomUUID(),
+                text: "你们公司是什么时候成立的？",
+            },
+            "request-organization-fact-window-test",
+        );
+
+        expect(harness.retrieveEvidence).toHaveBeenCalledWith(
+            organizationId,
+            expect.stringContaining("founded in"),
+            expect.any(Array),
+            expect.any(Number),
+            20,
+        );
+        expect(harness.answers.generate).not.toHaveBeenCalled();
+    });
+
     it("preserves every server-planned part through retrieval and answer generation", async () =>
     {
         const harness = createFailureHarness(null);

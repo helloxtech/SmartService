@@ -925,6 +925,22 @@ export function buildCrossLanguageRetrievalQuestion(question: string): string
 }
 
 /**
+ * getRetrievalCandidateLimit
+ * ----------------
+ * Gives stable organization-profile facts a wider database candidate window while keeping ordinary product and service turns bounded to the normal focused window.
+ *
+ * August 07, 2026: Created by Forrest Zhang for Tenant-Generic Organization Fact Recall
+ */
+export function getRetrievalCandidateLimit(question: string): number
+{
+    return foundingQuestionPattern.test(question)
+        || addressQuestionPattern.test(question)
+        || organizationNameQuestionPattern.test(question)
+        ? 20
+        : 5;
+}
+
+/**
  * evidenceSearchText
  * ----------------
  * Produces one bounded searchable string from retrieved content and safe locator metadata so source titles and paths can participate in deterministic relevance checks.

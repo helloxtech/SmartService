@@ -1083,7 +1083,9 @@ export class DefaultPublicConversationService implements PublicConversationServi
         const stageDurationsMs: TurnStageDurationsMs = {};
         let evidence: RetrievedEvidence[] = [];
         let retrievalCrossLanguageExpanded = false;
+        const retrievalCandidateCounts: number[] = [];
         let retrievalContextualized = false;
+        const retrievalFilteredCounts: number[] = [];
         let retrievalMinimumThreshold: number | null = null;
         let retrievalQueryCount = 1;
         let provider: string;
@@ -1248,17 +1250,20 @@ export class DefaultPublicConversationService implements PublicConversationServi
                                     focusedRetrievalQuestions[index] ?? input.text,
                                 ),
                             );
+                            retrievalCandidateCounts[index] = resultSet.length;
                             const focusedRetrievalQuestion = focusedRetrievalQuestions[index]
                                 ?? input.text;
                             const evidenceQuestion = focusedRetrievalQuestions.length === 1
                                 ? input.text
                                 : focusedRetrievalQuestion;
-
-                            return filterEvidenceForQuestionContext(
+                            const filteredResultSet = filterEvidenceForQuestionContext(
                                 evidenceQuestion,
                                 recentMessages,
                                 resultSet,
                             );
+                            retrievalFilteredCounts[index] = filteredResultSet.length;
+
+                            return filteredResultSet;
                         }),
                     );
                 }
@@ -1457,6 +1462,9 @@ export class DefaultPublicConversationService implements PublicConversationServi
             failedStage,
             latencyMs: Date.now() - startedAt,
             requestId,
+            retrievalCandidateCounts,
+            retrievalFilteredCounts,
+            retrievedEvidenceCount: evidence.length,
             stageDurationsMs,
         }));
 
@@ -1485,7 +1493,9 @@ export class DefaultPublicConversationService implements PublicConversationServi
             retrievalMetadata: {
                 contextualized: retrievalContextualized,
                 count: evidence.length,
+                candidateCounts: retrievalCandidateCounts,
                 crossLanguageExpanded: retrievalCrossLanguageExpanded,
+                filteredCounts: retrievalFilteredCounts,
                 processing: {
                     failedStage,
                     generationAttempts,

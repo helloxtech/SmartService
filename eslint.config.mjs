@@ -10,6 +10,8 @@ export default typescriptEslint.config(
         ignores: [
             "**/dist/**",
             "**/node_modules/**",
+            "**/playwright-report/**",
+            "**/test-results/**",
             "public/vendor/hellox-feedback/**",
             "**/worker-configuration.d.ts",
             "coverage/**",

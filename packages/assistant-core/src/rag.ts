@@ -772,17 +772,17 @@ export function buildCrossLanguageRetrievalQuestion(question: string): string
 
     if (foundingQuestionPattern.test(question))
     {
-        return "about us company profile founded in established history";
+        return "关于我们 公司简介 企业简介 机构简介 学校简介 学院简介 成立 创办 创立 开业 about us company profile founded in established history";
     }
 
     if (organizationNameQuestionPattern.test(question))
     {
-        return "about us company profile official name company name organization name";
+        return "关于我们 公司简介 企业简介 机构简介 学校简介 学院简介 名称 全称 about us company profile official name company name organization name";
     }
 
     if (addressQuestionPattern.test(question))
     {
-        return "contact us company address location street";
+        return "联系我们 公司地址 企业地址 机构地址 学校地址 位于 contact us company address location street";
     }
 
     extractExactIdentifiers(question).forEach((identifier) => terms.add(identifier));

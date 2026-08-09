@@ -758,6 +758,23 @@ describe("grounded RAG", () =>
         expect(answer.answer).not.toContain("查到");
     });
 
+    it("removes crawler Markdown assets while preserving grounded customer text", () =>
+    {
+        const answer = enforceCustomerControlledHandoff({
+            answer: "![](https://example.test/icon.svg)**United States + Canada** — [Details](https://example.test/about)",
+            citationChunkIds: [fixtureEvidence.chunkId],
+            confidence: 0.9,
+            decision: "answer",
+            handoffReason: null,
+            normalizedQuestion: "model value",
+        }, "你们的业务范围覆盖哪些地区？", "zh-CN");
+
+        expect(answer.answer).toBe("United States + Canada — Details");
+        expect(answer.answer).not.toContain("http");
+        expect(answer.answer).not.toContain("**");
+        expect(answer.answer).not.toContain("![]");
+    });
+
     it("answers a principal question directly in the company-service voice when the model mentions only founders", () =>
     {
         const answer = enforceCustomerControlledHandoff({

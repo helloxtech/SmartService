@@ -2007,9 +2007,11 @@ export function humanizeGroundedAnswerText(
     question = "",
 ): string
 {
+    const plainTextAnswer = normalizeCustomerFacingPlainText(answer);
+
     if (language === "zh-CN")
     {
-        const humanized = answer
+        const humanized = plainTextAnswer
             .replace(/根据(?:我(?:查到|找到)的?)?(?:现有|提供的)?(?:资料|证据)(?:显示)?[，,:：]*/gu, "")
             .replace(/我(?:查到|找到|核实)(?:了)?(?:的)?(?:资料|信息)?(?:显示)?[，,:：]*/gu, "")
             .replace(/(?:证据|现有|提供的|我(?:查到|找到)的?)资料中没有/gu, "目前尚未确认")
@@ -2021,7 +2023,7 @@ export function humanizeGroundedAnswerText(
         return prependUnconfirmedCurrentRole(humanized, question, language);
     }
 
-    const humanized = answer
+    const humanized = plainTextAnswer
         .replace(/\b(?:according to|based on) (?:the )?(?:information|evidence) (?:I|we) (?:found|checked)[:,]?\s*/giu, "")
         .replace(/\baccording to (?:the )?evidence[:,]?\s*/giu, "")
         .replace(/\bI (?:checked|found|searched) (?:the )?(?:information|materials|records)(?: available)?(?:,? but)?\s*/giu, "")
@@ -2030,6 +2032,25 @@ export function humanizeGroundedAnswerText(
         .replace(/\bevidence\b/giu, "confirmed company information");
 
     return prependUnconfirmedCurrentRole(humanized, question, language);
+}
+
+/**
+ * normalizeCustomerFacingPlainText
+ * ----------------
+ * Removes model-repeated Markdown media, destinations, and emphasis markers so the plain-text customer surfaces never expose crawler asset syntax.
+ *
+ * August 09, 2026: Created by Forrest Zhang for Tenant-Generic Grounded Answer Presentation
+ */
+function normalizeCustomerFacingPlainText(value: string): string
+{
+    return value
+        .replace(/!\[[^\]]*\]\([^)]*\)/gu, "")
+        .replace(/\[([^\]]+)\]\([^)]*\)/gu, "$1")
+        .replace(/\*\*|__/gu, "")
+        .replace(/`([^`\n]+)`/gu, "$1")
+        .replace(/[ \t]+\n/gu, "\n")
+        .replace(/\n{3,}/gu, "\n\n")
+        .trim();
 }
 
 /**

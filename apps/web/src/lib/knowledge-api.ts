@@ -228,6 +228,7 @@ export async function submitKnowledgeFile(
     const idempotencyKey = await sha256Text([
         session.user.id,
         "file",
+        crypto.randomUUID(),
         prepared.originalHash,
         prepared.extractedHash,
     ].join(":"));
@@ -269,6 +270,7 @@ export async function submitWebsite(
     const idempotencyKey = await sha256Text([
         session.user.id,
         "url",
+        crypto.randomUUID(),
         new URL(input.url).toString(),
         input.maxPages.toString(),
         input.maxDepth.toString(),

@@ -54,6 +54,8 @@ const knowledgeCopy: Record<UiLanguage, {
     documentQueued: string;
     docsLabel: string;
     chunksLabel: string;
+    cancelDelete: string;
+    confirmDelete: string;
     crawlerPolicyBlocked: string;
     deleteConfirm(name: string): string;
     deleteLabel(name: string): string;
@@ -70,6 +72,7 @@ const knowledgeCopy: Record<UiLanguage, {
     reprocess: string;
     sources: string;
     sourceCount(count: number): string;
+    sourceAlreadyExists: string;
     subtitle: string;
     updated: string;
     uploadDocument: string;
@@ -88,6 +91,8 @@ const knowledgeCopy: Record<UiLanguage, {
         documentQueued: "Document queued for chunking and embedding.",
         docsLabel: "docs",
         chunksLabel: "chunks",
+        cancelDelete: "Cancel",
+        confirmDelete: "Confirm delete",
         crawlerPolicyBlocked: "This website blocks the Cloudflare crawler in robots.txt. If you manage the site, allow CloudflareBrowserRenderingCrawler and permit ai-input, then reprocess. Otherwise, upload approved PDF or DOCX content.",
         deleteConfirm: (name) => `Delete "${name}" and remove it from retrieval?`,
         deleteLabel: (name) => `Delete ${name}`,
@@ -104,6 +109,7 @@ const knowledgeCopy: Record<UiLanguage, {
         reprocess: "Reprocess",
         sources: "Sources",
         sourceCount: (count) => `${count} active record${count === 1 ? "" : "s"} in this organization`,
+        sourceAlreadyExists: "This website is already in Sources. Use Enable or Reprocess on its existing row.",
         subtitle: "Upload text-based PDF or DOCX files, or crawl a bounded public website. Ready content becomes eligible for grounded answers.",
         updated: "Updated",
         uploadDocument: "Upload a document",
@@ -122,6 +128,8 @@ const knowledgeCopy: Record<UiLanguage, {
         documentQueued: "文档已加入分块和嵌入队列。",
         docsLabel: "个文档",
         chunksLabel: "个片段",
+        cancelDelete: "取消",
+        confirmDelete: "确认删除",
         crawlerPolicyBlocked: "该网站的 robots.txt 已阻止 Cloudflare 抓取器。如果您管理该网站，请允许 CloudflareBrowserRenderingCrawler 并开放 ai-input，然后重新处理；否则请上传已批准的 PDF 或 DOCX 内容。",
         deleteConfirm: (name) => `删除“${name}”并从检索中移除？`,
         deleteLabel: (name) => `删除 ${name}`,
@@ -138,6 +146,7 @@ const knowledgeCopy: Record<UiLanguage, {
         reprocess: "重新处理",
         sources: "来源",
         sourceCount: (count) => `本组织有 ${count} 条可用记录`,
+        sourceAlreadyExists: "该网站已在下方来源列表中。请在现有记录上使用“启用”或“重新处理”。",
         subtitle: "上传文字型 PDF/DOCX，或抓取受限公开网站。就绪内容可用于有依据回答。",
         updated: "更新于",
         uploadDocument: "上传文档",
@@ -317,6 +326,7 @@ export function KnowledgeWorkspace({
     const [url, setUrl] = useState("https://example.com");
     const [urlSubmitting, setUrlSubmitting] = useState(false);
     const [busySourceId, setBusySourceId] = useState<string | null>(null);
+    const [pendingDeleteSourceId, setPendingDeleteSourceId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     /**
@@ -453,10 +463,23 @@ export function KnowledgeWorkspace({
 
         try
         {
+            const requestedUrl = new URL(url).toString();
+            const existingSource = sources.find((source) =>
+            {
+                return source.sourceUrl !== null
+                    && new URL(source.sourceUrl).toString() === requestedUrl;
+            });
+
+            if (existingSource !== undefined)
+            {
+                setMessage(copy.sourceAlreadyExists);
+                return;
+            }
+
             await submitWebsite(session, {
                 maxDepth: 2,
                 maxPages: 10,
-                url,
+                url: requestedUrl,
             });
             setMessage(copy.websiteQueued);
             await refreshSources(false);
@@ -507,17 +530,17 @@ export function KnowledgeWorkspace({
      */
     async function handleDelete(source: KnowledgeSource): Promise<void>
     {
-        if (!globalThis.confirm(copy.deleteConfirm(normalizeVisibleDemoBrand(source.name))))
-        {
-            return;
-        }
-
         setBusySourceId(source.id);
         setMessage(null);
 
         try
         {
             await deleteKnowledgeSource(session, source.id);
+            setSources((currentSources) => currentSources.filter((currentSource) =>
+            {
+                return currentSource.id !== source.id;
+            }));
+            setPendingDeleteSourceId(null);
             await refreshSources(false);
         }
         catch (error: unknown)
@@ -662,6 +685,7 @@ export function KnowledgeWorkspace({
                                 {
                                     const processing = processingStatuses.has(source.status);
                                     const busy = busySourceId === source.id;
+                                    const confirmingDelete = pendingDeleteSourceId === source.id;
                                     const visibleSourceName = normalizeVisibleDemoBrand(source.name);
                                     const visibleError = formatKnowledgeSourceError(source, language);
 
@@ -725,52 +749,90 @@ export function KnowledgeWorkspace({
                                                 {isAdmin
                                                     ? (
                                                         <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
-                                                            {source.status === "failed" || source.status === "ready"
+                                                            {confirmingDelete
                                                                 ? (
-                                                                    <Button
-                                                                        disabled={busy}
-                                                                        onClick={() => void handleSourceAction(source.id, "retry")}
-                                                                        size="sm"
-                                                                        variant="outline"
+                                                                    <div
+                                                                        aria-label={copy.deleteLabel(visibleSourceName)}
+                                                                        className="max-w-md rounded-xl border border-rose-200 bg-rose-50 p-3"
+                                                                        role="alertdialog"
                                                                     >
-                                                                        <RefreshCw aria-hidden="true" className="size-4" />
-                                                                        {copy.reprocess}
-                                                                    </Button>
+                                                                        <p className="text-sm font-medium text-rose-900">
+                                                                            {copy.deleteConfirm(visibleSourceName)}
+                                                                        </p>
+                                                                        <div className="mt-3 flex flex-wrap justify-end gap-2">
+                                                                            <Button
+                                                                                disabled={busy}
+                                                                                onClick={() => setPendingDeleteSourceId(null)}
+                                                                                size="sm"
+                                                                                variant="outline"
+                                                                            >
+                                                                                {copy.cancelDelete}
+                                                                            </Button>
+                                                                            <Button
+                                                                                className="bg-rose-700 text-white hover:bg-rose-800"
+                                                                                disabled={busy}
+                                                                                onClick={() => void handleDelete(source)}
+                                                                                size="sm"
+                                                                            >
+                                                                                {copy.confirmDelete}
+                                                                            </Button>
+                                                                        </div>
+                                                                    </div>
                                                                 )
-                                                                : null}
-                                                            {source.status === "disabled"
-                                                                ? (
-                                                                    <Button
-                                                                        disabled={busy}
-                                                                        onClick={() => void handleSourceAction(source.id, "enable")}
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                    >
-                                                                        <Check aria-hidden="true" className="size-4" />
-                                                                        {copy.enable}
-                                                                    </Button>
-                                                                )
-                                                                : source.status === "ready" || source.status === "failed"
-                                                                    ? (
+                                                                : (
+                                                                    <>
+                                                                        {source.status === "failed" || source.status === "ready"
+                                                                            ? (
+                                                                                <Button
+                                                                                    disabled={busy}
+                                                                                    onClick={() => void handleSourceAction(source.id, "retry")}
+                                                                                    size="sm"
+                                                                                    variant="outline"
+                                                                                >
+                                                                                    <RefreshCw aria-hidden="true" className="size-4" />
+                                                                                    {copy.reprocess}
+                                                                                </Button>
+                                                                            )
+                                                                            : null}
+                                                                        {source.status === "disabled"
+                                                                            ? (
+                                                                                <Button
+                                                                                    disabled={busy}
+                                                                                    onClick={() => void handleSourceAction(source.id, "enable")}
+                                                                                    size="sm"
+                                                                                    variant="outline"
+                                                                                >
+                                                                                    <Check aria-hidden="true" className="size-4" />
+                                                                                    {copy.enable}
+                                                                                </Button>
+                                                                            )
+                                                                            : source.status === "ready" || source.status === "failed"
+                                                                                ? (
+                                                                                    <Button
+                                                                                        disabled={busy}
+                                                                                        onClick={() => void handleSourceAction(source.id, "disable")}
+                                                                                        size="sm"
+                                                                                        variant="ghost"
+                                                                                    >
+                                                                                        {copy.disable}
+                                                                                    </Button>
+                                                                                )
+                                                                                : null}
                                                                         <Button
-                                                                            disabled={busy}
-                                                                            onClick={() => void handleSourceAction(source.id, "disable")}
-                                                                            size="sm"
+                                                                            aria-label={copy.deleteLabel(visibleSourceName)}
+                                                                            disabled={busy || processing}
+                                                                            onClick={() =>
+                                                                            {
+                                                                                setMessage(null);
+                                                                                setPendingDeleteSourceId(source.id);
+                                                                            }}
+                                                                            size="icon"
                                                                             variant="ghost"
                                                                         >
-                                                                            {copy.disable}
+                                                                            <Trash2 aria-hidden="true" className="size-4 text-rose-700" />
                                                                         </Button>
-                                                                    )
-                                                                    : null}
-                                                            <Button
-                                                                aria-label={copy.deleteLabel(visibleSourceName)}
-                                                                disabled={busy || processing}
-                                                                onClick={() => void handleDelete(source)}
-                                                                size="icon"
-                                                                variant="ghost"
-                                                            >
-                                                                <Trash2 aria-hidden="true" className="size-4 text-rose-700" />
-                                                            </Button>
+                                                                    </>
+                                                                )}
                                                         </div>
                                                     )
                                                     : null}

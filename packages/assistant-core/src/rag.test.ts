@@ -281,6 +281,8 @@ describe("grounded RAG", () =>
             .toBe("standard");
         expect(classifyRetrievalIntent("Where do you operate?"))
             .toBe("geographic_scope");
+        expect(classifyRetrievalIntent("Which countries do you serve?"))
+            .toBe("geographic_scope");
     });
 
     it("recognizes only cited non-volatile offering confirmations", () =>
@@ -490,6 +492,14 @@ describe("grounded RAG", () =>
                 title: "Locations",
             },
         };
+        const distributedOperations: RetrievedEvidence = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000017",
+            content: "The organization acquires, improves, and operates community facilities across North America.",
+            sourceLocator: {
+                title: "Operating footprint",
+            },
+        };
         const unrelatedCourse: RetrievedEvidence = {
             ...fixtureEvidence,
             chunkId: "40000000-0000-4000-a000-000000000016",
@@ -509,6 +519,11 @@ describe("grounded RAG", () =>
             [],
             [unrelatedCourse, clinicLocations],
         )).toEqual([clinicLocations]);
+        expect(filterEvidenceForQuestionContext(
+            "Which countries do you serve?",
+            [],
+            [unrelatedCourse, distributedOperations],
+        )).toEqual([distributedOperations]);
     });
 
     it("keeps organization-profile evidence for founding and company-name questions", () =>

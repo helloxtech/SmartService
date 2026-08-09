@@ -52,7 +52,7 @@ const crawlStatusResponseSchema = z.object({
 
 const cloudflareErrorResponseSchema = z.object({
     errors: z.array(z.object({
-        code: z.union([z.number(), z.string()]),
+        code: z.union([z.number(), z.string()]).nullish(),
         message: z.string(),
     })),
     success: z.literal(false),
@@ -167,7 +167,10 @@ async function parseProviderResponse<T>(
         console.error(JSON.stringify({
             event: "crawl.provider.failed",
             operation,
-            providerErrorCodes: providerErrors.map((error) => error.code),
+            providerErrorCodes: providerErrors.flatMap((error) =>
+            {
+                return error.code === null || error.code === undefined ? [] : [error.code];
+            }),
             status: response.status,
         }));
 
@@ -246,6 +249,7 @@ export class CloudflareBrowserRunCrawlProvider implements CrawlProvider
                     depth: Math.max(1, maxDepth),
                     formats: ["markdown"],
                     limit: maxDepth === 0 ? 1 : maxPages,
+                    maxAge: 0,
                     options: {
                         includeExternalLinks: false,
                         includePatterns: [`${origin}/**`],

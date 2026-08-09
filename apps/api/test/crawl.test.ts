@@ -18,8 +18,8 @@ describe("CloudflareBrowserRunCrawlProvider", () =>
         };
         vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
             errors: [{
-                code: 10046,
-                message: "Crawl purpose(s) completely disallowed by Content-Signal directive",
+                code: null,
+                message: "Crawl completely disallowed by robots.txt",
             }],
             result: null,
             success: false,
@@ -115,6 +115,7 @@ describe("CloudflareBrowserRunCrawlProvider", () =>
         expect(requestBody).toMatchObject({
             crawlPurposes: ["search", "ai-input"],
             formats: ["markdown"],
+            maxAge: 0,
             render: false,
             url: "https://example.com/",
         });

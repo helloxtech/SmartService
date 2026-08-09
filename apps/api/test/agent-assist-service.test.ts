@@ -191,6 +191,63 @@ describe("agent reply assistance", () =>
         }));
     });
 
+    it("recovers a profile fact after strict filtering rejects nonempty semantic candidates", async () =>
+    {
+        const harness = createHarness();
+        const recoveredEvidence: RetrievedEvidence = {
+            ...evidence,
+            combinedScore: 0.62,
+            content: "Service areas: the organization serves customers across Canada and the United States.",
+            sourceLocator: {
+                title: "About the organization",
+                url: "https://example.test/about",
+            },
+        };
+        harness.team.loadAgentSuggestionAggregate.mockResolvedValue({
+            ...aggregate,
+            question: "Where do you operate?",
+        });
+        harness.retrieveEvidence
+            .mockResolvedValueOnce([{
+                ...evidence,
+                chunkId: "72000000-0000-4000-a000-000000000002",
+                content: "The academy offers twelve-week evening music courses.",
+            }])
+            .mockResolvedValueOnce([recoveredEvidence]);
+
+        const result = await harness.service.process({
+            conversationId,
+            organizationId,
+            suggestionId,
+            triggerMessageId,
+            type: "agent.reply_suggest",
+            version: 1,
+        }, "queue:test-post-filter-recovery");
+
+        expect(result.status).toBe("completed");
+        expect(harness.retrieveEvidence).toHaveBeenNthCalledWith(
+            1,
+            organizationId,
+            "Where do you operate?",
+            expect.any(Array),
+            expect.any(Number),
+            20,
+        );
+        expect(harness.retrieveEvidence).toHaveBeenNthCalledWith(
+            2,
+            organizationId,
+            "Where do you operate?",
+            expect.any(Array),
+            0,
+            100,
+        );
+        expect(harness.complete).toHaveBeenCalledWith(expect.objectContaining({
+            citations: [expect.objectContaining({
+                chunkId: recoveredEvidence.chunkId,
+            })],
+        }));
+    });
+
     it("drops a queued draft as stale before making provider calls", async () =>
     {
         const harness = createHarness();

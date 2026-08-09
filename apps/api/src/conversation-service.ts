@@ -1365,8 +1365,16 @@ export class DefaultPublicConversationService implements PublicConversationServi
                             const profileRecoveryLimit = getOrganizationProfileRecoveryLimit(
                                 focusedRetrievalQuestion,
                             );
+                            const evidenceQuestion = focusedRetrievalQuestions.length === 1
+                                ? input.text
+                                : focusedRetrievalQuestion;
+                            let filteredResultSet = filterEvidenceForQuestionContext(
+                                evidenceQuestion,
+                                recentMessages,
+                                resultSet,
+                            );
 
-                            if (resultSet.length === 0 && profileRecoveryLimit !== null)
+                            if (filteredResultSet.length === 0 && profileRecoveryLimit !== null)
                             {
                                 resultSet = await this.repository.retrieveEvidence(
                                     organizationId,
@@ -1374,6 +1382,11 @@ export class DefaultPublicConversationService implements PublicConversationServi
                                     queryEmbedding,
                                     0,
                                     profileRecoveryLimit,
+                                );
+                                filteredResultSet = filterEvidenceForQuestionContext(
+                                    evidenceQuestion,
+                                    recentMessages,
+                                    resultSet,
                                 );
                                 retrievalThresholds[index] = 0;
                                 retrievalProfileRecoveryUsed[index] = true;
@@ -1384,14 +1397,6 @@ export class DefaultPublicConversationService implements PublicConversationServi
                             }
 
                             retrievalCandidateCounts[index] = resultSet.length;
-                            const evidenceQuestion = focusedRetrievalQuestions.length === 1
-                                ? input.text
-                                : focusedRetrievalQuestion;
-                            const filteredResultSet = filterEvidenceForQuestionContext(
-                                evidenceQuestion,
-                                recentMessages,
-                                resultSet,
-                            );
                             retrievalFilteredCounts[index] = filteredResultSet.length;
 
                             return filteredResultSet;

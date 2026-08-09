@@ -385,8 +385,16 @@ export class DefaultAgentAssistService implements AgentAssistService
                 getRetrievalCandidateLimit(focusedQuestion),
             );
             const recoveryLimit = getOrganizationProfileRecoveryLimit(focusedQuestion);
+            const evidenceQuestion = focusedQuestions.length === 1
+                ? aggregate.question
+                : focusedQuestion;
+            let filteredResults = filterEvidenceForQuestionContext(
+                evidenceQuestion,
+                aggregate.recentMessages,
+                results,
+            );
 
-            if (results.length === 0 && recoveryLimit !== null)
+            if (filteredResults.length === 0 && recoveryLimit !== null)
             {
                 results = await this.conversations.retrieveEvidence(
                     aggregate.organizationId,
@@ -395,13 +403,14 @@ export class DefaultAgentAssistService implements AgentAssistService
                     0,
                     recoveryLimit,
                 );
+                filteredResults = filterEvidenceForQuestionContext(
+                    evidenceQuestion,
+                    aggregate.recentMessages,
+                    results,
+                );
             }
 
-            return filterEvidenceForQuestionContext(
-                focusedQuestions.length === 1 ? aggregate.question : focusedQuestion,
-                aggregate.recentMessages,
-                results,
-            );
+            return filteredResults;
         }));
 
         return {

@@ -543,6 +543,66 @@ describe("tenant-generic turn failure isolation", () =>
         });
     });
 
+    it("recovers when normal retrieval returns candidates that strict facet filtering rejects", async () =>
+    {
+        const harness = createFailureHarness(null);
+        const unrelatedEvidence = {
+            chunkId: "40000000-0000-4000-a000-000000000031",
+            combinedScore: 0.95,
+            content: "The academy offers twelve-week evening music courses.",
+            sourceLocator: {
+                title: "Courses",
+            },
+        };
+        const recoveredEvidence = {
+            chunkId: evidenceChunkId,
+            combinedScore: 0.62,
+            content: "Service areas: the organization serves customers across Canada and the United States.",
+            sourceLocator: {
+                title: "About the organization",
+            },
+        };
+        harness.retrieveEvidence
+            .mockResolvedValueOnce([unrelatedEvidence])
+            .mockResolvedValueOnce([recoveredEvidence]);
+
+        await harness.service.sendTrusted(
+            organizationId,
+            conversationId,
+            {
+                clientMessageId: crypto.randomUUID(),
+                text: "你们的业务范围覆盖哪些地区？",
+            },
+            "request-post-filter-recovery-test",
+        );
+
+        expect(harness.retrieveEvidence).toHaveBeenNthCalledWith(
+            1,
+            organizationId,
+            expect.stringContaining("geographic coverage"),
+            expect.any(Array),
+            expect.any(Number),
+            20,
+        );
+        expect(harness.retrieveEvidence).toHaveBeenNthCalledWith(
+            2,
+            organizationId,
+            expect.stringContaining("geographic coverage"),
+            expect.any(Array),
+            0,
+            100,
+        );
+        expect(harness.answers.generate).toHaveBeenCalledWith(expect.objectContaining({
+            evidence: [recoveredEvidence],
+        }));
+        expect(harness.persistedTurns[0]?.retrievalMetadata).toMatchObject({
+            candidateCounts: [1],
+            filteredCounts: [1],
+            profileRecoveryUsed: [true],
+            threshold: 0,
+        });
+    });
+
     it("projects one retrieved founding fact as a complete sentence without answer-model latency", async () =>
     {
         const harness = createFailureHarness(null);

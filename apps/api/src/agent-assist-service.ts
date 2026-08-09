@@ -2,6 +2,7 @@ import {
     buildCrossLanguageRetrievalQuestion,
     buildQuestionPartEvidenceScope,
     buildRetrievalQuestions,
+    classifyRetrievalIntent,
     createApprovedManualAnswer,
     createExplicitStableFactAnswer,
     enforceCustomerControlledHandoff,
@@ -457,6 +458,9 @@ export class DefaultAgentAssistService implements AgentAssistService
                 inputTokens: null,
                 kind: "clarifying_question",
                 metadata: {
+                    retrievalIntents: retrieval.focusedQuestions.map((question) =>
+                        classifyRetrievalIntent(question),
+                    ),
                     questionPartCount: retrieval.focusedQuestions.length,
                     retrievedEvidenceCount: 0,
                 },
@@ -616,6 +620,9 @@ export class DefaultAgentAssistService implements AgentAssistService
                 guardrailOutputTokens: supervision.outputTokens,
                 guardrailProvider: this.guardrails.provider,
                 questionPartCount: retrieval.focusedQuestions.length,
+                retrievalIntents: retrieval.focusedQuestions.map((question) =>
+                    classifyRetrievalIntent(question),
+                ),
                 retrievedEvidenceCount: retrieval.evidence.length,
             },
             model,

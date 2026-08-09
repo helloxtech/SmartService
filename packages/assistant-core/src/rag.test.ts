@@ -8,6 +8,7 @@ import {
     buildQuestionPartEvidenceScope,
     buildRetrievalQuestion,
     buildRetrievalQuestions,
+    classifyRetrievalIntent,
     createConversationalAcknowledgement,
     createExplicitStableFactAnswer,
     createSafeClarification,
@@ -237,6 +238,8 @@ describe("grounded RAG", () =>
         const returnsQuery = buildCrossLanguageRetrievalQuestion("产品可以退货或保修吗？");
         const courseQuery = buildCrossLanguageRetrievalQuestion("你们有古筝课程吗？");
         const organizationNameQuery = buildCrossLanguageRetrievalQuestion("你们学校叫什么名字？");
+        const geographyQuery = buildCrossLanguageRetrievalQuestion("你们的业务范围覆盖哪些地区？");
+        const collectionQuery = buildCrossLanguageRetrievalQuestion("你们有多少个服务地点？");
 
         expect(foundedQuery).toContain("founded in");
         expect(foundedQuery).toContain("established");
@@ -256,14 +259,28 @@ describe("grounded RAG", () =>
         expect(organizationNameQuery).toContain("全称");
         expect(organizationNameQuery).toContain("about us");
         expect(organizationNameQuery).not.toContain("business");
+        expect(geographyQuery).toContain("geographic coverage");
+        expect(geographyQuery).toContain("operating regions");
+        expect(collectionQuery).toContain("count");
+        expect(collectionQuery).toContain("case studies");
         expect(buildCrossLanguageRetrievalQuestion("What is the address?"))
             .toBe("What is the address?");
         expect(getRetrievalCandidateLimit("你们是什么时候成立的？")).toBe(20);
         expect(getRetrievalCandidateLimit("你们公司叫什么名字？")).toBe(20);
         expect(getRetrievalCandidateLimit("你们的地址在哪里？")).toBe(20);
+        expect(getRetrievalCandidateLimit("你们在哪些地区提供服务？")).toBe(20);
+        expect(getRetrievalCandidateLimit("你们有多少个服务地点？")).toBe(20);
         expect(getRetrievalCandidateLimit("你们有安装服务吗？")).toBe(5);
         expect(getOrganizationProfileRecoveryLimit("你们是什么时候成立的？")).toBe(100);
+        expect(getOrganizationProfileRecoveryLimit("你们在哪些地区提供服务？")).toBe(100);
+        expect(getOrganizationProfileRecoveryLimit("你们有多少个服务地点？")).toBe(100);
         expect(getOrganizationProfileRecoveryLimit("你们有安装服务吗？")).toBeNull();
+        expect(classifyRetrievalIntent("How many clinic locations do you have?"))
+            .toBe("entity_collection");
+        expect(classifyRetrievalIntent("How many hours is the course?"))
+            .toBe("standard");
+        expect(classifyRetrievalIntent("Where do you operate?"))
+            .toBe("geographic_scope");
     });
 
     it("recognizes only cited non-volatile offering confirmations", () =>
@@ -341,6 +358,37 @@ describe("grounded RAG", () =>
             firstResult.chunkId,
             secondResult.chunkId,
         ]);
+    });
+
+    it("prefers distinct web pages before repeated chunks from one page", () =>
+    {
+        const homeFirst: RetrievedEvidence = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000011",
+            sourceLocator: {
+                title: "Home",
+                url: "https://example.test/",
+            },
+        };
+        const homeSecond: RetrievedEvidence = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000012",
+            sourceLocator: {
+                title: "Home section",
+                url: "https://EXAMPLE.test/#services",
+            },
+        };
+        const about: RetrievedEvidence = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000013",
+            sourceLocator: {
+                title: "About",
+                url: "https://example.test/about/",
+            },
+        };
+
+        expect(mergeRetrievedEvidence([[homeFirst, homeSecond, about]], 2))
+            .toEqual([homeFirst, about]);
     });
 
     it("filters anaphoric evidence by the prior cross-industry subject and facet", () =>
@@ -422,6 +470,45 @@ describe("grounded RAG", () =>
             [],
             [descriptionEvidence, priceEvidence],
         )).toEqual([priceEvidence]);
+    });
+
+    it("retrieves geographic scope and entity collections across industries", () =>
+    {
+        const operatingRegions: RetrievedEvidence = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000014",
+            content: "业务范围：本机构在两个国家提供服务。",
+            sourceLocator: {
+                title: "机构简介",
+            },
+        };
+        const clinicLocations: RetrievedEvidence = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000015",
+            content: "Clinic locations: North Centre, Harbour Centre, and Valley Centre.",
+            sourceLocator: {
+                title: "Locations",
+            },
+        };
+        const unrelatedCourse: RetrievedEvidence = {
+            ...fixtureEvidence,
+            chunkId: "40000000-0000-4000-a000-000000000016",
+            content: "The academy offers twelve-week evening music courses.",
+            sourceLocator: {
+                title: "Courses",
+            },
+        };
+
+        expect(filterEvidenceForQuestionContext(
+            "你们的业务范围覆盖哪些地区？",
+            [],
+            [unrelatedCourse, operatingRegions],
+        )).toEqual([operatingRegions]);
+        expect(filterEvidenceForQuestionContext(
+            "How many clinic locations do you have?",
+            [],
+            [unrelatedCourse, clinicLocations],
+        )).toEqual([clinicLocations]);
     });
 
     it("keeps organization-profile evidence for founding and company-name questions", () =>
@@ -605,6 +692,21 @@ describe("grounded RAG", () =>
         expect(prompt.system).toContain("Never return decision=handoff");
         expect(prompt.system).toContain("Answer this one customer question directly");
         expect(prompt.system).not.toContain("address every part separately");
+    });
+
+    it("requires complete-list evidence for totals while allowing qualified partial answers", () =>
+    {
+        const prompt = buildRagPrompt({
+            evidence,
+            language: "en",
+            question: "How many service locations do you operate?",
+            recentMessages: [],
+        });
+
+        expect(prompt.system).toContain("state a total only when");
+        expect(prompt.system).toContain("clearly complete labeled list");
+        expect(prompt.system).toContain("displayed examples");
+        expect(prompt.system).toContain("useful supported partial answer");
     });
 
     it("replaces model-controlled question normalization with the deterministic canonical form", () =>

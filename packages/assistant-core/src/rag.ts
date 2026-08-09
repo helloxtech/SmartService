@@ -56,7 +56,13 @@ export interface RagAnswerProvider
 
 export type RagRepairReason = "grounding_validation" | "provider_failure" | "response_format";
 
-export const ragPromptVersion = "rag-answer-v11";
+export type RetrievalIntent =
+    | "entity_collection"
+    | "geographic_scope"
+    | "organization_profile"
+    | "standard";
+
+export const ragPromptVersion = "rag-answer-v12";
 
 interface CurrentRoleConstraint
 {
@@ -224,6 +230,19 @@ const addressQuestionPattern = /地址|在哪里|位于哪里|怎么去|\baddres
 const organizationNameQuestionPattern = /(?:公司|企业|机构|学校|学院|品牌|商家|门店|你们|你家).*(?:叫什么(?:名字|名称)|名称(?:是|叫)|名字是什么)|(?:叫什么(?:名字|名称)|名称(?:是|叫)|名字是什么).*(?:公司|企业|机构|学校|学院|品牌|商家|门店)|\bwhat(?:'s| is).*(?:company|business|organization|school|academy|brand|store).*(?:name|called)|\b(?:company|business|organization|school|academy|brand|store) name\b/iu;
 const organizationProfileEvidencePattern = /关于我们|公司简介|企业简介|机构简介|学校简介|学院简介|品牌简介|\b(?:about us|company profile|business profile|organization profile|school profile|academy profile|brand profile)\b/iu;
 const streetAddressPattern = /\b\d{1,6}(?:-\d{1,6})?\s+[\p{L}\d.'-]+(?:\s+[\p{L}\d.'-]+){0,6}\s+(?:cres(?:cent)?|st(?:reet)?|ave(?:nue)?|rd|road|blvd|boulevard|dr(?:ive)?|ln|lane|way|court|ct)\b/iu;
+const geographicScopeQuestionPattern = /业务范围|服务(?:范围|区域|地区)|覆盖(?:范围|区域|地区|国家|城市)|经营(?:范围|区域|地区)|运营(?:范围|区域|地区)|在哪(?:些)?(?:国家|地区|区域|城市).*(?:经营|运营|服务)|(?:经营|运营|服务).*(?:哪些|什么|哪里).*(?:国家|地区|区域|城市)|\b(?:where (?:do|does|are).*(?:operate|serve)|service areas?|geographic(?:al)? coverage|markets? served|operating regions?|regions? served|countries served)\b/iu;
+const geographicScopeEvidencePattern = /业务范围|服务(?:范围|区域|地区)|覆盖(?:范围|区域|地区|国家|城市)|经营(?:范围|区域|地区)|运营(?:范围|区域|地区)|市场范围|\b(?:service areas?|geographic(?:al)? coverage|markets? served|operating regions?|regions? served|countries served|operate(?:s|d|ing)? (?:in|across)|serv(?:e|es|ed|ing) (?:customers )?(?:in|across))\b/iu;
+const entityCollectionEvidencePattern = /项目|案例|地点|门店|分店|办公室|中心|投资|收购|作品|清单|列表|产品|服务|课程|成员|客户|\b(?:projects?|case studies|portfolio|locations?|stores?|branches|offices?|facilities|investments?|acquisitions?|sites?|products?|services?|courses?|members?|customers?|list)\b/iu;
+const nonEntityQuantityQuestionPattern = /多少钱|价格|费用|收费|报价|多久|多长|多少(?:小时|分钟|天|周|月|年|课时)|\b(?:how much|how long|price|pricing|cost|fee|duration|hours?|minutes?|days?|weeks?|months?|years?)\b/iu;
+const entityQuantityQuestionPattern = /多少|几个|几家|几处|几项|几座|几所|几间|数量|总数|共计|总计|\b(?:how many|number of|count of|total number)\b/iu;
+const geographicScopeFacetConstraint: RetrievalFacetConstraint = {
+    evidencePatterns: [geographicScopeEvidencePattern],
+    questionPatterns: [geographicScopeQuestionPattern],
+};
+const entityCollectionFacetConstraint: RetrievalFacetConstraint = {
+    evidencePatterns: [entityCollectionEvidencePattern],
+    questionPatterns: [entityQuantityQuestionPattern],
+};
 
 /**
  * extractExactIdentifiers
@@ -687,6 +706,20 @@ export function extractQuestionSubjectAnchors(value: string): string[]
         addCandidate(match[1]);
     }
 
+    for (const match of value.matchAll(
+        /(?:多少|几个|几家|几处|几项|几座|几所|几间)(?:个|家|处|项|座|所|间)?([\p{Script=Han}A-Za-z0-9._/-]{2,30}?)(?:[?？吗呢么]|$)/gu,
+    ))
+    {
+        addCandidate(match[1]);
+    }
+
+    for (const match of value.matchAll(
+        /(?:how many|number of|count of|total number of)\s+([A-Za-z0-9][A-Za-z0-9 ._/-]{1,60}?)(?:\s+(?:do|does|are|is|have|has|exist)|[?.,]|$)/giu,
+    ))
+    {
+        addCandidate(match[1]);
+    }
+
     return [...anchors].slice(0, 5);
 }
 
@@ -788,6 +821,50 @@ export function buildRetrievalQuestions(
 }
 
 /**
+ * isEntityCollectionQuestion
+ * ----------------
+ * Distinguishes questions about a bounded set of business entities from price, duration, and other numeric questions without relying on any tenant or industry name.
+ *
+ * August 09, 2026: Created by Forrest Zhang for Tenant-Generic Retrieval Planning
+ */
+function isEntityCollectionQuestion(question: string): boolean
+{
+    return entityQuantityQuestionPattern.test(question)
+        && !nonEntityQuantityQuestionPattern.test(question);
+}
+
+/**
+ * classifyRetrievalIntent
+ * ----------------
+ * Classifies organization profile, geographic scope, and entity collection questions so every tenant uses the same retrieval-width and evidence-gating policy.
+ *
+ * August 09, 2026: Created by Forrest Zhang for Tenant-Generic Retrieval Planning
+ */
+export function classifyRetrievalIntent(question: string): RetrievalIntent
+{
+    if (geographicScopeQuestionPattern.test(question))
+    {
+        return "geographic_scope";
+    }
+
+    if (isEntityCollectionQuestion(question))
+    {
+        return "entity_collection";
+    }
+
+    if (
+        foundingQuestionPattern.test(question)
+        || addressQuestionPattern.test(question)
+        || organizationNameQuestionPattern.test(question)
+    )
+    {
+        return "organization_profile";
+    }
+
+    return "standard";
+}
+
+/**
  * buildCrossLanguageRetrievalQuestion
  * ----------------
  * Appends compact English hints to common Chinese customer-service intents across organizations, products, appointments, policies, and service delivery.
@@ -807,6 +884,11 @@ export function buildCrossLanguageRetrievalQuestion(question: string): string
         ? question
         : `${subjectAnchors.join(" ")} ${question}`;
 
+    if (geographicScopeQuestionPattern.test(question))
+    {
+        return "关于我们 业务范围 服务区域 覆盖地区 经营区域 运营范围 about us service area geographic coverage operating regions markets served countries served";
+    }
+
     if (foundingQuestionPattern.test(question))
     {
         return "关于我们 公司简介 企业简介 机构简介 学校简介 学院简介 成立 创办 创立 开业 about us company profile founded in established history";
@@ -820,6 +902,20 @@ export function buildCrossLanguageRetrievalQuestion(question: string): string
     if (addressQuestionPattern.test(question))
     {
         return "联系我们 公司地址 企业地址 机构地址 学校地址 位于 contact us company address location street";
+    }
+
+    if (isEntityCollectionQuestion(question))
+    {
+        [
+            "projects",
+            "portfolio",
+            "case studies",
+            "locations",
+            "list",
+            "count",
+            "total",
+            "examples",
+        ].forEach((term) => terms.add(term));
     }
 
     extractExactIdentifiers(question).forEach((identifier) => terms.add(identifier));
@@ -970,11 +1066,9 @@ export function buildCrossLanguageRetrievalQuestion(question: string): string
  */
 export function getRetrievalCandidateLimit(question: string): number
 {
-    return foundingQuestionPattern.test(question)
-        || addressQuestionPattern.test(question)
-        || organizationNameQuestionPattern.test(question)
-        ? 20
-        : 5;
+    return classifyRetrievalIntent(question) === "standard"
+        ? 5
+        : 20;
 }
 
 /**
@@ -986,11 +1080,9 @@ export function getRetrievalCandidateLimit(question: string): number
  */
 export function getOrganizationProfileRecoveryLimit(question: string): number | null
 {
-    return foundingQuestionPattern.test(question)
-        || addressQuestionPattern.test(question)
-        || organizationNameQuestionPattern.test(question)
-        ? 100
-        : null;
+    return classifyRetrievalIntent(question) === "standard"
+        ? null
+        : 100;
 }
 
 /**
@@ -1063,9 +1155,21 @@ function findQuestionFacets(
         : "";
     const searchableQuestion = `${question}\n${context}`;
 
-    return retrievalFacetConstraints.filter((constraint) =>
+    const facets = retrievalFacetConstraints.filter((constraint) =>
         constraint.questionPatterns.some((pattern) => pattern.test(searchableQuestion)),
     );
+
+    if (geographicScopeQuestionPattern.test(searchableQuestion))
+    {
+        facets.push(geographicScopeFacetConstraint);
+    }
+
+    if (isEntityCollectionQuestion(searchableQuestion))
+    {
+        facets.push(entityCollectionFacetConstraint);
+    }
+
+    return facets;
 }
 
 /**
@@ -1228,11 +1332,7 @@ export function filterEvidenceForQuestionContext(
         return [];
     }
 
-    if (
-        foundingQuestionPattern.test(question)
-        || addressQuestionPattern.test(question)
-        || organizationNameQuestionPattern.test(question)
-    )
+    if (classifyRetrievalIntent(question) !== "standard")
     {
         const directFactEvidence = filtered.filter((item) =>
             evidenceDirectlySupportsPlannedQuestion(question, item),
@@ -1336,21 +1436,54 @@ export function filterEvidenceForQuestionContext(
 }
 
 /**
+ * getEvidenceSourceKey
+ * ----------------
+ * Canonicalizes a web page locator for source-diverse retrieval while leaving document chunks independent so page-level PDF and DOCX evidence is not accidentally suppressed.
+ *
+ * August 09, 2026: Created by Forrest Zhang for Tenant-Generic Evidence Diversity
+ */
+function getEvidenceSourceKey(evidence: RetrievedEvidence): string
+{
+    const rawUrl = evidence.sourceLocator.url;
+
+    if (typeof rawUrl !== "string")
+    {
+        return `chunk:${evidence.chunkId}`;
+    }
+
+    try
+    {
+        const url = new URL(rawUrl);
+
+        url.hash = "";
+        url.hostname = url.hostname.toLocaleLowerCase();
+        url.pathname = url.pathname.replace(/\/+$/u, "") || "/";
+
+        return `url:${url.toString()}`;
+    }
+    catch
+    {
+        return `chunk:${evidence.chunkId}`;
+    }
+}
+
+/**
  * mergeRetrievedEvidence
  * ----------------
- * Interleaves focused retrieval result sets so every subquestion can contribute evidence before the final bounded evidence limit is reached.
+ * Interleaves focused retrieval result sets and prefers distinct web pages before repeat chunks so every subquestion and source can contribute within the bounded context.
  *
- * August 03, 2026: Created by Forrest Zhang for SmartService Humanized Multi-Intent Answers
+ * August 09, 2026: Updated by Forrest Zhang for Tenant-Generic Evidence Diversity
  */
 export function mergeRetrievedEvidence(
     resultSets: readonly (readonly RetrievedEvidence[])[],
     limit = 8,
 ): RetrievedEvidence[]
 {
+    const orderedChunkIds: string[] = [];
     const merged = new Map<string, RetrievedEvidence>();
     const maximumDepth = Math.max(0, ...resultSets.map((resultSet) => resultSet.length));
 
-    for (let depth = 0; depth < maximumDepth && merged.size < limit; depth += 1)
+    for (let depth = 0; depth < maximumDepth; depth += 1)
     {
         for (const resultSet of resultSets)
         {
@@ -1363,19 +1496,60 @@ export function mergeRetrievedEvidence(
 
             const existing = merged.get(item.chunkId);
 
-            if (existing === undefined || item.combinedScore > existing.combinedScore)
+            if (existing === undefined)
             {
+                orderedChunkIds.push(item.chunkId);
                 merged.set(item.chunkId, item);
             }
-
-            if (merged.size >= limit)
+            else if (item.combinedScore > existing.combinedScore)
             {
-                break;
+                merged.set(item.chunkId, item);
             }
         }
     }
 
-    return [...merged.values()];
+    const orderedEvidence = orderedChunkIds
+        .map((chunkId) => merged.get(chunkId))
+        .filter((item): item is RetrievedEvidence => item !== undefined);
+    const selected: RetrievedEvidence[] = [];
+    const selectedChunkIds = new Set<string>();
+    const selectedSourceKeys = new Set<string>();
+
+    for (const item of orderedEvidence)
+    {
+        const sourceKey = getEvidenceSourceKey(item);
+
+        if (selectedSourceKeys.has(sourceKey))
+        {
+            continue;
+        }
+
+        selected.push(item);
+        selectedChunkIds.add(item.chunkId);
+        selectedSourceKeys.add(sourceKey);
+
+        if (selected.length >= limit)
+        {
+            return selected;
+        }
+    }
+
+    for (const item of orderedEvidence)
+    {
+        if (selectedChunkIds.has(item.chunkId))
+        {
+            continue;
+        }
+
+        selected.push(item);
+
+        if (selected.length >= limit)
+        {
+            break;
+        }
+    }
+
+    return selected;
 }
 
 /**
@@ -1416,6 +1590,16 @@ function evidenceDirectlySupportsPlannedQuestion(
     if (organizationNameQuestionPattern.test(question))
     {
         return organizationProfileEvidencePattern.test(evidenceSearchText(evidence));
+    }
+
+    if (geographicScopeQuestionPattern.test(question))
+    {
+        return geographicScopeEvidencePattern.test(evidenceSearchText(evidence));
+    }
+
+    if (isEntityCollectionQuestion(question))
+    {
+        return entityCollectionEvidencePattern.test(evidenceSearchText(evidence));
     }
 
     const identifiers = extractExactIdentifiers(question);
@@ -2283,6 +2467,8 @@ export function buildRagPrompt(input: RagGenerationInput): {
             "Lead with the direct company answer to the exact question the customer asked. State confirmed company facts plainly; never preface them with language such as 'according to the information I found', 'based on the materials', 'I checked', or 'I searched'.",
             "Resolve pronouns and short follow-ups from RECENT_MESSAGES only when one subject is unambiguous. If speech recognition or wording could refer to two different products, people, services, or names, ask one short clarification question instead of silently correcting or substituting the term.",
             "Ignore evidence that merely shares generic words with the question but concerns a different subject, profession, product, service, or industry. A citation is valid only when its content directly supports the requested subject and answer type.",
+            "For quantity questions, state a total only when one cited evidence item explicitly gives the total or contains a clearly complete labeled list. Never treat examples, featured items, selected cases, navigation links, or a partial chunk as the organization's complete total.",
+            "When the requested total is not confirmed but the evidence supports a narrower useful fact, answer that supported fact and qualify it precisely, such as identifying displayed examples or confirmed operating regions. Do not replace a useful supported partial answer with a generic refusal.",
             "For a question asking who a person is, answer only when the cited evidence explicitly names that person in the requested role. General claims about an experienced team, staff, teachers, or specialists do not answer an identity question.",
             "Never tell the customer to contact the company or business; you are speaking for it. Never tell the customer to try again.",
             "When a detail cannot be confirmed, say so plainly and offer support-specialist verification without claiming a transfer has happened.",

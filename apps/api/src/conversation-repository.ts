@@ -135,6 +135,75 @@ const guardedTurnRowSchema = z.object({
 const persistedAcknowledgementMarker = "conversation_acknowledgement";
 
 /**
+ * getPublicCitationSourceKey
+ * ----------------
+ * Produces a canonical customer-visible source key so repeated chunks from one web page or document page render as one citation without changing stored audit rows.
+ *
+ * August 09, 2026: Created by Forrest Zhang for Tenant-Generic Citation Presentation
+ */
+function getPublicCitationSourceKey(citation: PublicCitation): string
+{
+    if (citation.sourceUrl !== null)
+    {
+        try
+        {
+            const url = new URL(citation.sourceUrl);
+
+            url.hash = "";
+            url.hostname = url.hostname.toLocaleLowerCase();
+            url.pathname = url.pathname.replace(/\/+$/u, "") || "/";
+
+            return `${citation.sourceType}:${url.toString()}`;
+        }
+        catch
+        {
+            // The public contract already validates URLs; retain a safe fallback for direct unit use.
+        }
+    }
+
+    return `${citation.sourceType}:${citation.label.normalize("NFKC").toLocaleLowerCase()}`;
+}
+
+/**
+ * collapsePublicCitations
+ * ----------------
+ * Collapses repeated chunks from the same customer-visible source and preserves their unique supporting excerpts within the public contract bound.
+ *
+ * August 09, 2026: Created by Forrest Zhang for Tenant-Generic Citation Presentation
+ */
+export function collapsePublicCitations(
+    citations: readonly PublicCitation[],
+): PublicCitation[]
+{
+    const collapsed = new Map<string, PublicCitation>();
+
+    for (const citation of citations)
+    {
+        const key = getPublicCitationSourceKey(citation);
+        const existing = collapsed.get(key);
+
+        if (existing === undefined)
+        {
+            collapsed.set(key, citation);
+            continue;
+        }
+
+        if (existing.supportingExcerpt.includes(citation.supportingExcerpt))
+        {
+            continue;
+        }
+
+        collapsed.set(key, {
+            ...existing,
+            supportingExcerpt: `${existing.supportingExcerpt}\n\n${citation.supportingExcerpt}`
+                .slice(0, 2000),
+        });
+    }
+
+    return [...collapsed.values()];
+}
+
+/**
  * resolvePersistedConversationDecision
  * ----------------
  * Rehydrates a tenant-neutral acknowledgement from the backward-compatible clarification marker while preserving every native message decision.
@@ -966,6 +1035,11 @@ export class SupabaseConversationRepository
                     : source.source_url,
                 supportingExcerpt: citation.supporting_excerpt,
             });
+        }
+
+        for (const [messageId, messageCitations] of result)
+        {
+            result.set(messageId, collapsePublicCitations(messageCitations));
         }
 
         return result;

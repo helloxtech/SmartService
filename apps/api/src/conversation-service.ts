@@ -2,6 +2,7 @@ import {
     buildCrossLanguageRetrievalQuestion,
     buildQuestionPartEvidenceScope,
     buildRetrievalQuestions,
+    classifyRetrievalIntent,
     createApprovedManualAnswer,
     createConversationalAcknowledgement,
     createExplicitStableFactAnswer,
@@ -25,6 +26,7 @@ import {
     type RagAnswerProvider,
     type RagGenerationInput,
     type RagGenerationResult,
+    type RetrievalIntent,
     type RetrievedEvidence,
 } from "@smartservice/assistant-core";
 import {
@@ -1188,6 +1190,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
         let retrievalContextualized = false;
         const retrievalFilteredCounts: number[] = [];
         const retrievalProfileRecoveryUsed: boolean[] = [];
+        let retrievalIntents: RetrievalIntent[] = [];
         let retrievalMinimumThreshold: number | null = null;
         let retrievalQueryCount = 1;
         let provider: string;
@@ -1301,6 +1304,9 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 );
                 const retrievalQuestions = focusedRetrievalQuestions.map((question) =>
                     buildCrossLanguageRetrievalQuestion(question),
+                );
+                retrievalIntents = focusedRetrievalQuestions.map((question) =>
+                    classifyRetrievalIntent(question),
                 );
                 const retrievalThresholds = retrievalQuestions.map(() => configuredThreshold);
                 retrievalCrossLanguageExpanded = retrievalQuestions.some(
@@ -1653,6 +1659,7 @@ export class DefaultPublicConversationService implements PublicConversationServi
                 filteredCounts: retrievalFilteredCounts,
                 gapEligible,
                 profileRecoveryUsed: retrievalProfileRecoveryUsed,
+                intents: retrievalIntents,
                 processing: {
                     failedStage,
                     generationAttempts,

@@ -4,6 +4,7 @@ import {
 } from "@smartservice/contracts";
 import {
     calculateStandardPages,
+    IngestionPipelineError,
     isSameOriginPublicUrl,
     revalidateCrawlTarget,
     validateCrawlTarget,
@@ -49,6 +50,16 @@ const crawlStatusResponseSchema = z.object({
     success: z.literal(true),
 });
 
+const cloudflareErrorResponseSchema = z.object({
+    errors: z.array(z.object({
+        code: z.union([z.number(), z.string()]),
+        message: z.string(),
+    })),
+    success: z.literal(false),
+});
+
+type CloudflareProviderError = z.infer<typeof cloudflareErrorResponseSchema>["errors"][number];
+
 interface CrawlStatusResult
 {
     cursor?: string;
@@ -57,6 +68,42 @@ interface CrawlStatusResult
     skipped: number;
     status: string;
     total: number;
+}
+
+/**
+ * readProviderErrors
+ * ----------------
+ * Reads only Cloudflare's bounded error code/message envelope so policy rejections can be classified without logging response bodies.
+ *
+ * August 08, 2026: Created by Forrest Zhang for SmartService Knowledge Crawl Policy Diagnosis
+ */
+async function readProviderErrors(response: Response): Promise<CloudflareProviderError[]>
+{
+    try
+    {
+        const parsed = cloudflareErrorResponseSchema.safeParse(await response.json());
+
+        return parsed.success ? parsed.data.errors : [];
+    }
+    catch
+    {
+        return [];
+    }
+}
+
+/**
+ * isCrawlPolicyBlocked
+ * ----------------
+ * Recognizes Cloudflare's documented robots.txt and Content-Signal rejection without treating unrelated bad requests as policy failures.
+ *
+ * August 08, 2026: Created by Forrest Zhang for SmartService Knowledge Crawl Policy Diagnosis
+ */
+function isCrawlPolicyBlocked(errors: CloudflareProviderError[]): boolean
+{
+    return errors.some((error) =>
+    {
+        return /content[- ]signal|robots\.txt|disallow/i.test(error.message);
+    });
 }
 
 /**
@@ -115,11 +162,27 @@ async function parseProviderResponse<T>(
 {
     if (!response.ok)
     {
+        const providerErrors = await readProviderErrors(response);
+
         console.error(JSON.stringify({
             event: "crawl.provider.failed",
             operation,
+            providerErrorCodes: providerErrors.map((error) => error.code),
             status: response.status,
         }));
+
+        if (
+            operation === "start"
+            && response.status === 400
+            && isCrawlPolicyBlocked(providerErrors)
+        )
+        {
+            throw new IngestionPipelineError(
+                "CRAWLER_POLICY_BLOCKED",
+                "This website blocks the Cloudflare crawler in robots.txt. If you manage the site, allow CloudflareBrowserRenderingCrawler and permit ai-input, then reprocess. Otherwise, upload approved PDF or DOCX content.",
+                false,
+            );
+        }
 
         throw new ApiError(502, "CRAWLER_PROVIDER_FAILED", "The website crawler request failed.");
     }

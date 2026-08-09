@@ -103,6 +103,7 @@ export async function handleQueue(
             const errorCode = error instanceof ApiError || error instanceof IngestionPipelineError
                 ? error.code
                 : null;
+            const terminal = error instanceof IngestionPipelineError && !error.retryable;
 
             console.error(JSON.stringify({
                 attempt: message.attempts,
@@ -111,7 +112,15 @@ export async function handleQueue(
                 event: "queue.message.failed",
                 messageId: message.id,
                 messageType: readQueueMessageType(message.body),
+                terminal,
             }));
+
+            if (terminal)
+            {
+                message.ack();
+                continue;
+            }
+
             message.retry({
                 delaySeconds: Math.min(30, 5 * Math.max(1, message.attempts)),
             });

@@ -59,6 +59,7 @@ export type IngestionProcessResult = "duplicate" | "processed";
 export class IngestionPipelineError extends Error
 {
     public readonly code: string;
+    public readonly retryable: boolean;
 
     /**
      * IngestionPipelineError
@@ -67,11 +68,12 @@ export class IngestionPipelineError extends Error
      *
      * July 26, 2026: Created by Forrest Zhang for SmartService Day 2 Knowledge Ingestion
      */
-    public constructor(code: string, message: string)
+    public constructor(code: string, message: string, retryable = true)
     {
         super(message);
         this.code = code;
         this.name = "IngestionPipelineError";
+        this.retryable = retryable;
     }
 }
 
@@ -119,6 +121,7 @@ function validateMessageAgainstAggregate(
         throw new IngestionPipelineError(
             "QUEUE_TENANT_MISMATCH",
             "The queue message did not match the stored ingestion job.",
+            false,
         );
     }
 
@@ -130,6 +133,7 @@ function validateMessageAgainstAggregate(
         throw new IngestionPipelineError(
             "QUEUE_OBJECT_MISMATCH",
             "The queue object key did not match the stored ingestion job.",
+            false,
         );
     }
 }
@@ -196,7 +200,11 @@ export async function processIngestionMessage(
 
     if (aggregate === null)
     {
-        throw new IngestionPipelineError("INGESTION_JOB_NOT_FOUND", "The ingestion job does not exist.");
+        throw new IngestionPipelineError(
+            "INGESTION_JOB_NOT_FOUND",
+            "The ingestion job does not exist.",
+            false,
+        );
     }
 
     try
@@ -218,6 +226,7 @@ export async function processIngestionMessage(
             throw new IngestionPipelineError(
                 "SOURCE_TYPE_MISMATCH",
                 "The extracted payload did not match the stored source type.",
+                false,
             );
         }
 

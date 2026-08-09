@@ -11,6 +11,43 @@ afterEach(() =>
 
 describe("CloudflareBrowserRunCrawlProvider", () =>
 {
+    it("classifies a documented robots or Content-Signal rejection as terminal and actionable", async () =>
+    {
+        const resolver: DnsResolver = {
+            resolve: vi.fn().mockResolvedValue(["93.184.216.34"]),
+        };
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            errors: [{
+                code: 10046,
+                message: "Crawl purpose(s) completely disallowed by Content-Signal directive",
+            }],
+            result: null,
+            success: false,
+        }), { status: 400 })));
+        const provider = new CloudflareBrowserRunCrawlProvider({
+            CLOUDFLARE_ACCOUNT_ID: "account-id",
+            CLOUDFLARE_BROWSER_RUN_API_TOKEN: "unit-test-placeholder",
+        } as SmartServiceBindings, resolver);
+
+        await expect(provider.load({
+            completedAt: null,
+            crawlMaxDepth: 2,
+            crawlMaxPages: 10,
+            extractedObjectKey: null,
+            jobId: "40000000-0000-4000-a000-000000000012",
+            jobStatus: "uploaded",
+            organizationId: "40000000-0000-4000-a000-000000000013",
+            sourceId: "40000000-0000-4000-a000-000000000014",
+            sourceStatus: "uploaded",
+            sourceType: "url",
+            sourceUrl: "https://example.com/",
+            targetVersion: 1,
+        } satisfies IngestionAggregate)).rejects.toMatchObject({
+            code: "CRAWLER_POLICY_BLOCKED",
+            retryable: false,
+        });
+    });
+
     it("uses the documented static crawl contract and accepts a result without skipped", async () =>
     {
         const resolver: DnsResolver = {

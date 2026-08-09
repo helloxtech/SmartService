@@ -54,6 +54,7 @@ const knowledgeCopy: Record<UiLanguage, {
     documentQueued: string;
     docsLabel: string;
     chunksLabel: string;
+    crawlerPolicyBlocked: string;
     deleteConfirm(name: string): string;
     deleteLabel(name: string): string;
     disable: string;
@@ -87,6 +88,7 @@ const knowledgeCopy: Record<UiLanguage, {
         documentQueued: "Document queued for chunking and embedding.",
         docsLabel: "docs",
         chunksLabel: "chunks",
+        crawlerPolicyBlocked: "This website blocks the Cloudflare crawler in robots.txt. If you manage the site, allow CloudflareBrowserRenderingCrawler and permit ai-input, then reprocess. Otherwise, upload approved PDF or DOCX content.",
         deleteConfirm: (name) => `Delete "${name}" and remove it from retrieval?`,
         deleteLabel: (name) => `Delete ${name}`,
         disable: "Disable",
@@ -120,6 +122,7 @@ const knowledgeCopy: Record<UiLanguage, {
         documentQueued: "文档已加入分块和嵌入队列。",
         docsLabel: "个文档",
         chunksLabel: "个片段",
+        crawlerPolicyBlocked: "该网站的 robots.txt 已阻止 Cloudflare 抓取器。如果您管理该网站，请允许 CloudflareBrowserRenderingCrawler 并开放 ai-input，然后重新处理；否则请上传已批准的 PDF 或 DOCX 内容。",
         deleteConfirm: (name) => `删除“${name}”并从检索中移除？`,
         deleteLabel: (name) => `删除 ${name}`,
         disable: "停用",
@@ -183,6 +186,26 @@ function describeError(error: unknown): string
     }
 
     return "The knowledge operation could not be completed.";
+}
+
+/**
+ * formatKnowledgeSourceError
+ * ----------------
+ * Localizes known actionable ingestion failures while retaining the server's bounded fallback for unknown errors.
+ *
+ * August 08, 2026: Created by Forrest Zhang for SmartService Knowledge Crawl Policy Diagnosis
+ */
+function formatKnowledgeSourceError(
+    source: Pick<KnowledgeSource, "errorCode" | "errorMessage">,
+    language: UiLanguage,
+): string | null
+{
+    if (source.errorCode === "CRAWLER_POLICY_BLOCKED")
+    {
+        return knowledgeCopy[language].crawlerPolicyBlocked;
+    }
+
+    return source.errorMessage;
 }
 
 /**
@@ -640,6 +663,7 @@ export function KnowledgeWorkspace({
                                     const processing = processingStatuses.has(source.status);
                                     const busy = busySourceId === source.id;
                                     const visibleSourceName = normalizeVisibleDemoBrand(source.name);
+                                    const visibleError = formatKnowledgeSourceError(source, language);
 
                                     return (
                                         <li className="p-5" key={source.id}>
@@ -688,12 +712,12 @@ export function KnowledgeWorkspace({
                                                             </div>
                                                         )
                                                         : null}
-                                                    {source.errorMessage === null
+                                                    {visibleError === null
                                                         ? null
                                                         : (
                                                             <p className="mt-3 flex max-w-2xl items-start gap-2 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">
                                                                 <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-                                                                {source.errorMessage}
+                                                                {visibleError}
                                                             </p>
                                                         )}
                                                 </div>

@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "shifa-health-reports",
+  "account_id": "b2dde8f02e3df92afabde46f36c6625b",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-28",
+  "workers_dev": false,
+  "routes": [{ "pattern": "shifa.smartservice.ca", "custom_domain": true }],
+  "vars": { "SHIFA_PUBLIC_ORIGIN": "https://shifa.smartservice.ca", "SHIFA_DEMO_ONLY": "true" },
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "triggers": { "crons": [] },
+  "assets": {
+    "directory": "../shifa/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+  },
+}

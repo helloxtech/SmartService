@@ -1,0 +1,26 @@
+{
+  "name": "@shifa/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8789",
+    "build": "pnpm --filter @shifa/web build && wrangler deploy --dry-run --outdir dist",
+    "typecheck": "tsc --noEmit",
+    "test:local": "vitest run test/sharing.test.ts",
+    "dev:local": "tsx tooling/local-server.ts",
+    "deploy:demo": "pnpm --filter @shifa/web build:demo && wrangler deploy"
+  },
+  "dependencies": {
+    "@shifa/contracts": "workspace:*",
+    "@supabase/supabase-js": "2.110.8",
+    "hono": "4.12.32",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vitest": "4.1.10",
+    "wrangler": "4.114.0",
+    "tsx": "4.20.6"
+  }
+}

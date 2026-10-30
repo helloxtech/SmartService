@@ -1,0 +1,6 @@
+# Supply a dedicated Shifa database; never use customer-service credentials.
+SHIFA_SUPABASE_URL=
+SHIFA_SUPABASE_SERVICE_KEY=
+# Base64 encoding of 32 random bytes; server only. No real values in source.
+SHIFA_ENCRYPTION_KEY=
+SHIFA_PUBLIC_ORIGIN=https://shifa.smartservice.ca
